@@ -146,6 +146,68 @@ truyền vào không đủ để mở khoá.
 
 ---
 
+## Tiện ích (`/tien-ich`)
+
+Ba mục cho phút giải lao: **Pomodoro** (có tiếng mưa), **More or Less**, **Wordle từ vựng**.
+
+**Cả khu này là client component thuần.** `localStorage` + Web Audio, không truy vấn DB,
+không đi qua `content-filter`, không có route API nào. Đây là ranh giới cố ý chứ không
+phải chuyện tiện tay: một cái game hỏng thì hỏng một mình nó, không kéo theo kho đề hay
+phòng thi. Ai thêm tiện ích mới mà thấy mình cần chạm vào Prisma thì hãy dừng lại và đọc
+`lib/content-filter.ts` trước.
+
+### More or Less — luật dữ liệu quan trọng hơn luật chơi
+
+- **Chỉ so cùng loại, cùng cấp.** Quốc gia với quốc gia, tỉnh với tỉnh. Trộn hồ với đảo,
+  hay tỉnh với quốc gia, thì câu hỏi trở nên vô nghĩa chứ không phải "khó hơn". Mỗi pool
+  cần ≥6 item, giá trị đôi một khác nhau, đơn vị đồng nhất trong cả pool.
+- Số liệu tỉnh VN dùng **mốc hành chính trước sáp nhập 2025**, nhất quán toàn bộ
+  `POOLS`. Đổi sang mốc 34 tỉnh thì phải đổi hết, đổi một nửa là so hai hệ khác nhau.
+- `fmtFull()` in **số đầy đủ có ngăn cách** ("9.700.000"), không rút gọn — người chơi
+  đang so hai con số, làm tròn là lấy mất chính cái họ cần nhìn.
+
+### Ảnh minh họa là hotlink bên thứ ba — chỉ dùng cho dev/nội bộ
+
+`components/game/image-manifest.json` chứa **URL trỏ thẳng sang máy chủ của người khác**
+(DuckDuckGo Images, iTunes Search API), sinh bằng `npm run make:game-img`. Ảnh vẫn thuộc
+bản quyền gốc; manifest có ghi credit từng ảnh nhưng **không** vì thế mà thành giấy phép
+phát hành. Trước khi đưa sản phẩm ra ngoài phải thay bằng ảnh tự có quyền.
+
+`ValueCard` render bằng `<img>` + `referrerPolicy="no-referrer"` và `onError` thu về
+layout chữ, nên ảnh chết hay bị chặn hotlink là **vô hại** — không để lại ô trống. Đó
+cũng là lý do thiếu vài ảnh không phải lỗi cần sửa gấp.
+
+### Wordle — bàn phím 12 phím
+
+5 chữ của đáp án + 7 chữ nhiễu. Bộ phím của chế độ **Trong ngày** sinh *seeded* theo đáp
+án (FNV-1a), nên tải lại trang giữa ván không đổi bộ phím — nếu nó đổi, người chơi vừa
+được lộ thêm thông tin. Chế độ luyện tập thì random mỗi ván. Mọi từ trong
+`wordle-words.ts` phải khớp `/^[a-z]{5}$/`.
+
+### Ba cạm bẫy khi sửa tầng game
+
+**Key phải ổn định khi một phần tử ĐỔI VAI.** Thẻ vừa mở của More or Less trượt sang ô
+trái để thành mốc so sánh cho câu kế. Nó giữ được DOM node là nhờ key theo item; đổi key
+thành index thì React remount và con số **count-up lại từ 0** mỗi câu, đúng cái con số
+người chơi vừa đọc xong.
+
+**Định vị slot bằng `transform`, không dùng `left`/`right`.** Chỉ transform mới cho
+transition mượt khi thẻ đổi slot.
+
+**`react-hooks/set-state-in-effect`.** setState trong callback (`setTimeout`/rAF) thì
+không sao; chỗ buộc phải setState thẳng trong effect (khôi phục state sau hydrate) thì
+đặt `// eslint-disable-next-line react-hooks/set-state-in-effect` **đúng dòng setState
+đầu tiên** của khối — đặt lệch một dòng sẽ warn "unused".
+
+### Tiếng mưa
+
+`public/audio/rain-loop.mp3` là **bản ghi thật**: "Rain Sound" của boons_freak (Pixabay
+ID 188158). Muốn bản khác thì thay file tại chỗ, giữ nguyên tên là chạy — nhớ sửa credit
+ở comment đầu `rain-sound.ts` và tooltip nút 🌧️. Trạng thái BẬT **không** khôi phục sau
+reload, chỉ âm lượng được nhớ: đó là autoplay policy của trình duyệt, không phải bug.
+
+---
+
 ## Chưa có trong đợt này
 
 | | Ghi chú |
@@ -155,6 +217,7 @@ truyền vào không đủ để mở khoá.
 | Chấm ESSAY | Ngoài phạm vi v1 theo SPEC. Đánh `isCorrect = null`, loại khỏi tổng điểm, hiển thị rõ. |
 | Cron nhắc lịch ôn (F5) | Bảng `Reminder` và việc tạo sự kiện Google Calendar đã chạy; còn thiếu tiến trình định kỳ để bắn nhắc nhở. |
 | Test tự động (Vitest/Playwright) | Chưa có test runner. Thay vào đó là hai script khẳng định bất biến — `check:content-filter` và `check:exam-flow` — cộng với verify thủ công qua trình duyệt. |
+| Ảnh `GDP\|Tây Ban Nha` | Thiếu trong `image-manifest.json` (DuckDuckGo miss vài lần liền). Thẻ tự về layout chữ nên không hỏng gì. Muốn có ảnh: xoá key đó khỏi manifest rồi chạy `npm run make:game-img`. |
 
 Audio trong `public/audio/` là **file tone placeholder** do `scripts/make-placeholder-audio.mjs`
 sinh ra, không phải bản ghi thật — đủ để kiểm chứng hành vi phát một lần / không tua.

@@ -41,18 +41,30 @@ export default function UtilitiesPage() {
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-peri-soft text-ink">
             <GameIcon size={26} />
           </span>
-          <div className="mt-4 flex items-center gap-3">
-            <h2 className="text-[21px] font-bold">More or Less</h2>
-            <span className="pill bg-sky text-[13px] text-on-tone">Sắp có</span>
-          </div>
+          <h2 className="mt-4 text-[21px] font-bold">More or Less</h2>
           <p className="mt-2 text-[15px] leading-relaxed text-muted-strong">
-            Game đoán xem bên nào nhiều hơn — dân số, giá tiền, khoảng cách. Chơi nhanh trong
-            một phút nghỉ Pomodoro rồi quay lại làm bài.
+            Game đoán xem bên nào nhiều hơn — dân số, diện tích, GDP, nghệ sĩ Việt. Chơi
+            nhanh trong một phút nghỉ Pomodoro rồi quay lại làm bài.
           </p>
-          <p className="mt-4 rounded-xl bg-soft p-3.5 text-[13.5px] leading-relaxed text-muted">
-            Đang dựng ở đợt tiếp theo. Bộ câu hỏi sẽ do chúng tôi tự biên soạn, không lấy dữ
-            liệu của bên khác.
+          <Link href="/tien-ich/more-or-less" className="btn-primary mt-5">
+            <GameIcon size={15} />
+            Mở More or Less
+          </Link>
+        </section>
+
+        <section className="card p-8">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-mint-soft text-[24px] font-bold">
+            W
+          </span>
+          <h2 className="mt-4 text-[21px] font-bold">Wordle từ vựng</h2>
+          <p className="mt-2 text-[15px] leading-relaxed text-muted-strong">
+            Đoán từ tiếng Anh 5 chữ cái — mỗi ngày một từ chung cho mọi người, kèm nghĩa
+            tiếng Việt sau khi xong. Có chế độ luyện tập vô hạn.
           </p>
+          <Link href="/tien-ich/wordle" className="btn-primary mt-5">
+            <SparkIcon size={15} />
+            Mở Wordle
+          </Link>
         </section>
       </div>
     </>

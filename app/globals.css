@@ -711,6 +711,31 @@ body {
 }
 
 /* ============================================================================
+   WORDLE — ô chữ lật khi được chấm màu.
+   ========================================================================= */
+@keyframes tile-flip {
+  0% {
+    transform: rotateX(0);
+  }
+  50% {
+    transform: rotateX(90deg);
+  }
+  100% {
+    transform: rotateX(0);
+  }
+}
+
+.tile-flip {
+  animation: tile-flip 0.22s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-flip {
+    animation: none;
+  }
+}
+
+/* ============================================================================
    ĐỔI GIAO DIỆN MƯỢT.
 
    `body` vẽ nền bằng `background-image: var(--app-gradient)`. Bản sáng là MỘT

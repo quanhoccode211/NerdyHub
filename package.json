@@ -17,6 +17,7 @@
     "check:content-filter": "tsx scripts/check-content-filter.ts",
     "check:exam-flow": "tsx --conditions=react-server scripts/check-exam-flow.ts",
     "make:audio": "node scripts/make-placeholder-audio.mjs",
+    "make:game-img": "node scripts/fetch-game-images.mjs",
     "gen:secrets": "node scripts/gen-secrets.mjs",
     "purge:users": "tsx scripts/purge-deleted-users.ts",
     "check:deletion": "tsx scripts/check-deletion-sla.ts"

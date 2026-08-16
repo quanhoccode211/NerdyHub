@@ -18,11 +18,11 @@ const ITEMS = [
     body: '25 phút tập trung, 5 phút nghỉ. Chạy tiếp cả khi đổi tab.',
   },
   {
-    href: '/tien-ich',
+    href: '/tien-ich/more-or-less',
     Icon: GameIcon,
     tone: 'bg-peri-soft',
     title: 'More or Less',
-    body: 'Game đoán nhanh cho phút giải lao. Sắp có.',
+    body: 'Đoán xem bên nào hơn — dân số, diện tích, khoảng cách.',
   },
 ]
 
