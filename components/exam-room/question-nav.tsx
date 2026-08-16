@@ -4,6 +4,7 @@ import type { RoomSection } from '@/lib/attempt-service'
 import { SKILL_LABELS, type Skill } from '@/lib/enums'
 import { FlagIcon } from '../shell/icons'
 import { useExamStore } from './store'
+import { isAnswered } from './store-helpers'
 
 /**
  * Lưới điều hướng câu hỏi (SPEC F2.1).
@@ -35,9 +36,9 @@ export function QuestionNav({
           <div className="grid grid-cols-[repeat(auto-fill,minmax(40px,1fr))] gap-2">
             {section.questions.map((q) => {
               const a = answers[q.id]
-              const answered =
-                (a?.selectedChoiceIds.length ?? 0) > 0 ||
-                (a?.textAnswer !== null && a?.textAnswer !== undefined && a.textAnswer.trim() !== '')
+              // Dùng chung `isAnswered` với header và màn hình xem lại: ba nơi tự
+              // viết lại định nghĩa "đã làm" là ba cơ hội để chúng lệch nhau.
+              const answered = isAnswered(a)
               const flagged = a?.isFlagged ?? false
               const current = currentQuestionId === q.id
 
@@ -56,7 +57,7 @@ export function QuestionNav({
                   className={`relative flex h-10 w-full items-center justify-center rounded-xl text-[15px] font-semibold transition-all ${
                     answered
                       ? 'bg-ink text-[var(--color-accent-fg)]'
-                      : 'border-2 border-line bg-white text-muted-strong hover:border-purple'
+                      : 'border-2 border-line bg-card text-muted-strong hover:border-purple'
                   } ${flagged ? 'ring-2 ring-amber ring-offset-1' : ''} ${
                     current ? 'ring-[3px] ring-purple ring-offset-2' : ''
                   }`}
@@ -83,35 +84,14 @@ function Legend() {
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-line pt-4 text-[13.5px] text-muted">
       <span className="flex items-center gap-1.5">
-        <span className="h-4 w-4 rounded-md border-2 border-line bg-white" /> Chưa làm
+        <span className="h-4 w-4 rounded-md border-2 border-line bg-card" /> Chưa làm
       </span>
       <span className="flex items-center gap-1.5">
         <span className="h-4 w-4 rounded-md bg-ink" /> Đã làm
       </span>
       <span className="flex items-center gap-1.5">
-        <span className="h-4 w-4 rounded-md border-2 border-line bg-white ring-2 ring-amber" /> Đánh dấu
+        <span className="h-4 w-4 rounded-md border-2 border-line bg-card ring-2 ring-amber" /> Đánh dấu
       </span>
     </div>
   )
-}
-
-/** Tóm tắt tiến độ — dùng ở header và màn hình xem lại. */
-export function useProgressSummary(sections: RoomSection[]) {
-  const answers = useExamStore((s) => s.answers)
-
-  const all = sections.flatMap((s) => s.questions)
-  let answered = 0
-  let flagged = 0
-  for (const q of all) {
-    const a = answers[q.id]
-    if (!a) continue
-    if (
-      a.selectedChoiceIds.length > 0 ||
-      (a.textAnswer !== null && a.textAnswer.trim() !== '')
-    ) {
-      answered++
-    }
-    if (a.isFlagged) flagged++
-  }
-  return { total: all.length, answered, flagged, unanswered: all.length - answered }
 }

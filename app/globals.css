@@ -352,9 +352,12 @@
 }
 
 /* Khung trắng của trang giới thiệu không mượn bóng đổ của dark mode */
+/* Khung trắng của trang giới thiệu không mượn bóng đổ của dark mode.
+   `border-color` chứ KHÔNG phải `border: none` — xem ghi chú ở .shell-card:
+   bỏ hẳn viền là đổi hộp, và nội dung xê dịch 1px khi đổi giao diện. */
 .theme-light .shell-card {
   box-shadow: 0 24px 60px rgba(24, 28, 45, 0.06);
-  border: none;
+  border-color: transparent;
 }
 
 html,
@@ -388,11 +391,22 @@ body {
     background: var(--color-shell);
     border-radius: var(--radius-shell);
     box-shadow: 0 24px 60px rgba(24, 28, 45, 0.06);
+    /*
+      Viền TRONG SUỐT, không phải `none`.
+
+      Dark mode đổi bóng đổ thành viền 1px, mà `box-sizing` là `border-box` nên
+      kích thước NGOÀI giữ nguyên còn hộp nội dung co lại — toàn bộ thứ bên trong
+      xê dịch đúng 1px sang phải và 1px xuống dưới mỗi lần đổi giao diện. Đo được,
+      và mắt thường nhìn ra khi bật tắt liên tục.
+
+      Giữ nguyên hộp ở cả hai giao diện, chỉ đổi MÀU viền.
+    */
+    border: 1px solid transparent;
   }
   /* Bóng đổ đen trên nền tối chỉ làm bẩn mép — đổi sang viền mảnh */
   .dark .shell-card {
     box-shadow: none;
-    border: 1px solid var(--color-line);
+    border-color: var(--color-line);
   }
 
   /* Thẻ nội dung: trắng, viền mảnh — không dùng bóng đổ nặng */
@@ -591,6 +605,22 @@ body {
   .btn-ghost:hover {
     background: var(--color-soft);
     color: var(--color-ink);
+  }
+
+  /**
+   * Nút ghost NẰM TRONG một thẻ pastel phải mượn bảng màu của thẻ đó.
+   *
+   * `--color-muted-strong` và `--color-soft` đều lật theo giao diện, còn nền pastel
+   * thì luôn sáng — nên ở dark mode chữ nút xám nhạt nằm trên nền sáng và gần như
+   * biến mất. Ràng theo `.text-on-tone` để quy tắc tự áp cho mọi thẻ pastel đã khai
+   * đúng cặp foreground của nó, thay vì phải nhớ sửa từng nút một.
+   */
+  .text-on-tone .btn-ghost {
+    color: color-mix(in srgb, var(--color-on-tone) 78%, transparent);
+  }
+  .text-on-tone .btn-ghost:hover {
+    background: color-mix(in srgb, var(--color-on-tone) 10%, transparent);
+    color: var(--color-on-tone);
   }
 
   /**

@@ -28,10 +28,17 @@ export default async function StatsPage() {
           <p className="mt-2 text-[15.5px] text-muted">
             Làm một đề bất kỳ để bắt đầu theo dõi tiến bộ, điểm mạnh và điểm yếu.
           </p>
-          <Link href="/de-thi" className="btn-primary mx-auto mt-6">
-            Chọn đề để làm
-            <ChevronRightIcon size={16} />
-          </Link>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Link href="/de-thi" className="btn-primary">
+              Chọn đề để làm
+              <ChevronRightIcon size={16} />
+            </Link>
+            {/* Thống kê chỉ tính bài ĐÃ NỘP, nên "chưa có gì" ở đây không có nghĩa
+                là chưa làm gì — lượt đang dở nằm bên /bai-lam. */}
+            <Link href="/bai-lam" className="btn-secondary">
+              Xem bài đã làm
+            </Link>
+          </div>
         </div>
       </>
     )
@@ -84,13 +91,24 @@ export default async function StatsPage() {
 
           {/* Lịch sử */}
           <section className="panel p-7">
-            <h2 className="mb-5 text-[21px] font-bold">Bài đã làm</h2>
+            {/* Khối này chỉ liệt kê bài ĐÃ NỘP. Lối tắt sang /bai-lam vì chỉ ở đó
+                mới thấy được lượt đang làm dở và vào làm tiếp. */}
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-[21px] font-bold">Bài đã làm</h2>
+              <Link
+                href="/bai-lam"
+                className="btn-ghost px-3 py-1.5 text-[14px]"
+              >
+                Xem tất cả
+                <ChevronRightIcon size={14} />
+              </Link>
+            </div>
             <div className="flex flex-col gap-3">
               {[...stats.attempts].reverse().map((a) => (
                 <Link
                   key={a.id}
                   href={`/ket-qua/${a.id}`}
-                  className="flex items-center justify-between gap-4 rounded-2xl bg-white p-4 transition-colors hover:bg-purple-soft"
+                  className="flex items-center justify-between gap-4 rounded-2xl bg-card p-4 transition-colors hover:bg-purple-soft"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-[16px] font-medium">{a.paperTitle}</p>

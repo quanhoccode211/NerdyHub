@@ -38,7 +38,7 @@ export default async function DashboardPage() {
         title={totalDone > 0 ? 'Hôm nay luyện tiếp nhé!' : 'Bắt đầu luyện đề thôi!'}
         badge={
           totalDone > 0 ? (
-            <span className="pill bg-sky text-[13.5px] text-ink">
+            <span className="pill bg-sky text-[13.5px] text-on-tone">
               <CrownIcon size={13} />
               {totalDone} đề đã xong
             </span>

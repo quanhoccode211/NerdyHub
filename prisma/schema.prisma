@@ -29,6 +29,12 @@ model Exam {
   category    String // ExamCategory: LANGUAGE_CERT NATIONAL_EXAM APTITUDE
   description String
 
+  /// Phần NÓI của bài thi THẬT dài bao nhiêu phút. null = kỳ thi vốn không có phần nói.
+  /// Sản phẩm không dựng phần nói; trường này để trang đề nói rõ phần còn thiếu và
+  /// thời gian cộng thêm, thay vì để thí sinh ước lượng sai ngày thi thật.
+  /// Xem ghi chú ở `SeedExam.realSpeakingMinutes` (prisma/seed-data.ts).
+  realSpeakingMinutes Int?
+
   levels     ExamLevel[]
   papers     TestPaper[]
   studyPlans StudyPlan[]
@@ -323,6 +329,15 @@ model Attempt {
   expiresAt   DateTime
   timeSpent   Int       @default(0)
 
+  /// Bài bị SERVER tự nộp khi hết giờ, không phải người dùng bấm nộp.
+  /// Phân biệt được hai đường này thì trang kết quả mới nói đúng chuyện đã xảy ra.
+  autoSubmitted Boolean @default(false)
+
+  /// String[] -> JSON. Section id đã BẮT ĐẦU phát audio ONCE_NO_SEEK.
+  /// Nguồn sự thật cho cam kết "nghe một lần": state của component không sống sót
+  /// qua F5, nên trước đây tải lại trang là nghe lại được bao nhiêu lần tuỳ thích.
+  audioPlayedSectionIdsJson String @default("[]")
+
   // Kết quả
   rawScore    Float?
   scaledScore Float?
@@ -351,7 +366,7 @@ model AttemptAnswer {
   /// String[] -> JSON
   selectedChoiceIdsJson String  @default("[]")
   textAnswer            String?
-  isCorrect             Boolean? // null = chưa chấm (ESSAY/SPEAKING)
+  isCorrect             Boolean? // null = chưa chấm (ESSAY)
   pointsEarned          Float    @default(0)
 
   isFlagged    Boolean @default(false)

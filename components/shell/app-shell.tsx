@@ -3,8 +3,8 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState, useTransition } from 'react'
-import { useSession } from 'next-auth/react'
-import { signOutAction } from '@/app/actions/sign-out'
+import { signOut, useSession } from 'next-auth/react'
+import { clearGuestIdentityAction } from '@/app/actions/sign-out'
 import { ThemeToggle } from './theme-toggle'
 import {
   BellIcon,
@@ -225,7 +225,15 @@ function AccountMenu({
               type="button"
               role="menuitem"
               disabled={pending}
-              onClick={() => startTransition(() => void signOutAction())}
+              onClick={() =>
+                startTransition(async () => {
+                  // Thứ tự quan trọng: xoá cookie khách khi phiên còn sống, rồi mới
+                  // thoát. `signOut` của next-auth/react tải lại trang nên mọi thứ
+                  // sau nó không chắc chạy.
+                  await clearGuestIdentityAction()
+                  await signOut({ callbackUrl: '/' })
+                })
+              }
               className="rounded-lg px-2.5 py-2 text-left text-[14.5px] text-bad hover:bg-bad-soft disabled:opacity-60"
             >
               {pending ? 'Đang thoát…' : 'Đăng xuất'}

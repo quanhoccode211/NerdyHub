@@ -22,6 +22,7 @@ const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const REVOKE_URL = 'https://oauth2.googleapis.com/revoke'
 const FREEBUSY_URL = 'https://www.googleapis.com/calendar/v3/freeBusy'
+const CALENDAR_LIST_URL = 'https://www.googleapis.com/calendar/v3/users/me/calendarList'
 
 const SCOPE = 'https://www.googleapis.com/auth/calendar.readonly'
 
@@ -196,7 +197,37 @@ export async function disconnect(userId: string) {
 export type BusySlot = { start: Date; end: Date }
 
 /**
- * Các khoảng ĐÃ BẬN trong quãng thời gian cho trước, lấy từ lịch chính.
+ * Danh sách lịch mà người dùng đang BẬT hiển thị.
+ *
+ * Bắt buộc phải có bước này. Rất nhiều người để lịch học, lịch thi, lịch câu lạc bộ
+ * ở các lịch RIÊNG (hoặc lịch được chia sẻ / đăng ký), còn `primary` thì gần như
+ * trống. Hỏi mỗi `primary` là thấy cả tuần rảnh trong khi thực tế kín lịch — sai
+ * theo hướng nguy hiểm nhất, vì nó tự tin gợi ý đúng vào giờ người ta đang học.
+ *
+ * `selected: false` là lịch người dùng đã tắt hiển thị trong Google Calendar —
+ * tôn trọng lựa chọn đó, họ không coi nó là lịch của mình. `freeBusy` nhận tối đa
+ * 50 mục một lần.
+ */
+async function listCalendarIds(accessToken: string): Promise<string[]> {
+  const res = await fetch(`${CALENDAR_LIST_URL}?minAccessRole=freeBusyReader&maxResults=250`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: 'no-store',
+  })
+  // Không đọc được danh sách thì vẫn còn lịch chính để dùng, đừng làm hỏng cả trang
+  if (!res.ok) return ['primary']
+
+  const json = (await res.json()) as {
+    items?: { id?: string; selected?: boolean; deleted?: boolean }[]
+  }
+  const ids = (json.items ?? [])
+    .filter((c) => c.id && !c.deleted && c.selected !== false)
+    .map((c) => c.id as string)
+
+  return ids.length > 0 ? ids.slice(0, 50) : ['primary']
+}
+
+/**
+ * Các khoảng ĐÃ BẬN trong quãng thời gian cho trước, gộp từ MỌI lịch đang bật.
  * Chỉ trả về mốc thời gian — endpoint freeBusy không hề trả nội dung sự kiện.
  */
 export async function getBusySlots(
@@ -204,6 +235,8 @@ export async function getBusySlots(
   timeMin: Date,
   timeMax: Date,
 ): Promise<BusySlot[]> {
+  const calendarIds = await listCalendarIds(accessToken)
+
   const res = await fetch(FREEBUSY_URL, {
     method: 'POST',
     headers: {
@@ -213,7 +246,7 @@ export async function getBusySlots(
     body: JSON.stringify({
       timeMin: timeMin.toISOString(),
       timeMax: timeMax.toISOString(),
-      items: [{ id: 'primary' }],
+      items: calendarIds.map((id) => ({ id })),
     }),
     cache: 'no-store',
   })
@@ -222,7 +255,12 @@ export async function getBusySlots(
   const json = (await res.json()) as {
     calendars?: Record<string, { busy?: { start: string; end: string }[] }>
   }
-  return (json.calendars?.primary?.busy ?? [])
+
+  // Gộp busy của TẤT CẢ lịch lại thành một dòng thời gian duy nhất.
+  // Lịch nào lỗi (bị thu hồi quyền chẳng hạn) thì Google trả `errors` và không có
+  // `busy` — bỏ qua lịch đó, đừng để nó kéo sập phần còn lại.
+  return Object.values(json.calendars ?? {})
+    .flatMap((c) => c.busy ?? [])
     .map((b) => ({ start: new Date(b.start), end: new Date(b.end) }))
     .sort((a, b) => a.start.getTime() - b.start.getTime())
 }
@@ -237,22 +275,35 @@ export type FreeSlot = { start: Date; end: Date; minutes: number }
  * gộp trước, nếu không một cuộc họp nằm lọt trong cuộc họp khác sẽ cắt nhầm và
  * sinh ra khoảng trống âm.
  */
-export function findFreeSlots(
-  busy: BusySlot[],
-  opts: { days: number; dayStartHour: number; dayEndHour: number; minMinutes: number },
-): FreeSlot[] {
+export type WindowOpts = {
+  days: number
+  dayStartHour: number
+  dayEndHour: number
+  minMinutes: number
+  /** Đệm trước và sau mỗi khoảng bận, tính bằng phút */
+  bufferMinutes: number
+}
+
+/** Gộp các khoảng bận chồng lấn thành một dòng thời gian không giao nhau. */
+function mergeBusy(busy: BusySlot[]): BusySlot[] {
   const merged: BusySlot[] = []
-  for (const b of busy) {
+  for (const b of [...busy].sort((x, y) => x.start.getTime() - y.start.getTime())) {
     const last = merged[merged.length - 1]
     if (last && b.start.getTime() <= last.end.getTime()) {
-      if (b.end.getTime() > last.end.getTime()) last.end = b.end
+      if (b.end.getTime() > last.end.getTime()) last.end = new Date(b.end)
     } else {
       merged.push({ start: new Date(b.start), end: new Date(b.end) })
     }
   }
+  return merged
+}
+
+export function findFreeSlots(busy: BusySlot[], opts: WindowOpts): FreeSlot[] {
+  const merged = mergeBusy(busy)
 
   const out: FreeSlot[] = []
   const now = Date.now()
+  const buffer = opts.bufferMinutes * 60_000
 
   for (let d = 0; d < opts.days; d++) {
     const day = new Date()
@@ -270,11 +321,22 @@ export function findFreeSlots(
       if (b.end.getTime() <= cursor) continue
       if (b.start.getTime() >= to.getTime()) break
 
-      const gap = b.start.getTime() - cursor
-      if (gap >= opts.minMinutes * 60_000) {
-        out.push({ start: new Date(cursor), end: new Date(b.start), minutes: Math.floor(gap / 60_000) })
+      /*
+        ĐỆM hai đầu: khe ôn bài kết thúc sớm hơn giờ bận `bufferMinutes` phút, và
+        bắt đầu muộn hơn giờ tan `bufferMinutes` phút. Không ai đứng dậy khỏi bàn
+        học đúng giây bắt đầu tiết kế tiếp — một khe dán sát vào lịch bận là khe
+        trên giấy, không phải khe dùng được.
+      */
+      const slotStart = cursor
+      const slotEnd = b.start.getTime() - buffer
+      if (slotEnd - slotStart >= opts.minMinutes * 60_000) {
+        out.push({
+          start: new Date(slotStart),
+          end: new Date(slotEnd),
+          minutes: Math.floor((slotEnd - slotStart) / 60_000),
+        })
       }
-      cursor = Math.max(cursor, b.end.getTime())
+      cursor = Math.max(cursor, b.end.getTime() + buffer)
     }
 
     const tail = to.getTime() - cursor
@@ -284,4 +346,90 @@ export function findFreeSlots(
   }
 
   return out
+}
+
+export type GridBlock = {
+  kind: 'busy' | 'free'
+  /** Số phút tính từ đầu khung giờ trong ngày — view chỉ việc quy ra %  */
+  startMin: number
+  endMin: number
+  minutes: number
+  /** "07:00–09:00" */
+  label: string
+}
+
+export type GridDay = {
+  key: string
+  weekday: string
+  /**
+   * "16/08" — ghép tay, KHÔNG dùng Intl.
+   *
+   * `vi-VN` nối ngày-tháng bằng dấu `-` ("16-08"). Ghép tay để dấu phân cách luôn
+   * là `/` đúng như thiết kế, và để view khỏi phải cắt chuỗi do locale sinh ra.
+   */
+  dayLabel: string
+  isToday: boolean
+  blocks: GridBlock[]
+}
+
+/**
+ * Dựng dữ liệu cho lưới tuần: mỗi ngày một cột, mỗi khoảng bận/rảnh một khối.
+ *
+ * Tính hết ở SERVER và trả về phần trăm/phút thuần. View không được tự tính lại từ
+ * `Date`: server và trình duyệt có thể khác múi giờ, và lúc đó khối sẽ vẽ lệch so
+ * với chính con số giờ in bên cạnh nó.
+ */
+export function buildWeekGrid(busy: BusySlot[], opts: WindowOpts): GridDay[] {
+  const merged = mergeBusy(busy)
+  const free = findFreeSlots(busy, opts)
+  const spanMin = (opts.dayEndHour - opts.dayStartHour) * 60
+
+  const weekdayFmt = new Intl.DateTimeFormat('vi-VN', { weekday: 'short' })
+  const timeFmt = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' })
+
+  const todayKey = new Date().toDateString()
+  const days: GridDay[] = []
+
+  for (let d = 0; d < opts.days; d++) {
+    const day = new Date()
+    day.setDate(day.getDate() + d)
+
+    const from = new Date(day)
+    from.setHours(opts.dayStartHour, 0, 0, 0)
+    const to = new Date(day)
+    to.setHours(opts.dayEndHour, 0, 0, 0)
+
+    /** Cắt một khoảng vào đúng khung giờ trong ngày; null nếu nằm ngoài hẳn. */
+    const clip = (s: Date, e: Date, kind: GridBlock['kind']): GridBlock | null => {
+      const start = Math.max(s.getTime(), from.getTime())
+      const end = Math.min(e.getTime(), to.getTime())
+      if (end <= start) return null
+      const startMin = Math.round((start - from.getTime()) / 60_000)
+      const endMin = Math.round((end - from.getTime()) / 60_000)
+      return {
+        kind,
+        startMin: Math.max(0, Math.min(spanMin, startMin)),
+        endMin: Math.max(0, Math.min(spanMin, endMin)),
+        minutes: Math.round((end - start) / 60_000),
+        label: `${timeFmt.format(new Date(start))}–${timeFmt.format(new Date(end))}`,
+      }
+    }
+
+    const blocks = [
+      ...merged.map((b) => clip(b.start, b.end, 'busy')),
+      ...free.map((f) => clip(f.start, f.end, 'free')),
+    ]
+      .filter((b): b is GridBlock => b !== null && b.endMin > b.startMin)
+      .sort((a, b) => a.startMin - b.startMin)
+
+    days.push({
+      key: day.toDateString(),
+      weekday: weekdayFmt.format(day),
+      dayLabel: `${String(day.getDate()).padStart(2, '0')}/${String(day.getMonth() + 1).padStart(2, '0')}`,
+      isToday: day.toDateString() === todayKey,
+      blocks,
+    })
+  }
+
+  return days
 }

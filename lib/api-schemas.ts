@@ -57,6 +57,12 @@ export const syncSchema = z.object({
   annotations: z.array(annotationSyncSchema).max(300).default([]),
   currentSectionId: z.string().nullable().optional(),
   timeSpent: z.number().int().min(0).max(86_400).optional(),
+  /**
+   * Các phần đã BẮT ĐẦU phát audio. Server HỢP NHẤT chứ không ghi đè — xem route
+   * sync. Client gửi cả tập chứ không gửi delta: tập rất nhỏ, và gửi lại toàn bộ
+   * khiến thao tác này idempotent một cách hiển nhiên.
+   */
+  audioPlayedSectionIds: z.array(z.string().min(1)).max(50).optional(),
 })
 
 export type SyncPayload = z.infer<typeof syncSchema>

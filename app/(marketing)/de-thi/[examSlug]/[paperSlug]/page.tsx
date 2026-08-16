@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { PageHeader } from '@/components/shell/app-shell'
 import { StartButtons } from '@/components/catalog/start-buttons'
+import { NoSpeakingNote } from '@/components/catalog/no-speaking-note'
 import { ChevronRightIcon, FlagIcon, LockIcon, WarningIcon } from '@/components/shell/icons'
 import { getPublicPaper, getRelatedPapers } from '@/lib/queries'
 import { prisma } from '@/lib/db'
@@ -118,7 +119,7 @@ export default async function PaperDetailPage({ params }: Props) {
                   <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-soft text-[15px] font-bold text-purple">
                     {i + 1}
                   </span>
-                  <span className="pill bg-white text-muted-strong">
+                  <span className="pill bg-card text-muted-strong">
                     {SKILL_LABELS[section.skill as Skill]}
                   </span>
                   {section.audioUrl !== null && section.audioPlayMode === 'ONCE_NO_SEEK' && (
@@ -140,6 +141,24 @@ export default async function PaperDetailPage({ params }: Props) {
               </article>
             ))}
           </div>
+
+          {/*
+            Kỳ thi thật có phần Nói mà web không dựng lại — nói rõ, kèm thời gian
+            cộng thêm. `realSpeakingMinutes` là null với kỳ vốn không có phần nói.
+
+            Kiểm `typeof === 'number'` chứ KHÔNG phải `!== null`: trường có thể là
+            `undefined` (client Prisma cũ chưa biết cột, dữ liệu cũ chưa seed lại),
+            mà `undefined !== null` là true — đủ để render một ghi chú "khoảng  phút…
+            tổng cộng NaN phút" ra trước mặt người dùng.
+          */}
+          {typeof paper.exam.realSpeakingMinutes === 'number' && (
+            <div className="mt-5">
+              <NoSpeakingNote
+                minutes={paper.exam.realSpeakingMinutes}
+                totalDurationSec={paper.totalDuration}
+              />
+            </div>
+          )}
 
           {hasStrictAudio && (
             <div className="mt-5 flex items-start gap-3 rounded-card bg-amber-soft p-5 text-amber">

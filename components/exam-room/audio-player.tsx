@@ -4,31 +4,41 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatClock } from '@/lib/format'
 import type { AudioPlayMode } from '@/lib/enums'
 import { LockIcon, PlayIcon, WarningIcon } from '../shell/icons'
+import { useExamStore } from './store'
 
 /**
  * Trình phát audio cho phần Nghe (SPEC F2.3).
  *
  * ONCE_NO_SEEK — mô phỏng thi thật:
- *   • phát đúng MỘT lần, hết là thôi
+ *   • phát đúng MỘT lần, hết là thôi — kể cả sau khi tải lại trang
  *   • KHÔNG có thanh tua; mọi thao tác seek bị hoàn tác ở tầng sự kiện,
  *     nên bấm phím tắt hay gọi từ console cũng không tua được
  *   • preload trước, hiện trạng thái tải — không để thí sinh mất thời gian
  *     thi vì buffering
+ *
+ * "ĐÃ PHÁT" LÀ TRẠNG THÁI CỦA SERVER, không phải của component. Khi nó còn là
+ * `useState` ở đây thì F5 dựng lại component từ đầu và nút "Bắt đầu nghe" hiện
+ * lại — nghe bao nhiêu lần cũng được, đúng thứ chế độ thi thật hứa là không thể.
  *
  * FREE — chế độ luyện tập: tua, tua lại, chỉnh tốc độ 0.75×–1.5×.
  */
 export function AudioPlayer({
   src,
   mode,
+  sectionId,
   sectionTitle,
+  onStart,
 }: {
   src: string
   mode: AudioPlayMode
+  sectionId: string
   sectionTitle: string
+  /** Đẩy mốc "đã phát" lên server NGAY, không chờ debounce 3 giây */
+  onStart: (sectionId: string) => void
 }) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [ready, setReady] = useState(false)
-  const [started, setStarted] = useState(false)
+  const started = useExamStore((s) => s.audioPlayedSections.has(sectionId))
   const [ended, setEnded] = useState(false)
   const [playing, setPlaying] = useState(false)
   const [current, setCurrent] = useState(0)
@@ -91,12 +101,29 @@ export function AudioPlayer({
     }
   }, [strict])
 
+  /*
+    Đã phát trong LẦN MỞ TRANG NÀY hay chưa — khác với `started` của server.
+
+    Hai giá trị này tách nhau ở đúng tình huống cần chặn: `started` là true (server
+    nhớ) nhưng `startedHere` là false (vừa F5). Khi đó không được dựng lại trình phát
+    cho họ bấm tiếp — phải khoá hẳn. Gộp hai khái niệm vào một cờ là mất luôn khả
+    năng phân biệt "đang nghe" với "đã nghe xong từ lần trước".
+  */
+  const [startedHere, setStartedHere] = useState(false)
+  const lockedOut = strict && started && !startedHere
+
   const start = useCallback(() => {
     const el = audioRef.current
     if (!el) return
-    setStarted(true)
+    /*
+      Ghi mốc TRƯỚC khi phát, và đẩy lên server ngay thay vì chờ debounce 3 giây.
+      Cửa sổ 3 giây đó chính là thứ bị lợi dụng: nghe vài giây rồi F5 thật nhanh,
+      server chưa kịp biết gì.
+    */
+    setStartedHere(true)
+    onStart(sectionId)
     void el.play().catch(() => setError(true))
-  }, [])
+  }, [onStart, sectionId])
 
   const togglePlay = useCallback(() => {
     const el = audioRef.current
@@ -136,6 +163,18 @@ export function AudioPlayer({
           <WarningIcon size={18} />
           Không tải được audio. Hãy kiểm tra kết nối rồi tải lại trang.
         </p>
+      ) : lockedOut ? (
+        // Server nhớ phần này đã phát. Tải lại trang không đưa nút bắt đầu quay lại.
+        <div className="text-center">
+          <p className="flex items-center justify-center gap-2 text-[16px] font-semibold text-muted-strong">
+            <LockIcon size={18} />
+            Bạn đã nghe phần này.
+          </p>
+          <p className="mt-1.5 text-[14.5px] text-muted">
+            Audio chỉ phát một lần, giống thi thật — kể cả khi tải lại trang. Bạn tiếp tục
+            trả lời các câu hỏi bên dưới nhé.
+          </p>
+        </div>
       ) : !started && strict ? (
         // Cảnh báo trước khi phát — SPEC F2.3
         <div className="text-center">

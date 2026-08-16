@@ -15,6 +15,7 @@
     "db:peek": "tsx scripts/db-peek.ts",
     "db:reset-attempts": "tsx scripts/db-reset-attempts.ts",
     "check:content-filter": "tsx scripts/check-content-filter.ts",
+    "check:exam-flow": "tsx --conditions=react-server scripts/check-exam-flow.ts",
     "make:audio": "node scripts/make-placeholder-audio.mjs",
     "gen:secrets": "node scripts/gen-secrets.mjs",
     "purge:users": "tsx scripts/purge-deleted-users.ts",

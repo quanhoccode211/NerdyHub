@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 import { flushSync } from 'react-dom'
 import { MoonIcon, SunIcon } from './icons'
 
@@ -18,6 +18,19 @@ import { MoonIcon, SunIcon } from './icons'
 /** Khớp với thời lượng khai báo trong globals.css (.theme-transition) */
 const TRANSITION_MS = 420
 
+/*
+  Danh sách người nghe ở cấp module, để `applyTheme` báo thay đổi ĐỒNG BỘ.
+
+  Không thể chỉ dựa vào MutationObserver: callback của nó là microtask, chạy SAU
+  tác vụ hiện tại. Mà `flushSync` bên dưới cần React vẽ lại núm công tắc ngay trong
+  lời gọi — nếu đợi observer thì ảnh "mới" của View Transition được chụp lúc núm
+  vẫn ở vị trí cũ, và cú trượt biến mất đúng như trước khi có flushSync.
+
+  Observer vẫn giữ, nhưng cho việc khác: thay đổi đến từ NGOÀI component này —
+  script chống nhấp nháy trong app/layout.tsx, hoặc DevTools.
+*/
+const themeListeners = new Set<() => void>()
+
 function applyTheme(next: 'light' | 'dark') {
   document.documentElement.classList.toggle('dark', next === 'dark')
   try {
@@ -25,24 +38,45 @@ function applyTheme(next: 'light' | 'dark') {
   } catch {
     /* ignore */
   }
+  for (const listener of themeListeners) listener()
 }
 
-export function ThemeToggle() {
-  const [isDark, setIsDark] = useState(false)
+/**
+ * Class "dark" trên <html> là NGUỒN SỰ THẬT, và nó nằm ngoài React: script đồng bộ
+ * trong app/layout.tsx gắn nó trước lần paint đầu tiên.
+ *
+ * `useSyncExternalStore` là công cụ đúng cho đúng tình huống này, và nó sửa một lỗi
+ * nhìn thấy được: bản cũ khởi tạo `useState(false)` rồi chỉnh lại trong `useEffect`.
+ * Ở lần tải trang đầu thì không sao, nhưng công tắc UNMOUNT rồi MOUNT LẠI mỗi khi
+ * điều hướng giữa hai nhóm route khác layout — dashboard/lịch ôn nằm trong (app),
+ * đề thi nằm trong (marketing). Mỗi lần như vậy núm vẽ ở bên trái rồi mới trượt
+ * sang phải, trông đúng như theme vừa tự đổi trong khi người dùng không chạm gì.
+ *
+ * Với `getSnapshot`, lần render đầu sau khi mount lại đã có giá trị đúng nên không
+ * còn cú trượt nào. `getServerSnapshot` trả false để khớp HTML server render ra.
+ */
+function subscribeToTheme(onChange: () => void) {
+  themeListeners.add(onChange)
+  const observer = new MutationObserver(onChange)
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+  // Đổi theme ở tab khác cũng phải phản ánh sang tab này
+  window.addEventListener('storage', onChange)
+  return () => {
+    themeListeners.delete(onChange)
+    observer.disconnect()
+    window.removeEventListener('storage', onChange)
+  }
+}
 
-  /**
-   * Đọc theme hiện tại SAU khi mount.
-   *
-   * Nguồn sự thật nằm ngoài React: class "dark" do script đồng bộ trong
-   * app/layout.tsx gắn lên <html> trước lần paint đầu. Server không thấy được
-   * nó nên render đầu buộc phải ra mặc định, đọc trong lúc render sẽ lệch
-   * hydrate. Quy tắc set-state-in-effect không áp dụng cho việc đồng bộ từ
-   * nguồn dữ liệu ngoài chỉ có ở client.
-   */
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsDark(document.documentElement.classList.contains('dark'))
-  }, [])
+const getThemeSnapshot = () => document.documentElement.classList.contains('dark')
+const getServerThemeSnapshot = () => false
+
+export function ThemeToggle() {
+  const isDark = useSyncExternalStore(
+    subscribeToTheme,
+    getThemeSnapshot,
+    getServerThemeSnapshot,
+  )
 
   const toggle = useCallback(() => {
     const next: 'light' | 'dark' = isDark ? 'light' : 'dark'
@@ -51,7 +85,6 @@ export function ThemeToggle() {
     // Người dùng tắt hiệu ứng chuyển động ở hệ điều hành: đổi thẳng, không animate.
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       applyTheme(next)
-      setIsDark(next === 'dark')
       return
     }
 
@@ -74,7 +107,6 @@ export function ThemeToggle() {
       const transition = document.startViewTransition(() => {
         flushSync(() => {
           applyTheme(next)
-          setIsDark(next === 'dark')
         })
       })
       const cleanup = () => root.classList.remove('theme-transition')
@@ -97,7 +129,6 @@ export function ThemeToggle() {
     // Dải gradient sẽ nhảy — chấp nhận, không có cách nào khác.
     root.classList.add('theme-transition')
     applyTheme(next)
-    setIsDark(next === 'dark')
     window.setTimeout(() => root.classList.remove('theme-transition'), TRANSITION_MS)
   }, [isDark])
 

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { PageHeader } from '@/components/shell/app-shell'
 import { ChevronRightIcon, LockIcon, SettingsIcon } from '@/components/shell/icons'
+import { optionalUser } from '@/lib/auth/session'
 import { CONSENT_PURPOSES } from '@/lib/enums'
 
 export const metadata: Metadata = {
@@ -34,11 +35,15 @@ const PURPOSE_LABELS: Record<string, { title: string; body: string; required?: b
 }
 
 /**
- * F6 (Auth.js, xác minh tuổi, quản lý consent, xuất/xoá dữ liệu) thuộc giai đoạn sau.
- * Trang này mô tả đúng thiết kế tuân thủ NĐ 13/2023 sẽ được nối vào, không phải
- * form giả — các ô đều bị vô hiệu hoá để không tạo cảm giác đã hoạt động.
+ * Trang GIẢI THÍCH các mục đích xử lý dữ liệu theo NĐ 13/2023.
+ *
+ * Công tắc thật nằm ở /cai-dat/du-lieu và cần đăng nhập — F6 đã xong. Các ô ở đây
+ * cố ý chỉ để đọc, và phải nói rõ điều đó: một hàng công tắc trông bấm được nhưng
+ * không ghi gì xuống DB còn tệ hơn là không có.
  */
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const user = await optionalUser()
+
   return (
     <>
       <PageHeader
@@ -58,14 +63,20 @@ export default function SettingsPage() {
             {CONSENT_PURPOSES.map((p) => {
               const meta = PURPOSE_LABELS[p]
               return (
-                <div key={p} className="flex items-start gap-4 rounded-2xl bg-white p-4">
+                <div key={p} className="flex items-start gap-4 rounded-2xl bg-card p-4">
                   <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-2 text-[16px] font-semibold">
+                    {/*
+                      <h3> chứ không phải <p>: đây là TIÊU ĐỀ của thẻ. Ngoài chuyện
+                      đúng ngữ nghĩa, `@layer base` gán font tỉ lệ cho mọi <p> và
+                      <li>, nên để là <p> thì tiêu đề mấy thẻ này chạy font khác hẳn
+                      tiêu đề mọi thẻ khác trên cùng màn hình.
+                    */}
+                    <h3 className="flex items-center gap-2 text-[16px] font-semibold">
                       {meta.title}
                       {meta.required && (
                         <span className="pill bg-purple-soft text-purple">Bắt buộc</span>
                       )}
-                    </p>
+                    </h3>
                     <p className="mt-1 text-[14.5px] leading-relaxed text-muted">{meta.body}</p>
                   </div>
                   <span
@@ -88,8 +99,10 @@ export default function SettingsPage() {
           <p className="mt-5 flex items-start gap-2 rounded-xl bg-amber-soft p-4 text-[14px] leading-relaxed text-amber">
             <LockIcon size={16} />
             <span>
-              Các công tắc này chưa hoạt động: cần Auth.js và tài khoản người dùng thật trước. Bảng{' '}
-              <code className="font-mono">Consent</code> đã sẵn sàng trong schema.
+              Đây là bảng mô tả, các ô ở trên chỉ để đọc. Để bật/tắt thật cho tài khoản của
+              bạn, mở <Link href="/cai-dat/du-lieu" className="underline underline-offset-2">
+                Dữ liệu &amp; quyền riêng tư
+              </Link>.
             </span>
           </p>
         </section>
@@ -99,21 +112,32 @@ export default function SettingsPage() {
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-soft text-purple">
               <SettingsIcon size={22} />
             </span>
-            <h2 className="mt-4 text-[18px] font-bold">Còn thiếu ở giai đoạn này</h2>
+            <h2 className="mt-4 text-[18px] font-bold">Quyền của bạn</h2>
             <ul className="mt-3 flex list-disc flex-col gap-2 pl-4 text-[14.5px] leading-relaxed text-muted-strong">
-              <li>Đăng ký / đăng nhập (Auth.js + Google OAuth)</li>
-              <li>Bắt buộc nhập ngày sinh, xác minh dưới 16 tuổi</li>
-              <li>Xác nhận của người giám hộ qua email</li>
+              <li>Đăng ký / đăng nhập bằng email hoặc Google</li>
+              <li>Xác minh tuổi, và xác nhận của người giám hộ nếu dưới 16</li>
               <li>Xuất toàn bộ dữ liệu cá nhân dạng JSON</li>
-              <li>Xoá tài khoản: soft delete ngay, hard delete sau 48 giờ</li>
+              <li>Xoá tài khoản: ẩn ngay, xoá hẳn sau 48 giờ</li>
             </ul>
+            <Link href="/cai-dat/du-lieu" className="btn-secondary mt-4 w-full">
+              Mở dữ liệu &amp; quyền riêng tư
+              <ChevronRightIcon size={15} />
+            </Link>
           </section>
 
-          <section className="rounded-card bg-lime p-6">
+          {/*
+            `text-on-tone` là BẮT BUỘC trên mọi nền pastel đặc: `--color-lime` vẫn
+            sáng ở dark mode (#aec6da) trong khi `--color-ink` lật thành gần trắng,
+            nên thiếu nó là chữ sáng trên nền sáng — đúng chỗ này đang không đọc nổi.
+          */}
+          <section className="rounded-card bg-lime p-6 text-on-tone">
             <h2 className="text-[18px] font-bold">Dữ liệu hiện tại của bạn</h2>
+            {/* Hỏi phiên đăng nhập thật thay vì khẳng định cứng: nói với người đã
+                đăng nhập rằng họ "đang dùng ở chế độ khách" là nói sai. */}
             <p className="mt-2 text-[14.5px] leading-relaxed">
-              Bạn đang dùng ở chế độ khách. Bài làm gắn với một cookie phiên trong trình duyệt này,
-              không gắn với danh tính cá nhân nào.
+              {user
+                ? 'Bài làm của bạn được lưu vào tài khoản này, không phụ thuộc trình duyệt đang dùng.'
+                : 'Bạn đang dùng ở chế độ khách. Bài làm gắn với một cookie phiên trong trình duyệt này, không gắn với danh tính cá nhân nào.'}
             </p>
             <Link href="/bai-lam" className="btn-ghost mt-4 w-full justify-center">
               Xem bài đã làm

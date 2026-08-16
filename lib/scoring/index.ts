@@ -1,4 +1,6 @@
 import { prisma } from '../db'
+import { GRACE_SEC } from '../exam-clock'
+import { publicQuestionFilter } from '../content-filter'
 import { parseStringArray } from '../json-fields'
 import type { Skill } from '../enums'
 import { getStrategy } from './strategies'
@@ -13,8 +15,11 @@ export { normalizeText } from './grader'
  *
  * Idempotent: attempt đã SUBMITTED thì trả kết quả đã có, không chấm lại
  * (SPEC mục 5 rate-limit + tránh double-submit làm sai attemptCount/avgScore).
+ *
+ * @param opts.autoSubmitted true khi SERVER tự đóng bài lúc hết giờ, không phải
+ *   người dùng bấm nộp — trang kết quả cần phân biệt để nói đúng chuyện đã xảy ra.
  */
-export async function scoreAttempt(attemptId: string) {
+export async function scoreAttempt(attemptId: string, opts: { autoSubmitted?: boolean } = {}) {
   const attempt = await prisma.attempt.findUnique({
     where: { id: attemptId },
     include: {
@@ -32,9 +37,16 @@ export async function scoreAttempt(attemptId: string) {
     }
   }
 
-  // Nạp toàn bộ câu hỏi kèm đáp án đúng — chỉ ở server
+  /*
+    Nạp toàn bộ câu hỏi kèm đáp án đúng — chỉ ở server.
+
+    `publicQuestionFilter()` phải áp ở ĐÂY, ở `loadExamRoom` và ở `getAttemptResult`
+    cùng lúc: câu hỏi mang provenance riêng nên một đề hợp lệ vẫn có thể chứa câu bị
+    hạn chế. Áp lệch một chỗ là tử số và mẫu số đếm trên hai tập khác nhau — thí sinh
+    không nhìn thấy câu đó nhưng vẫn bị trừ điểm vì nó.
+  */
   const questions = await prisma.question.findMany({
-    where: { section: { paperId: attempt.paperId } },
+    where: { section: { paperId: attempt.paperId }, ...publicQuestionFilter() },
     include: {
       choices: { select: { id: true, isCorrect: true, sortOrder: true }, orderBy: { sortOrder: 'asc' } },
       section: { select: { id: true, skill: true } },
@@ -70,10 +82,7 @@ export async function scoreAttempt(attemptId: string) {
   })
 
   const now = new Date()
-  const timeSpent = Math.max(
-    0,
-    Math.round((now.getTime() - attempt.startedAt.getTime()) / 1000),
-  )
+  const timeSpent = resolveTimeSpent(attempt)
 
   // Ghi điểm từng câu + trạng thái attempt trong một transaction
   await prisma.$transaction([
@@ -89,6 +98,7 @@ export async function scoreAttempt(attemptId: string) {
         status: 'SUBMITTED',
         submittedAt: now,
         timeSpent,
+        autoSubmitted: opts.autoSubmitted ?? false,
         rawScore: raw.percent,
         scaledScore: scaled.scaledScore,
         sectionScoresJson: JSON.stringify(scaled.sectionScores),
@@ -106,6 +116,32 @@ export async function scoreAttempt(attemptId: string) {
     scaledScore: scaled.scaledScore,
     rawScore: raw.percent,
   }
+}
+
+/**
+ * Thời gian làm bài thật sự, có trần.
+ *
+ * Bản cũ lấy thẳng khoảng cách từ `startedAt` tới lúc chấm, tức là đo cả thời gian
+ * TREO MÁY: đóng tab, hôm sau mở lại thì trang phòng thi tự chấm và ghi ~24 giờ.
+ * Con số đó chảy vào "Bạn làm trong X", phép so nhanh/chậm, `avgTimeSpent` của mọi
+ * người khác và tổng giờ học ở /thong-ke — một bài bỏ dở làm hỏng số liệu của cả
+ * cộng đồng làm cùng đề.
+ *
+ *   EXAM     — không ai làm được lâu hơn thời lượng đề, chặn trần ở đó (cộng dung
+ *              sai của server).
+ *   PRACTICE — không có hạn chót nên trần theo đề vô nghĩa; dùng `timeSpent` do
+ *              client đếm và heartbeat 60 giây gửi lên, vốn chỉ chạy khi tab còn mở.
+ */
+function resolveTimeSpent(attempt: {
+  mode: string
+  startedAt: Date
+  timeSpent: number
+  paper: { totalDuration: number }
+}): number {
+  if (attempt.mode === 'PRACTICE') return Math.max(0, attempt.timeSpent)
+
+  const wallClock = Math.round((Date.now() - attempt.startedAt.getTime()) / 1000)
+  return Math.min(Math.max(0, wallClock), attempt.paper.totalDuration + GRACE_SEC)
 }
 
 /** Cập nhật attemptCount / avgScore denormalized trên TestPaper. */
@@ -131,16 +167,43 @@ async function refreshPaperAggregates(paperId: string) {
  * PostgreSQL/SQLite qua index [paperId, scaledScore]. Chữ ký hàm giữ nguyên
  * để thay bằng ZRANK khi có Redis mà không đụng nơi gọi.
  *
- * Chỉ tính attempt SUBMITTED — loại ABANDONED/EXPIRED (acceptance criteria F4).
+ * TRẢ KÈM `cohortSize`, và đó là điểm mấu chốt: một mình con số phần trăm KHÔNG
+ * diễn đạt nổi sự khác nhau giữa "người đầu tiên làm đề này" và "điểm thấp hơn tất
+ * cả mọi người" — cả hai đều ra 0. Trang kết quả từng chúc mừng đúng người làm tệ
+ * nhất vì rẽ nhánh theo `percentile > 0`. Nơi gọi phải rẽ nhánh theo `cohortSize`.
+ *
+ * Chỉ tính attempt đã nộp — lượt đang làm dở chưa có `scaledScore`.
+ *
+ * Chú thích cũ ở đây ghi là "loại ABANDONED/EXPIRED", nhưng không chỗ nào trong
+ * codebase đặt hai trạng thái đó: bài hết giờ được chấm và trở thành SUBMITTED
+ * (phân biệt bằng cờ `autoSubmitted`). Hai giá trị enum ấy giữ lại cho F8.
  */
-async function updatePercentile(attemptId: string, paperId: string, scaledScore: number) {
-  const [total, below] = await Promise.all([
+export async function computePercentile(
+  paperId: string,
+  scaledScore: number,
+): Promise<{ percentile: number; cohortSize: number }> {
+  const [cohortSize, below] = await Promise.all([
     prisma.attempt.count({ where: { paperId, status: 'SUBMITTED', scaledScore: { not: null } } }),
     prisma.attempt.count({
       where: { paperId, status: 'SUBMITTED', scaledScore: { lt: scaledScore } },
     }),
   ])
-  const percentile = total > 1 ? (below / total) * 100 : 0
+  return {
+    percentile: cohortSize > 1 ? (below / cohortSize) * 100 : 0,
+    cohortSize,
+  }
+}
+
+/**
+ * Ghi percentile vào Attempt — ẢNH CHỤP tại thời điểm nộp.
+ *
+ * Danh sách "Bài đã làm" và /thong-ke đọc trường này để khỏi phải tính lại N lần
+ * cho N dòng. Trang kết quả thì TÍNH LẠI lúc đọc (`getAttemptResult`), vì ở đó con
+ * số đóng băng nói dối: người làm sớm giữ mãi thứ hạng của ngày họ nộp, kể cả khi
+ * hàng trăm người làm sau đã xếp lại toàn bộ bảng.
+ */
+async function updatePercentile(attemptId: string, paperId: string, scaledScore: number) {
+  const { percentile } = await computePercentile(paperId, scaledScore)
   await prisma.attempt.update({
     where: { id: attemptId },
     data: { percentile },

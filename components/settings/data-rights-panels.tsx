@@ -47,17 +47,18 @@ export function ConsentToggle({
   }
 
   return (
-    <div className="rounded-2xl bg-white p-4">
+    <div className="rounded-2xl bg-card p-4">
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
-          <p className="flex flex-wrap items-center gap-2 text-[16px] font-semibold">
+          {/* Tiêu đề thẻ là <h3>, không phải <p> — xem ghi chú ở app/(app)/cai-dat/page.tsx */}
+          <h3 className="flex flex-wrap items-center gap-2 text-[16px] font-semibold">
             {title}
             {required && (
               <span className="pill bg-purple-soft px-2 py-0.5 text-[12px] text-purple">
                 <LockIcon size={10} /> Bắt buộc
               </span>
             )}
-          </p>
+          </h3>
           <p className="mt-1 text-[14.5px] leading-relaxed text-muted">{body}</p>
           {locked && lockReason && (
             <p className="mt-2 flex items-center gap-1.5 text-[13.5px] font-medium text-amber">

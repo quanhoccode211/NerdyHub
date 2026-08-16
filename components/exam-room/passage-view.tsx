@@ -211,7 +211,7 @@ export function PassageView({
       {popup?.kind === 'edit' && editing && (
         <div
           data-hl-popup
-          className="fixed z-50 w-[280px] -translate-x-1/2 -translate-y-full rounded-2xl bg-white p-4 shadow-xl ring-1 ring-line"
+          className="fixed z-50 w-[280px] -translate-x-1/2 -translate-y-full rounded-2xl bg-card p-4 shadow-xl ring-1 ring-line"
           style={{ left: popup.x, top: popup.y - 8 }}
         >
           <div className="flex items-center justify-between">

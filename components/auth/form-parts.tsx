@@ -126,7 +126,7 @@ export function ConsentChecklist() {
           return (
             <label
               key={purpose}
-              className={`flex items-start gap-3 rounded-xl bg-white p-3.5 ${
+              className={`flex items-start gap-3 rounded-xl bg-card p-3.5 ${
                 meta.required ? 'opacity-90' : 'cursor-pointer hover:bg-purple-soft/40'
               }`}
             >

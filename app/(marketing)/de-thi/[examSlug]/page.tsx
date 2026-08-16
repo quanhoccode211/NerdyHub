@@ -184,9 +184,11 @@ export default async function ExamLandingPage({ params, searchParams }: Props) {
                   {paper.level && (
                     <span className="pill bg-purple-soft text-purple">{paper.level.name}</span>
                   )}
-                  {paper.year && <span className="pill bg-cream text-[#8a6d2f]">{paper.year}</span>}
+                  {/* Màu chữ nâu cứng chỉ hợp với sắc kem của light mode; ở dark
+                      `--color-cream` là màu xanh nên phải dùng cặp on-tone. */}
+                  {paper.year && <span className="pill bg-cream text-on-tone">{paper.year}</span>}
                   {skills.map((s) => (
-                    <span key={s} className="pill bg-white text-muted-strong">
+                    <span key={s} className="pill bg-card text-muted-strong">
                       {SKILL_LABELS[s]}
                     </span>
                   ))}
@@ -207,7 +209,7 @@ export default async function ExamLandingPage({ params, searchParams }: Props) {
                   <span>{paper._count.sections} phần</span>
                   <span className="flex items-center gap-1.5">
                     <FlagIcon size={13} />
-                    {formatNumber(paper.attemptCount)} lượt
+                    <span>{formatNumber(paper.attemptCount)} lượt</span>
                   </span>
                   {paper.avgScore !== null && <span>TB {formatScore(paper.avgScore)}</span>}
                 </div>

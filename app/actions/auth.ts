@@ -195,6 +195,19 @@ export async function completeProfileAction(
     }
   }
 
+  /*
+    `update` mù quáng ném PrismaClientKnownRequestError khi hàng không tồn tại, và
+    lỗi đó nổ ra sau khi người dùng đã điền xong form, đọc điều khoản và bấm đồng ý.
+    Token thì hợp lệ — nó chỉ trỏ tới một tài khoản đã bị xoá cứng (job dọn dẹp 48
+    giờ) hoặc biến mất cùng lần dựng lại DB. Kiểm tra trước để đổi một stack trace
+    lấy một lần chuyển hướng có nghĩa.
+  */
+  const exists = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true },
+  })
+  if (!exists) redirect('/dang-nhap?phien=het-han')
+
   const user = await prisma.user.update({
     where: { id: session.user.id },
     data: {

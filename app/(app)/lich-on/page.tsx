@@ -4,12 +4,13 @@ import { auth } from '@/auth'
 import { PageHeader } from '@/components/shell/app-shell'
 import { DisconnectCalendarButton } from '@/components/calendar/disconnect-button'
 import { CalendarIcon, CheckIcon, ChevronRightIcon, WarningIcon } from '@/components/shell/icons'
+import { WeekGrid, WeekGridLegend } from '@/components/calendar/week-grid'
 import {
-  findFreeSlots,
+  buildWeekGrid,
   getBusySlots,
   getConnection,
   isCalendarConfigured,
-  type FreeSlot,
+  type GridDay,
 } from '@/lib/calendar/google'
 
 export const metadata: Metadata = {
@@ -20,8 +21,11 @@ export const metadata: Metadata = {
 /** Đọc lịch là dữ liệu sống — không được cache. */
 export const dynamic = 'force-dynamic'
 
-/** Khung giờ và độ dài tối thiểu của một khe được coi là "ôn được". */
-const WINDOW = { days: 7, dayStartHour: 7, dayEndHour: 22, minMinutes: 45 }
+/**
+ * Khung giờ và độ dài tối thiểu của một khe được coi là "ôn được".
+ * `bufferMinutes` chừa hai đầu mỗi khoảng bận — xem `findFreeSlots`.
+ */
+const WINDOW = { days: 7, dayStartHour: 7, dayEndHour: 22, minMinutes: 45, bufferMinutes: 10 }
 
 const ERROR_TEXT: Record<string, string> = {
   'chua-cau-hinh': 'Máy chủ chưa có Google OAuth client. Xem docs/google-oauth-setup.md.',
@@ -33,8 +37,8 @@ const ERROR_TEXT: Record<string, string> = {
   'doi-token-that-bai': 'Không đổi được mã uỷ quyền sang token. Thử lại sau ít phút.',
 }
 
-const dayFmt = new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' })
-const timeFmt = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' })
+// Nhãn ngày/giờ của lưới do `buildWeekGrid` định dạng sẵn ở server — xem ghi chú
+// về múi giờ trong lib/calendar/google.ts.
 
 function humanLength(minutes: number): string {
   const h = Math.floor(minutes / 60)
@@ -122,20 +126,36 @@ async function CalendarSection({ userId }: { userId: string | null }) {
           lịch của bạn để chỉ ra chỗ còn trống mà ôn bài.
         </p>
 
+        {/*
+          Chữ của mỗi gạch đầu dòng phải nằm TRONG MỘT <span>.
+
+          `<li>` là flex container, mà trong flex thì MỖI đoạn text và MỖI thẻ inline
+          thành một flex item riêng. Để trần thì "…người tham dự", <strong>không</strong>
+          và "được gửi về máy chủ." là ba item khác nhau: mỗi item tự xuống dòng theo
+          bề rộng của riêng nó, và `gap-2` chèn khoảng trắng vào giữa. Kết quả là chữ
+          rời rạc, ngắt sai chỗ và thứ tự đọc bị vỡ.
+
+          Bọc lại thành đúng hai item — icon và khối chữ — thì chữ chảy như văn bản
+          bình thường trở lại.
+        */}
         <ul className="mt-4 flex max-w-[560px] flex-col gap-2 text-[14.5px] leading-relaxed text-muted-strong">
           <li className="flex items-start gap-2">
             <CheckIcon size={16} className="mt-1 flex-none text-good" />
-            Chỉ xin quyền <strong className="font-semibold text-ink">chỉ đọc</strong>. Nerdy Hub
-            không tạo, sửa hay xoá bất kỳ sự kiện nào.
+            <span>
+              Chỉ xin quyền <strong className="font-semibold text-ink">chỉ đọc</strong>. Nerdy Hub
+              không tạo, sửa hay xoá bất kỳ sự kiện nào.
+            </span>
           </li>
           <li className="flex items-start gap-2">
             <CheckIcon size={16} className="mt-1 flex-none text-good" />
-            Chỉ lấy mốc bận/rảnh. Tiêu đề, mô tả và người tham dự{' '}
-            <strong className="font-semibold text-ink">không</strong> được gửi về máy chủ.
+            <span>
+              Chỉ lấy mốc bận/rảnh. Tiêu đề, mô tả và người tham dự{' '}
+              <strong className="font-semibold text-ink">không</strong> được gửi về máy chủ.
+            </span>
           </li>
           <li className="flex items-start gap-2">
             <CheckIcon size={16} className="mt-1 flex-none text-good" />
-            Token lưu dạng mã hoá AES-256-GCM, và bị xoá hẳn khi bạn ngắt kết nối.
+            <span>Token lưu dạng mã hoá AES-256-GCM, và bị xoá hẳn khi bạn ngắt kết nối.</span>
           </li>
         </ul>
 
@@ -147,13 +167,15 @@ async function CalendarSection({ userId }: { userId: string | null }) {
     )
   }
 
-  let slots: FreeSlot[]
+  let week: GridDay[]
+  let freeCount = 0
   try {
     const now = new Date()
     const until = new Date(now)
     until.setDate(until.getDate() + WINDOW.days)
     const busy = await getBusySlots(conn.accessToken, now, until)
-    slots = findFreeSlots(busy, WINDOW)
+    week = buildWeekGrid(busy, WINDOW)
+    freeCount = week.reduce((n, d) => n + d.blocks.filter((b) => b.kind === 'free').length, 0)
   } catch {
     return (
       <Notice
@@ -169,64 +191,40 @@ async function CalendarSection({ userId }: { userId: string | null }) {
     )
   }
 
-  // Gom theo ngày để đọc cho ra một tuần, không phải một danh sách phẳng
-  const byDay = new Map<string, FreeSlot[]>()
-  for (const s of slots) {
-    const k = dayFmt.format(s.start)
-    byDay.set(k, [...(byDay.get(k) ?? []), s])
-  }
-
+  /*
+    LỊCH ĐỨNG ĐẦU TRANG. Đây là thứ người dùng vào đây để xem; thanh trạng thái kết
+    nối là việc quản trị, mỗi tháng đụng tới một lần — nó xuống cuối.
+  */
   return (
     <>
-      <section className="card mb-5 flex flex-wrap items-center justify-between gap-4 p-5 md:p-6">
-        <div className="min-w-0">
-          <p className="flex items-center gap-2 text-[15px] font-semibold">
-            <CheckIcon size={16} className="flex-none text-good" />
-            Đã kết nối Google Calendar
-          </p>
-          <p className="mt-1 text-[14px] text-muted">
-            Chỉ đọc mốc bận/rảnh, không đọc nội dung sự kiện.
-          </p>
-        </div>
-        <DisconnectCalendarButton />
-      </section>
-
       <section className="card p-5 md:p-6">
-        <h2 className="text-[18px] font-bold tracking-[-0.01em]">
-          Khoảng trống {WINDOW.days} ngày tới
-        </h2>
-        <p className="mt-1 text-[14px] text-muted">
-          Trong khung {WINDOW.dayStartHour}:00–{WINDOW.dayEndHour}:00, từ{' '}
-          {humanLength(WINDOW.minMinutes)} trở lên.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+          <div className="min-w-0">
+            <h2 className="text-[18px] font-bold tracking-[-0.01em]">
+              Khoảng trống {WINDOW.days} ngày tới
+            </h2>
+            <p className="mt-1 text-[14px] text-muted">
+              Trong khung {WINDOW.dayStartHour}:00–{WINDOW.dayEndHour}:00, từ{' '}
+              {humanLength(WINDOW.minMinutes)} trở lên.
+            </p>
+          </div>
+          <WeekGridLegend bufferMinutes={WINDOW.bufferMinutes} />
+        </div>
 
-        {byDay.size === 0 ? (
-          <div className="panel mt-4 px-6 py-10 text-center">
+        <div className="mt-5">
+          <WeekGrid
+            days={week}
+            dayStartHour={WINDOW.dayStartHour}
+            dayEndHour={WINDOW.dayEndHour}
+          />
+        </div>
+
+        {freeCount === 0 && (
+          <div className="panel mt-4 px-6 py-8 text-center">
             <p className="text-[15px] font-medium">Tuần tới lịch bạn kín rồi.</p>
             <p className="mt-1.5 text-[14px] leading-relaxed text-muted">
               Không có khoảng trống nào dài từ {humanLength(WINDOW.minMinutes)} trong khung giờ trên.
             </p>
-          </div>
-        ) : (
-          <div className="mt-4 flex flex-col gap-4">
-            {[...byDay.entries()].map(([day, daySlots]) => (
-              <div key={day}>
-                <h3 className="text-[14px] font-semibold text-muted-strong capitalize">{day}</h3>
-                <ul className="mt-2 flex flex-wrap gap-2">
-                  {daySlots.map((s) => (
-                    <li
-                      key={s.start.toISOString()}
-                      className="rounded-pill bg-soft px-3.5 py-2 text-[14px]"
-                    >
-                      <span className="font-semibold">
-                        {timeFmt.format(s.start)}–{timeFmt.format(s.end)}
-                      </span>
-                      <span className="ml-2 text-muted">{humanLength(s.minutes)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
           </div>
         )}
 
@@ -234,6 +232,14 @@ async function CalendarSection({ userId }: { userId: string | null }) {
           Chọn đề cho khung giờ trống
           <ChevronRightIcon size={16} />
         </Link>
+      </section>
+
+      <section className="card mt-5 flex flex-wrap items-center justify-between gap-4 p-5 md:p-6">
+        <p className="flex min-w-0 items-center gap-2 text-[15px] font-semibold">
+          <CheckIcon size={16} className="flex-none text-good" />
+          <span>Đã kết nối Google Calendar</span>
+        </p>
+        <DisconnectCalendarButton />
       </section>
     </>
   )

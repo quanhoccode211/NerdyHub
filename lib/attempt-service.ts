@@ -1,7 +1,7 @@
 import 'server-only'
 import DOMPurify from 'isomorphic-dompurify'
 import { prisma } from './db'
-import { assertPublishable } from './content-filter'
+import { assertPublishable, publicQuestionFilter } from './content-filter'
 import { parseStringArray } from './json-fields'
 import type { AnnotationType, AttemptMode, AttemptStatus, AudioPlayMode, HighlightColor, QuestionType, Skill } from './enums'
 
@@ -58,6 +58,14 @@ export type RoomSection = {
   sortOrder: number
   audioUrl: string | null
   audioPlayMode: AudioPlayMode
+  /**
+   * Đã bắt đầu phát audio của phần này chưa — do SERVER trả lời.
+   *
+   * Cam kết "nghe một lần" chỉ có giá trị khi nó sống sót qua F5. Trước đây trạng
+   * thái này là `useState` trong AudioPlayer, nên tải lại trang là hiện lại nút
+   * "Bắt đầu nghe" và nghe lại được bao nhiêu lần tuỳ thích.
+   */
+  audioStarted: boolean
   /** Chỉ lộ sau khi nộp bài (SPEC F2.3) */
   transcript: string | null
   passages: RoomPassage[]
@@ -98,6 +106,14 @@ export type ExamRoomData = {
     /** Giây còn lại, tính từ server tại thời điểm request */
     remainingSeconds: number
     timeSpent: number
+    /**
+     * Lần cuối server nhận được batch đồng bộ, ISO string.
+     *
+     * Dùng để quyết định bản nháp trong sessionStorage có MỚI HƠN dữ liệu server
+     * hay không. Thiếu mốc này thì bước merge lúc hydrate chạy theo kiểu "ai ghi
+     * sau thắng", và tab mở lâu ngày sẽ đè bản nháp cũ lên đáp án mới của tab kia.
+     */
+    lastSyncAt: string
   }
   paper: {
     id: string
@@ -134,7 +150,11 @@ export async function loadExamRoom(
             orderBy: { sortOrder: 'asc' },
             include: {
               passages: { orderBy: { sortOrder: 'asc' } },
+              // Câu hỏi mang provenance RIÊNG: một đề hợp lệ vẫn có thể chứa câu
+              // bị hạn chế. Bộ lọc này phải khớp với lib/scoring và lib/results —
+              // xem ghi chú ở scoreAttempt.
               questions: {
+                where: publicQuestionFilter(),
                 orderBy: { number: 'asc' },
                 include: { choices: { orderBy: { sortOrder: 'asc' } } },
               },
@@ -159,6 +179,8 @@ export async function loadExamRoom(
     Math.floor((attempt.expiresAt.getTime() - now) / 1000),
   )
 
+  const audioPlayed = new Set(parseStringArray(attempt.audioPlayedSectionIdsJson))
+
   const sections: RoomSection[] = attempt.paper.sections.map((s) => ({
     id: s.id,
     skill: s.skill as Skill,
@@ -169,6 +191,7 @@ export async function loadExamRoom(
     audioUrl: s.audioUrl,
     // Ở chế độ PRACTICE cho phép tua kể cả khi đề đặt ONCE_NO_SEEK (SPEC F1/F2.3)
     audioPlayMode: (attempt.mode === 'PRACTICE' ? 'FREE' : s.audioPlayMode) as AudioPlayMode,
+    audioStarted: audioPlayed.has(s.id),
     transcript: reveal ? s.transcript : null,
     passages: s.passages.map((p) => ({
       id: p.id,
@@ -208,6 +231,7 @@ export async function loadExamRoom(
       currentSectionId: attempt.currentSectionId,
       remainingSeconds,
       timeSpent: attempt.timeSpent,
+      lastSyncAt: attempt.lastSyncAt.toISOString(),
     },
     paper: {
       id: attempt.paper.id,
@@ -242,14 +266,5 @@ export async function loadExamRoom(
   }
 }
 
-/** Hết giờ mà chưa nộp -> đánh dấu EXPIRED rồi chấm (F2.2: hết giờ tự nộp). */
-export async function expireIfNeeded(attemptId: string): Promise<boolean> {
-  const attempt = await prisma.attempt.findUnique({
-    where: { id: attemptId },
-    select: { status: true, expiresAt: true, mode: true },
-  })
-  if (!attempt) return false
-  // PRACTICE đếm giờ lên, không tự nộp
-  if (attempt.mode === 'PRACTICE') return false
-  return attempt.status === 'IN_PROGRESS' && attempt.expiresAt.getTime() <= Date.now()
-}
+/** Đồng hồ sống ở lib/exam-clock.ts — thuần, không kéo theo server-only/DOMPurify. */
+export { GRACE_SEC, overdueSeconds } from './exam-clock'

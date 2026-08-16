@@ -98,7 +98,7 @@ export function MonthCalendar({ activeDates }: { activeDates: string[] }) {
                 isToday
                   ? 'bg-accent font-bold text-[var(--color-accent-fg)]'
                   : hasActivity
-                    ? 'bg-mint text-ink'
+                    ? 'bg-mint text-on-tone'
                     : 'text-muted-strong hover:bg-soft'
               }`}
             >

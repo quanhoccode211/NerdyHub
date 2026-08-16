@@ -100,31 +100,63 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       return !existing?.deletedAt
     },
 
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user }) {
       if (user?.id) token.sub = user.id
+      if (!token.sub) return token
 
-      // Vừa đăng nhập xong: kéo bài làm ở chế độ khách về tài khoản này
+      /*
+        ĐỐI CHIẾU VỚI DATABASE Ở MỌI LẦN ĐỌC PHIÊN, không chỉ lúc đăng nhập hay khi
+        client gọi session.update().
+
+        Bản cũ chỉ nạp lại ở hai mốc đó, nên giữa hai mốc token là một lời khẳng
+        định không ai kiểm chứng — và nó có hạn 30 ngày. Hai hậu quả đã gặp:
+
+          • Tài khoản biến mất (job xoá cứng sau 48 giờ ở scripts/purge-deleted-users.ts,
+            hoặc DB dev dựng lại) mà token vẫn hợp lệ. Mọi truy vấn theo
+            `session.user.id` trỏ vào hư không; chỗ vỡ đầu tiên là
+            `prisma.user.update()` ở màn hình hoàn tất hồ sơ, ném
+            PrismaClientKnownRequestError thẳng vào mặt người dùng.
+
+          • Tệ hơn: `(app)/layout.tsx` thấy hồ sơ "chưa đủ" nên đá sang
+            /hoan-tat-ho-so, trang đó thấy tài khoản không tồn tại nên đá về
+            /dang-nhap, mà /dang-nhap thấy phiên còn hạn nên đá sang /dashboard —
+            vòng lặp kín, màn hình nháy liên tục và không vào được đâu cả.
+
+        Trả `null` là bảo Auth.js huỷ phiên. Chốt ở đây thay vì rải guard ở từng
+        trang: chừng nào token còn được coi là hợp lệ thì mọi trang đều phải tự đề
+        phòng, và chỉ cần một trang quên là vòng lặp quay lại.
+
+        Giá phải trả là một truy vấn theo khoá chính mỗi lần `auth()` chạy. Đổi lại
+        `role` và `guardianConsent` cũng luôn khớp DB — trước đây phân quyền vẫn đi
+        theo ảnh chụp tại thời điểm đăng nhập.
+      */
+      const db = await prisma.user.findUnique({
+        where: { id: token.sub },
+        select: {
+          role: true,
+          birthDate: true,
+          isMinor: true,
+          guardianConsent: true,
+          deletedAt: true,
+        },
+      })
+      if (!db || db.deletedAt) return null
+
+      token.role = db.role
+      token.isMinor = db.isMinor
+      token.guardianConsent = db.guardianConsent
+      // Google không trả ngày sinh -> hồ sơ chưa đủ, phải hỏi thêm một bước
+      token.profileComplete = Boolean(db.birthDate)
+
+      /*
+        Kéo bài làm ở chế độ khách về tài khoản — CHỈ SAU khi đã xác nhận tài khoản
+        có thật. `claimGuestData` ghi `userId` vào Attempt, nên chạy trước bước kiểm
+        tra là đâm thẳng vào lỗi khoá ngoại và làm hỏng cả lần đăng nhập.
+      */
       if (user?.id) {
         await claimGuestData(user.id)
       }
 
-      // Nạp lại hồ sơ ở lần đầu và mỗi khi client gọi session.update()
-      if (user || trigger === 'update') {
-        const db = await prisma.user.findUnique({
-          where: { id: token.sub },
-          select: {
-            role: true,
-            birthDate: true,
-            isMinor: true,
-            guardianConsent: true,
-          },
-        })
-        token.role = db?.role ?? 'USER'
-        token.isMinor = db?.isMinor ?? false
-        token.guardianConsent = db?.guardianConsent ?? false
-        // Google không trả ngày sinh -> hồ sơ chưa đủ, phải hỏi thêm một bước
-        token.profileComplete = Boolean(db?.birthDate)
-      }
       return token
     },
 

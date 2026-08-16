@@ -19,6 +19,12 @@ export const LICENSE_TYPES = [
 ] as const
 export type LicenseType = (typeof LICENSE_TYPES)[number]
 
+/**
+ * KHÔNG CÓ 'SPEAKING'. Sản phẩm không định hướng kỹ năng nói: thi nói cần giám
+ * khảo hoặc chấm bằng model, không có cách nào làm tử tế trong một phòng thi chạy
+ * trên trình duyệt. Giữ lại một dạng câu không bao giờ chấm được chỉ tạo ra những
+ * con số "chưa chấm" lửng lơ trên trang kết quả.
+ */
 export const QUESTION_TYPES = [
   'SINGLE_CHOICE',
   'MULTI_CHOICE',
@@ -28,18 +34,17 @@ export const QUESTION_TYPES = [
   'ORDERING',
   'SHORT_ANSWER',
   'ESSAY', // không tự chấm ở v1
-  'SPEAKING', // không tự chấm ở v1
 ] as const
 export type QuestionType = (typeof QUESTION_TYPES)[number]
 
 /** Các loại câu hỏi engine v1 chưa chấm tự động — SPEC F3 */
-export const UNGRADED_TYPES: readonly QuestionType[] = ['ESSAY', 'SPEAKING']
+export const UNGRADED_TYPES: readonly QuestionType[] = ['ESSAY']
 
+/** Cũng không có 'SPEAKING' — xem ghi chú ở QUESTION_TYPES. */
 export const SKILLS = [
   'LISTENING',
   'READING',
   'WRITING',
-  'SPEAKING',
   'GRAMMAR',
   'VOCABULARY',
   'OTHER',
@@ -50,7 +55,6 @@ export const SKILL_LABELS: Record<Skill, string> = {
   LISTENING: 'Nghe',
   READING: 'Đọc',
   WRITING: 'Viết',
-  SPEAKING: 'Nói',
   GRAMMAR: 'Ngữ pháp',
   VOCABULARY: 'Từ vựng',
   OTHER: 'Khác',
@@ -107,6 +111,11 @@ export const EXAM_CATEGORY_LABELS: Record<ExamCategory, string> = {
 export const ATTEMPT_MODES = ['EXAM', 'PRACTICE'] as const
 export type AttemptMode = (typeof ATTEMPT_MODES)[number]
 
+/**
+ * EXPIRED và ABANDONED hiện KHÔNG được đặt ở đâu cả: bài hết giờ được server chấm
+ * và chuyển thẳng sang SUBMITTED, phân biệt bằng cờ `Attempt.autoSubmitted`. Giữ
+ * lại cho F8 (Admin CMS) — đừng viết bộ lọc dựa vào chúng, sẽ không bao giờ khớp.
+ */
 export const ATTEMPT_STATUSES = ['IN_PROGRESS', 'SUBMITTED', 'EXPIRED', 'ABANDONED'] as const
 export type AttemptStatus = (typeof ATTEMPT_STATUSES)[number]
 

@@ -59,6 +59,19 @@ export type SeedExam = {
   sortOrder: number
   levels: { slug: string; name: string; cefr?: string; sortOrder: number }[]
   papers: SeedPaper[]
+
+  /**
+   * Phần NÓI của bài thi THẬT dài bao nhiêu phút. `null` = kỳ thi này vốn không có
+   * phần nói (TOPIK II, THPT Quốc gia môn Tiếng Anh…).
+   *
+   * BẮT BUỘC KHAI, cố ý không cho optional. Sản phẩm không dựng phần nói (xem
+   * `SKILLS` ở lib/enums.ts), nhưng bỏ trong im lặng thì người dùng luyện với đề 65
+   * phút rồi bước vào phòng thi thật 80 phút. Để trường này optional nghĩa là người
+   * thêm kỳ thi mới quên là xong — không ai báo gì cả. Là trường bắt buộc thì
+   * TypeScript chặn ngay lúc biên dịch, buộc phải TRẢ LỜI câu hỏi "kỳ này có phần
+   * nói không", kể cả khi câu trả lời là `null`.
+   */
+  realSpeakingMinutes: number | null
 }
 
 // helper: tạo nhanh 4 lựa chọn A-D với chỉ số đáp án đúng
@@ -820,9 +833,9 @@ const thptReading: SeedSection = {
 //  1. Tranh minh hoạ ở Hören Teil 1 (giá áo len, mặt đồng hồ, đĩa thức ăn…).
 //     Phương án trả lời đã ghi rõ bằng chữ ("Dreißig Euro", "15 Uhr", "Pommes")
 //     nên bỏ tranh không làm mất thông tin để giải — đáp án nằm ở file nghe.
-//  2. Thẻ từ / thẻ tranh của Sprechen: đề gốc là thi nói theo nhóm, không chấm
-//     tự động được. Giữ lại nguyên đề bài dưới dạng câu SPEAKING để người học
-//     tự luyện; engine đánh isCorrect = null và loại khỏi tổng điểm.
+//  2. TOÀN BỘ phần Sprechen. Sản phẩm không định hướng kỹ năng nói: đề gốc là thi
+//     nói theo nhóm, cần giám khảo, không có cách nào chấm hay luyện tử tế trong
+//     một phòng thi trên trình duyệt. Đề vì vậy chỉ còn Hören / Lesen / Schreiben.
 // ============================================================================
 
 /** Hai lựa chọn Richtig/Falsch — dạng câu chiếm phần lớn đề A1/A2. */
@@ -1338,48 +1351,6 @@ const sd1Schreiben: SeedSection = {
   ],
 }
 
-const sd1Sprechen: SeedSection = {
-  skill: 'SPEAKING',
-  title: 'Sprechen',
-  instructions:
-    'Dieser Test hat drei Teile. Die mündliche Prüfung ist eine Gruppenprüfung mit maximal vier Teilnehmenden. Hier zum Selbstüben: sprechen Sie Ihre Antworten laut oder nehmen Sie sie auf. Diese Teile werden nicht automatisch bewertet.',
-  duration: 15 * 60,
-  questions: [
-    {
-      number: 1,
-      type: 'SPEAKING',
-      content:
-        'Teil 1 — Sich vorstellen. Erzählen Sie: Wer sind Sie? Nutzen Sie die Stichwörter: Name? Alter? Land? Wohnort? Sprachen? Beruf? Hobby?',
-      difficulty: 'EASY',
-      tags: ['sprechen', 'teil-1', 'vorstellung'],
-    },
-    {
-      number: 2,
-      type: 'SPEAKING',
-      content:
-        'Teil 2 — Um Informationen bitten und Informationen geben. Thema: Essen & Trinken. Bilden Sie zu jedem Stichwort eine Frage und beantworten Sie sie: Frühstück · Lieblingsessen · Sonntag · Bier · Fleisch · Brot.',
-      difficulty: 'MEDIUM',
-      tags: ['sprechen', 'teil-2', 'essen-trinken'],
-    },
-    {
-      number: 3,
-      type: 'SPEAKING',
-      content:
-        'Teil 2 — Um Informationen bitten und Informationen geben. Thema: Einkaufen. Bilden Sie zu jedem Stichwort eine Frage und beantworten Sie sie: Zeitung · Kasse · Obst · Schuhe · Buch · Stadtplan.',
-      difficulty: 'MEDIUM',
-      tags: ['sprechen', 'teil-2', 'einkaufen'],
-    },
-    {
-      number: 4,
-      type: 'SPEAKING',
-      content:
-        'Teil 3 — Bitten formulieren und darauf reagieren. Formulieren Sie zu jedem Bild eine Bitte und reagieren Sie darauf. Die Bildkarten zeigen: Autoschlüssel · Buch · Anzug/Jacke · Bleistift · Tisch und Stuhl · Uhr/Kette · Apfel · Messer und Gabel · Glas Wasser · Rauchverbot · Aktentasche · Radio.',
-      difficulty: 'MEDIUM',
-      tags: ['sprechen', 'teil-3', 'bitten'],
-    },
-  ],
-}
-
 // ============================================================================
 // EXPORT
 // ============================================================================
@@ -1392,8 +1363,10 @@ export const SEED_EXAMS: SeedExam[] = [
     language: 'EN',
     category: 'LANGUAGE_CERT',
     description:
-      'Kỳ thi đánh giá năng lực tiếng Anh theo Khung năng lực ngoại ngữ 6 bậc dùng cho Việt Nam. VSTEP.3-5 đánh giá từ bậc 3 (B1) đến bậc 5 (C1), gồm 4 kỹ năng Nghe, Nói, Đọc, Viết.',
+      'Kỳ thi đánh giá năng lực tiếng Anh theo Khung năng lực ngoại ngữ 6 bậc dùng cho Việt Nam. VSTEP.3-5 đánh giá từ bậc 3 (B1) đến bậc 5 (C1), gồm các kỹ năng Nghe, Đọc, Viết.',
     sortOrder: 1,
+    // VSTEP.3-5 có phần Nói 12 phút, 3 phần thi (Bộ GD&ĐT)
+    realSpeakingMinutes: 12,
     levels: [
       { slug: 'b1', name: 'Bậc 3 (B1)', cefr: 'B1', sortOrder: 1 },
       { slug: 'b2', name: 'Bậc 4 (B2)', cefr: 'B2', sortOrder: 2 },
@@ -1421,6 +1394,8 @@ export const SEED_EXAMS: SeedExam[] = [
     description:
       'Kỳ thi năng lực tiếng Hàn do Viện Giáo dục Quốc tế Quốc gia Hàn Quốc (NIIED) tổ chức. TOPIK II đánh giá từ cấp 3 đến cấp 6 qua hai kỹ năng Nghe và Đọc, cùng phần Viết.',
     sortOrder: 2,
+    // TOPIK II chỉ có Nghe, Viết, Đọc — không có phần Nói
+    realSpeakingMinutes: null,
     levels: [
       { slug: 'topik-1', name: 'TOPIK I (Cấp 1–2)', sortOrder: 1 },
       { slug: 'topik-2', name: 'TOPIK II (Cấp 3–6)', sortOrder: 2 },
@@ -1447,6 +1422,8 @@ export const SEED_EXAMS: SeedExam[] = [
     description:
       'Chứng chỉ tiếng Đức của Goethe-Institut, công nhận trên toàn thế giới và bám theo Khung tham chiếu châu Âu (CEFR). Mỗi đề gồm bốn phần Hören, Lesen, Schreiben và Sprechen. Đề trong kho là Modellsatz và Übungssatz chính thức do Goethe-Institut phát hành.',
     sortOrder: 4,
+    // Start Deutsch 1: Sprechen thi theo nhóm, khoảng 15 phút (Goethe-Institut)
+    realSpeakingMinutes: 15,
     levels: [
       { slug: 'a1', name: 'A1 — Start Deutsch 1', cefr: 'A1', sortOrder: 1 },
       { slug: 'a2', name: 'A2', cefr: 'A2', sortOrder: 2 },
@@ -1458,10 +1435,12 @@ export const SEED_EXAMS: SeedExam[] = [
         title: 'Goethe-Zertifikat A1 — Start Deutsch 1, Modellsatz',
         levelSlug: 'a1',
         year: 2024,
-        totalDuration: 80 * 60,
+        // Hören 20 + Lesen 25 + Schreiben 20. Bản in là 80 phút vì có thêm
+        // Sprechen 15 phút — phần đó đã bỏ khỏi sản phẩm, nên thời gian phải bỏ theo.
+        totalDuration: 65 * 60,
         status: 'PUBLISHED',
         provenanceKey: 'goethe-institut',
-        sections: [sd1Hoeren, sd1Lesen, sd1Schreiben, sd1Sprechen],
+        sections: [sd1Hoeren, sd1Lesen, sd1Schreiben],
       },
     ],
   },
@@ -1474,6 +1453,8 @@ export const SEED_EXAMS: SeedExam[] = [
     description:
       'Kỳ thi tốt nghiệp THPT do Bộ Giáo dục và Đào tạo tổ chức, đồng thời là căn cứ xét tuyển đại học. Đề minh hoạ được Bộ công bố công khai hằng năm.',
     sortOrder: 3,
+    // Môn Tiếng Anh THPT Quốc gia thi trên giấy, không có phần Nói
+    realSpeakingMinutes: null,
     levels: [
       { slug: 'tieng-anh', name: 'Môn Tiếng Anh', sortOrder: 1 },
       { slug: 'toan', name: 'Môn Toán', sortOrder: 2 },

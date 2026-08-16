@@ -38,15 +38,48 @@ export function ReviewView({
 
   const section = data.sections.find((s) => s.id === sectionId) ?? data.sections[0]
 
-  const visibleQuestions = useMemo(() => {
-    if (!section) return []
-    return section.questions.filter((q) => {
-      const a = resultByQuestion.get(q.id)
-      if (filter === 'wrong') return a?.isCorrect === false
-      if (filter === 'flagged') return a?.isFlagged === true
-      return true
-    })
-  }, [section, filter, resultByQuestion])
+  /*
+    BỘ LỌC CHẠY XUYÊN PHẦN, không chỉ trong phần đang chọn.
+
+    Link "Xem tất cả N câu sai" từ trang kết quả trỏ tới `?loc=sai`, nhưng phần mặc
+    định là `sections[0]`. Câu sai nằm ở phần 2 thì người dùng bấm vào một con số N
+    rõ ràng rồi nhận được "Không có câu nào sai trong phần này." — chính xác về mặt
+    kỹ thuật và vô dụng về mặt con người.
+
+    Khi lọc, tab chuyển phần cũng bị ẩn: lúc đó "phần đang chọn" không còn nghĩa gì.
+  */
+  const filtering = filter !== 'all'
+
+  const visibleGroups = useMemo(() => {
+    const source = filtering ? data.sections : section ? [section] : []
+    return source
+      .map((s) => ({
+        section: s,
+        questions: s.questions.filter((q) => {
+          const a = resultByQuestion.get(q.id)
+          if (filter === 'wrong') return a?.isCorrect === false
+          if (filter === 'flagged') return a?.isFlagged === true
+          return true
+        }),
+      }))
+      .filter((g) => g.questions.length > 0)
+  }, [data.sections, section, filter, filtering, resultByQuestion])
+
+  const visibleCount = visibleGroups.reduce((n, g) => n + g.questions.length, 0)
+
+  /*
+    searchParams đổi sau lần render đầu (điều hướng client-side) thì filter phải
+    theo — `useState(initialFilter)` một mình bỏ qua mọi thay đổi sau đó.
+
+    Chỉnh state NGAY TRONG LÚC RENDER thay vì trong useEffect: đây là cách React
+    khuyến nghị cho "state phụ thuộc prop". Đặt trong effect thì render đầu tiên
+    hiện filter cũ rồi mới nháy sang filter mới.
+  */
+  const [prevInitialFilter, setPrevInitialFilter] = useState(initialFilter)
+  if (prevInitialFilter !== initialFilter) {
+    setPrevInitialFilter(initialFilter)
+    setFilter(initialFilter)
+  }
 
   const counts = useMemo(() => {
     const all = data.sections.flatMap((s) => s.questions)
@@ -77,8 +110,8 @@ export function ReviewView({
         </FilterTab>
       </div>
 
-      {/* Chuyển phần */}
-      {data.sections.length > 1 && (
+      {/* Chuyển phần — ẩn khi đang lọc, vì lúc đó bộ lọc chạy trên mọi phần */}
+      {data.sections.length > 1 && !filtering && (
         <div className="thin-scroll flex gap-2 overflow-x-auto">
           {data.sections.map((s) => (
             <button
@@ -121,40 +154,52 @@ export function ReviewView({
         )}
 
         <div className={section.passages.length > 0 ? 'flex flex-col gap-4' : 'flex flex-col gap-4 xl:col-span-2'}>
-          {visibleQuestions.map((q) => {
-            const a = resultByQuestion.get(q.id)
-            return (
-              <div key={q.id}>
-                <div className="mb-2 flex items-center gap-2">
-                  {a?.isCorrect === true && (
-                    <span className="pill bg-green-soft text-green">
-                      <CheckIcon size={13} /> Đúng
-                    </span>
-                  )}
-                  {a?.isCorrect === false && (
-                    <span className="pill bg-red-soft text-red">
-                      <XIcon size={12} /> Sai
-                    </span>
-                  )}
-                  {a?.isCorrect === null && (
-                    <span className="pill bg-amber-soft text-amber">Chưa chấm tự động</span>
-                  )}
-                  {a?.isFlagged && (
-                    <span className="pill bg-amber-soft text-amber">
-                      <FlagIcon size={11} /> Đã đánh dấu
-                    </span>
-                  )}
-                </div>
-                <QuestionView question={q} review result={a} />
-              </div>
-            )
-          })}
+          {visibleGroups.map((group) => (
+            <section key={group.section.id} className="flex flex-col gap-4">
+              {/* Đang lọc thì câu hỏi đến từ nhiều phần — phải nói rõ câu nào ở đâu */}
+              {filtering && (
+                <h3 className="text-[14px] font-semibold tracking-wide text-muted uppercase">
+                  {SKILL_LABELS[group.section.skill as Skill]} — {group.section.title}
+                </h3>
+              )}
+              {group.questions.map((q) => {
+                const a = resultByQuestion.get(q.id)
+                return (
+                  <div key={q.id}>
+                    <div className="mb-2 flex items-center gap-2">
+                      {a?.isCorrect === true && (
+                        <span className="pill bg-green-soft text-green">
+                          <CheckIcon size={13} /> Đúng
+                        </span>
+                      )}
+                      {a?.isCorrect === false && (
+                        <span className="pill bg-red-soft text-red">
+                          <XIcon size={12} /> Sai
+                        </span>
+                      )}
+                      {a?.isCorrect === null && (
+                        <span className="pill bg-amber-soft text-amber">Chưa chấm tự động</span>
+                      )}
+                      {a?.isFlagged && (
+                        <span className="pill bg-amber-soft text-amber">
+                          <FlagIcon size={11} /> Đã đánh dấu
+                        </span>
+                      )}
+                    </div>
+                    <QuestionView question={q} review result={a} />
+                  </div>
+                )
+              })}
+            </section>
+          ))}
 
-          {visibleQuestions.length === 0 && (
+          {visibleCount === 0 && (
             <p className="panel p-8 text-center text-muted">
               {filter === 'wrong'
-                ? 'Không có câu nào sai trong phần này. '
-                : 'Bạn không đánh dấu câu nào trong phần này.'}
+                ? 'Không có câu nào sai — bạn làm đúng toàn bộ.'
+                : filter === 'flagged'
+                  ? 'Bạn không đánh dấu câu nào trong bài này.'
+                  : 'Phần này chưa có câu hỏi nào.'}
             </p>
           )}
         </div>
