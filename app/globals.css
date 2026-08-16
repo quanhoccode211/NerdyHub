@@ -1,0 +1,804 @@
+@import 'tailwindcss';
+
+/* ============================================================================
+   Design tokens — BẢNG MÀU NERDY HUB.
+
+   Năm màu gốc do người dùng chỉ định:
+     P1 #ffffff  trắng            — bề mặt thẻ
+     P2 #c4d5e5  xanh khói nhạt   — nền thẻ nội dung
+     P3 #7cb0d6  xanh dương vừa   — nền thẻ nhấn, cột biểu đồ
+     P4 #b2a9e3  tím periwinkle   — nền thẻ nội dung
+     P5 #151a26  navy gần đen     — chữ, điểm nhấn, nền dark mode
+
+   Bảng chỉ có BA màu có sắc, nên các thẻ xoay vòng qua P2 → P4 → pha P2/P3 →
+   P3. Tên token cũ (mint, rose, cream, lime, sand…) được giữ nguyên và trỏ vào
+   màu mới: đổi tên sẽ phải sửa hàng chục chỗ gọi mà không được thêm gì.
+   ========================================================================= */
+@theme {
+  /* Nền & bề mặt — LIGHT MODE (mặc định) */
+  --color-bg: #e6ebf2;
+  --color-shell: #ffffff;
+  --color-card: #ffffff;
+  --color-soft: #f2f6fa;
+  --color-line: #e7edf4;
+  --color-line-strong: #d9e2ec;
+
+  /* Chữ */
+  --color-ink: #151a26;
+  --color-muted: #8e99a8;
+  --color-muted-strong: #5f6b7d;
+
+  /**
+   * Chữ ĐẶT TRÊN các nền pastel (bg-mint, bg-rose, bg-cream, bg-blush, bg-lime,
+   * bg-sand, các gradient thẻ…). KHÔNG dùng --color-ink cho những chỗ đó: ink
+   * lật màu theo giao diện, còn các nền pastel thì luôn sáng, nên ở dark mode
+   * chữ sẽ sáng-trên-sáng. Token này là cặp foreground cố định của chúng.
+   */
+  --color-on-tone: #151a26;
+
+  /* Điểm nhấn chính là navy P5 — nút active, cột nổi bật, nhãn quan trọng */
+  --color-accent: #151a26;
+  --color-accent-soft: #eef3f8;
+  --color-accent-fg: #ffffff;
+
+  /* Nền thẻ nội dung — P2 / P3 / P4 và các sắc độ của chúng */
+  --color-mint: #c4d5e5;
+  --color-mint-deep: #a6c1d8;
+  --color-mint-soft: #eaf1f8;
+  --color-peri: #b2a9e3;
+  --color-peri-deep: #9a8fda;
+  --color-peri-soft: #efedfb;
+  --color-sky: #a3c6e2;
+  --color-sky-deep: #86b4d9;
+  --color-sand: #7cb0d6;
+  --color-sand-deep: #6199c2;
+  --color-blush: #b2a9e3;
+
+  /* Trạng thái */
+  --color-good: #2f9e5b;
+  --color-good-soft: #e3f6e8;
+  --color-warn: #d98324;
+  --color-warn-soft: #fcf0dd;
+  --color-bad: #d64550;
+  --color-bad-soft: #fdeaec;
+
+  /* Màu highlight trong phòng thi — giữ nguyên, đã kiểm chứng dễ đọc */
+  --color-hl-yellow: #ffe9a8;
+  --color-hl-green: #bdecd0;
+  --color-hl-blue: #c3e0fb;
+  --color-hl-pink: #fbc9e4;
+
+  /* ------------------------------------------------------------------------
+     TƯƠNG THÍCH NGƯỢC — TẠM THỜI.
+     Các trang chưa kịp chuyển sang bảng màu mới (kho đề, kết quả, thống kê,
+     phòng thi, auth) vẫn đang dùng tên token cũ. Ánh xạ chúng sang bảng màu
+     mới để không trang nào vỡ giữa chừng.
+     XOÁ khối này sau khi đã chuyển hết các trang.
+     --------------------------------------------------------------------- */
+  --color-purple: #6f63c4;
+  --color-purple-soft: #efedfb;
+  --color-pink: #4a86b4;
+  --color-pink-soft: #e3eef7;
+  --color-green: #2f9e5b;
+  --color-green-soft: #e3f6e8;
+  --color-amber: #d98324;
+  --color-amber-soft: #fcf0dd;
+  --color-red: #d64550;
+  --color-red-soft: #fdeaec;
+  --color-bar-light: #e0e8f1;
+  --color-bar-dark: #7cb0d6;
+  --color-rose: #b2a9e3;
+  --color-cream: #a3c6e2;
+  --color-lime: #c4d5e5;
+
+  --radius-shell: 34px;
+  --radius-card: 24px;
+  --radius-tile: 20px;
+  --radius-pill: 999px;
+
+  --font-sans: var(--font-app), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-prose: var(--font-prose-src), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ============================================================================
+   CHỮ CHẠY DÙNG FONT TỈ LỆ.
+
+   Roboto Mono là font đều chiều rộng: đẹp cho số liệu, nhãn, nav và tiêu đề
+   ngắn, nhưng đọc một đoạn văn dài thì mỏi mắt vì chữ nào cũng chiếm đúng một ô.
+   Nên tách đôi: <p> và <li> chạy Google Sans Flex, phần còn lại giữ Roboto Mono.
+
+   Đặt ở tầng ELEMENT chứ không đi gắn class vào từng chỗ, vì hai lý do:
+     • có những đoạn văn đến từ database (mô tả kỳ thi ở trang /de-thi), không
+       có chỗ nào trong TSX để gắn class;
+     • gắn tay vào mấy chục file thì lần sau thêm đoạn văn mới sẽ quên.
+
+   Chỗ nào <p>/<li> thực chất là NHÃN hoặc SỐ LIỆU chứ không phải câu văn thì
+   gắn `font-sans` để kéo về Roboto Mono.
+   ========================================================================= */
+@layer base {
+  p,
+  li {
+    font-family: var(--font-prose);
+  }
+}
+
+/* ============================================================================
+   MÀU KHÔNG PHẢI TOKEN TAILWIND
+   Gradient, vạch nền vòng tròn, màu biểu đồ — những thứ trước đây viết thẳng
+   mã hex trong TSX nên không đổi theo giao diện. Đặt ở đây để có bản dark.
+   ========================================================================= */
+:root {
+  color-scheme: light;
+
+  /**
+   * Nền dưới cùng của cả web — dải màu nằm SAU khung thẻ trắng.
+   *
+   * Sáng: chuyển ngang xám → đào → hồng → tím nhạt.
+   * Tối: xem khối .dark bên dưới — ba lớp chồng nhau vì một linear-gradient
+   * không tả được cả góc trên trái ấm lẫn góc dưới trái tím.
+   */
+  --app-gradient: linear-gradient(
+    90deg,
+    #edebec 0%,
+    #f0d0c6 20%,
+    #f8ccd8 40%,
+    #fcd7e7 58%,
+    #f2ddf8 78%,
+    #e9e0fc 100%
+  );
+
+  /* Pomodoro — nền tròn và màu vòng tiến trình theo từng pha */
+  --pomo-focus-bg: linear-gradient(145deg, #c6bfec 0%, #9a8fda 100%);
+  --pomo-focus-ring: #151a26;
+  --pomo-short-bg: linear-gradient(145deg, #d5e3ef 0%, #a6c1d8 100%);
+  --pomo-short-ring: #2f9e5b;
+  --pomo-long-bg: linear-gradient(145deg, #a3c6e2 0%, #6199c2 100%);
+  --pomo-long-ring: #d98324;
+  --pomo-track: rgba(255, 255, 255, 0.5);
+
+  /* Thẻ tiến độ / lịch ôn — gradient nền và lớp phủ bên trên nó */
+  --tile-mint: linear-gradient(145deg, #d5e3ef 0%, #a6c1d8 100%);
+  --tile-peri: linear-gradient(145deg, #c6bfec 0%, #9a8fda 100%);
+  --tile-sky: linear-gradient(145deg, #bcd8ec 0%, #86b4d9 100%);
+  --tile-sand: linear-gradient(145deg, #98c0de 0%, #6199c2 100%);
+  --tile-chip: rgba(255, 255, 255, 0.72);
+  --tile-track: rgba(255, 255, 255, 0.55);
+
+  /**
+   * Dấu tick vẽ trong ô checkbox của widget "Việc hôm nay".
+   *
+   * Phải là data URI chứ không phải một <svg> con: ô tick là <input> thật (để
+   * còn nhận focus bàn phím), mà <input> là phần tử rỗng, không chứa được con —
+   * nên dấu tick buộc phải là background-image.
+   *
+   * Nét dấu tick nằm TRÊN nền --color-accent nên phải là màu --color-accent-fg.
+   * Data URI không nội suy được biến CSS, nên khai hai bản: bản này nét trắng
+   * cho giao diện sáng, bản nét tối nằm trong khối .dark bên dưới.
+   */
+  --check-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 13l4 4L19 7'/%3E%3C/svg%3E");
+
+  /* Biểu đồ — lưới, vùng radar, nhãn trục */
+  --chart-grid: #e7edf4;
+  --chart-accent: #7cb0d6;
+  --chart-accent-fill: rgba(124, 176, 214, 0.26);
+  --chart-label: #5f6b7d;
+
+  /**
+   * Màu phân loại theo kỹ năng.
+   *
+   * Đây là màu PHÂN LOẠI dữ liệu, không phải màu trang trí: năm kỹ năng phải
+   * phân biệt được với nhau trên biểu đồ tròn. Bảng thương hiệu chỉ có ba màu
+   * cùng một vùng xanh-tím nên không đủ để tách năm nhóm — giữ dải rộng hơn,
+   * lấy P3/P4 làm hai màu đầu cho ăn nhập với phần còn lại của giao diện.
+   */
+  --skill-1: #7cb0d6;
+  --skill-2: #b2a9e3;
+  --skill-3: #2f9e5b;
+  --skill-4: #d98324;
+  --skill-5: #c2557f;
+}
+
+/* ============================================================================
+   DARK MODE TOKENS — class strategy (.dark trên <html>)
+   Bảng màu tối giữ nguyên ngữ nghĩa nhưng đảo sáng/tối, giảm độ chói.
+
+   LƯU Ý về các nền pastel (mint/rose/cream/blush/lime/sky/sand/peri):
+   chúng VẪN SÁNG ở dark mode, chỉ dịu bớt cho đỡ chói. Lý do: chữ trên chúng
+   dùng --color-on-tone (luôn tối), và ảnh minh hoạ ở trang chủ là pastel sáng
+   nướng sẵn trong file — làm nền tối sẽ lệch hẳn với ảnh. Ngược lại các biến
+   *-soft là nền chip nhỏ nằm TRÊN thẻ nên phải tối đi, đi cùng --color-ink.
+   ========================================================================= */
+.dark {
+  color-scheme: dark;
+
+  /* Nền tối lấy thẳng P5 #151a26 làm gốc, các bề mặt là sắc độ của nó */
+  --color-bg: #10141f;
+  --color-shell: #171d2a;
+  --color-card: #1b2231;
+  --color-soft: #232a3b;
+  --color-line: #2b3345;
+  --color-line-strong: #3a4356;
+
+  --color-ink: #e6ebf2;
+  --color-muted: #6b7688;
+  --color-muted-strong: #9aa5b6;
+
+  --color-accent: #e6ebf2;
+  --color-accent-soft: #232a3b;
+  --color-accent-fg: #151a26;
+
+  --color-mint: #aec6da;
+  --color-mint-deep: #93b3cd;
+  --color-mint-soft: #1d2836;
+  --color-peri: #9f96d6;
+  --color-peri-deep: #8a7fcc;
+  --color-peri-soft: #262340;
+  --color-sky: #8fb8d9;
+  --color-sky-deep: #78a6cd;
+  --color-sand: #6ba3cb;
+  --color-sand-deep: #578cb4;
+  --color-blush: #9f96d6;
+
+  --color-good: #4ade80;
+  --color-good-soft: #1a3326;
+  --color-warn: #fbbf24;
+  --color-warn-soft: #332a1a;
+  --color-bad: #f87171;
+  --color-bad-soft: #331a1a;
+
+  --color-hl-yellow: #856d2e;
+  --color-hl-green: #2e6b42;
+  --color-hl-blue: #2e4a6b;
+  --color-hl-pink: #6b2e4a;
+
+  --color-purple: #9f96d6;
+  --color-purple-soft: #262340;
+  --color-pink: #8fb8d9;
+  --color-pink-soft: #1d2836;
+  --color-green: #4ade80;
+  --color-green-soft: #1a3326;
+  --color-amber: #fbbf24;
+  --color-amber-soft: #332a1a;
+  --color-red: #f87171;
+  --color-red-soft: #331a1a;
+  --color-bar-light: #2b3345;
+  --color-bar-dark: #7cb0d6;
+  --color-rose: #9f96d6;
+  --color-cream: #8fb8d9;
+  --color-lime: #aec6da;
+
+  /* Gradient dịu bớt một nấc; vòng/nhãn trên nền pastel vẫn phải là màu tối */
+  --pomo-focus-bg: linear-gradient(145deg, #b3a9e0 0%, #8a7fcc 100%);
+  --pomo-short-bg: linear-gradient(145deg, #c2d5e4 0%, #93b3cd 100%);
+  --pomo-long-bg: linear-gradient(145deg, #8fb8d9 0%, #578cb4 100%);
+  --pomo-track: rgba(255, 255, 255, 0.38);
+
+  --tile-mint: linear-gradient(145deg, #c2d5e4 0%, #93b3cd 100%);
+  --tile-peri: linear-gradient(145deg, #b3a9e0 0%, #8a7fcc 100%);
+  --tile-sky: linear-gradient(145deg, #a6c8e2 0%, #78a6cd 100%);
+  --tile-sand: linear-gradient(145deg, #84b0d2 0%, #578cb4 100%);
+  --tile-chip: rgba(255, 255, 255, 0.55);
+  --tile-track: rgba(255, 255, 255, 0.42);
+
+  /* Góc dưới trái tím, góc trên trái hơi ấm, giữa gần như đen xanh */
+  --app-gradient:
+    radial-gradient(120% 90% at 0% 100%, #2f1546 0%, rgba(47, 21, 70, 0) 55%),
+    radial-gradient(90% 70% at 0% 0%, #2b1c24 0%, rgba(43, 28, 36, 0) 45%),
+    linear-gradient(155deg, #0c1024 0%, #090c1e 45%, #120c26 100%);
+
+  /* Nền ô tick lật thành gần trắng ở dark mode, nên nét dấu tick phải tối lại */
+  --check-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23151a26' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 13l4 4L19 7'/%3E%3C/svg%3E");
+
+  --chart-grid: #2b3345;
+  --chart-accent: #8fb8d9;
+  --chart-accent-fill: rgba(143, 184, 217, 0.26);
+  --chart-label: #9aa5b6;
+
+  --skill-1: #8fb8d9;
+  --skill-2: #a89bea;
+  --skill-3: #4ec97e;
+  --skill-4: #eda54c;
+  --skill-5: #e0799f;
+}
+
+/* ============================================================================
+   TRANG GIỚI THIỆU LUÔN SÁNG.
+
+   Ảnh minh hoạ ở trang chủ là pastel sáng nướng sẵn trong file, không có bản
+   tối, nên trang này cố ý đứng ngoài dark mode. Khai báo lại đúng bộ token
+   sáng ở phạm vi con: `.dark` đặt biến trên :root, phần tử con ghi đè được cho
+   cả cây bên dưới. Không đụng tới lựa chọn theme của người dùng — các trang
+   khác vẫn tối bình thường.
+   ========================================================================= */
+.theme-light {
+  color-scheme: light;
+
+  --color-bg: #e6ebf2;
+  --color-shell: #ffffff;
+  --color-card: #ffffff;
+  --color-soft: #f2f6fa;
+  --color-line: #e7edf4;
+  --color-line-strong: #d9e2ec;
+
+  --color-ink: #151a26;
+  --color-muted: #8e99a8;
+  --color-muted-strong: #5f6b7d;
+  --color-on-tone: #151a26;
+
+  --color-accent: #151a26;
+  --color-accent-soft: #eef3f8;
+  --color-accent-fg: #ffffff;
+
+  --color-mint: #c4d5e5;
+  --color-peri: #b2a9e3;
+  --color-sky: #a3c6e2;
+  --color-sand: #7cb0d6;
+
+  /* Trang này phủ kín viewport nên phải tự vẽ lại dải màu sáng, che nền tối của body */
+  --app-gradient: linear-gradient(
+    90deg,
+    #edebec 0%,
+    #f0d0c6 20%,
+    #f8ccd8 40%,
+    #fcd7e7 58%,
+    #f2ddf8 78%,
+    #e9e0fc 100%
+  );
+
+  background-color: var(--color-bg);
+  background-image: var(--app-gradient);
+  background-attachment: fixed;
+  color: var(--color-ink);
+}
+
+/* Khung trắng của trang giới thiệu không mượn bóng đổ của dark mode */
+.theme-light .shell-card {
+  box-shadow: 0 24px 60px rgba(24, 28, 45, 0.06);
+  border: none;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  /*
+   * `background-attachment` phải là khai báo RIÊNG, không viết gộp vào
+   * `background:`. Dải màu tối có ba lớp; viết gộp thì `fixed` chỉ dính vào lớp
+   * cuối, hai lớp radial vẫn cuộn theo trang và mép màu bị trượt.
+   */
+  background-color: var(--color-bg);
+  background-image: var(--app-gradient);
+  background-attachment: fixed;
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Phòng thi phải điều hướng được hoàn toàn bằng bàn phím (SPEC mục 6) */
+:focus-visible {
+  outline: 2.5px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+@layer components {
+  /* Khung trắng bo lớn bao toàn ứng dụng */
+  .shell-card {
+    background: var(--color-shell);
+    border-radius: var(--radius-shell);
+    box-shadow: 0 24px 60px rgba(24, 28, 45, 0.06);
+  }
+  /* Bóng đổ đen trên nền tối chỉ làm bẩn mép — đổi sang viền mảnh */
+  .dark .shell-card {
+    box-shadow: none;
+    border: 1px solid var(--color-line);
+  }
+
+  /* Thẻ nội dung: trắng, viền mảnh — không dùng bóng đổ nặng */
+  .card {
+    background: var(--color-card);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+  }
+
+  .panel {
+    background: var(--color-soft);
+    border-radius: var(--radius-card);
+  }
+
+  /**
+   * Pill điều hướng: CHỈ ICON, tên hiện ra khi rê chuột.
+   * Mặc định trắng viền mảnh, active là khối đặc màu accent.
+   */
+  .nav-pill {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-pill);
+    padding: 0.62rem 0.95rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--color-muted-strong);
+    border: 1px solid var(--color-line);
+    background: var(--color-card);
+    white-space: nowrap;
+    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+  }
+
+  /* Nhãn tên chức năng — nổi bên dưới icon */
+  .nav-tip {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    z-index: 60;
+    transform: translateX(-50%) translateY(-4px);
+    padding: 0.3rem 0.65rem;
+    border-radius: 0.55rem;
+    background: var(--color-accent);
+    color: var(--color-accent-fg);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.14s ease, transform 0.14s ease;
+  }
+  .nav-pill:hover .nav-tip,
+  .nav-pill:focus-visible .nav-tip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .nav-tip {
+      transition: none;
+    }
+  }
+
+  /**
+   * Công tắc sáng/tối — xem components/shell/theme-toggle.tsx.
+   *
+   * Núm trượt ngang; hai icon mặt trời/mặt trăng nằm CHỒNG lên nhau trong cùng
+   * một ô grid (col-start-1 row-start-1) rồi đổi nhau bằng opacity + xoay, chứ
+   * không dựng/gỡ phần tử — dựng lại thì không có gì để nội suy, icon sẽ nháy.
+   *
+   * Đường cong có phần vọt quá 1 (1.4) để núm nảy nhẹ ở cuối, giống công tắc
+   * thật gạt tới đầu rồi dội lại.
+   *
+   * TRANSITION PHẢI GỌI TÊN `translate`, `rotate`, `scale` — KHÔNG phải
+   * `transform`. Tailwind v4 phát ra các thuộc tính biến đổi RỜI (translate:
+   * 24px; rotate: -90deg; scale: 0.5) thay vì gộp vào `transform` như v3. Khai
+   * `transition: transform` ở đây là khai vào một thuộc tính luôn bằng `none`:
+   * không lỗi, không cảnh báo, chỉ là núm nhảy cụp thay vì trượt.
+   */
+  .theme-switch-knob {
+    transition: translate 320ms cubic-bezier(0.34, 1.4, 0.5, 1);
+  }
+  .theme-switch-icon {
+    grid-column-start: 1;
+    grid-row-start: 1;
+    transition:
+      opacity 200ms ease,
+      rotate 320ms cubic-bezier(0.34, 1.4, 0.5, 1),
+      scale 320ms cubic-bezier(0.34, 1.4, 0.5, 1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .theme-switch-knob,
+    .theme-switch-icon {
+      transition: none;
+    }
+  }
+  .nav-pill:hover {
+    border-color: var(--color-line-strong);
+    color: var(--color-ink);
+  }
+  /**
+   * Chữ trên nền accent phải là --color-accent-fg, KHÔNG phải #fff.
+   * Ở dark mode accent lật thành gần trắng, chữ trắng sẽ biến mất.
+   */
+  .nav-pill[data-active='true'] {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-accent-fg);
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: var(--radius-pill);
+    font-weight: 500;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.8425rem;
+    white-space: nowrap;
+  }
+
+  /* Nút tròn icon — dùng cho prev/next, more, filter */
+  .icon-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.25rem;
+    width: 2.25rem;
+    flex: none;
+    border-radius: 999px;
+    border: 1px solid var(--color-line);
+    background: var(--color-card);
+    color: var(--color-muted-strong);
+    transition: border-color 0.16s ease, color 0.16s ease;
+  }
+  .icon-circle:hover {
+    border-color: var(--color-line-strong);
+    color: var(--color-ink);
+  }
+  .icon-circle[data-tone='dark'] {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-accent-fg);
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    background: var(--color-accent);
+    color: var(--color-accent-fg);
+    font-weight: 600;
+    border-radius: var(--radius-pill);
+    padding: 0.8rem 1.5rem;
+    font-size: 0.9625rem;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+  }
+  .btn-primary:hover {
+    opacity: 0.88;
+  }
+  .btn-primary:active {
+    transform: translateY(1px);
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    background: var(--color-soft);
+    color: var(--color-ink);
+    font-weight: 600;
+    border-radius: var(--radius-pill);
+    padding: 0.8rem 1.5rem;
+    font-size: 0.9625rem;
+    border: 1px solid var(--color-line);
+    transition: border-color 0.16s ease;
+  }
+  .btn-secondary:hover {
+    border-color: var(--color-line-strong);
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: var(--radius-pill);
+    padding: 0.65rem 1.1rem;
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--color-muted-strong);
+    transition: background 0.16s ease;
+  }
+  .btn-ghost:hover {
+    background: var(--color-soft);
+    color: var(--color-ink);
+  }
+
+  /**
+   * Chữ "Nerdy Hub" ở góc trái trên — font viết tay riêng.
+   * Chỉ dùng cho đúng chuỗi ASCII này, xem ghi chú ở app/layout.tsx.
+   *
+   * Font viết tay có thân chữ nhỏ hơn hẳn so với cỡ chữ khai báo, nên phải
+   * nống cỡ lên và nới letter-spacing thì mới cân với logo bên cạnh.
+   */
+  .wordmark {
+    font-family: var(--font-wordmark), var(--font-app), sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    line-height: 1.35;
+  }
+
+  /* Nhãn tiêu đề khối: icon vuông bo + chữ đậm */
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    font-size: 1.2125rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .chip-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2rem;
+    width: 2rem;
+    flex: none;
+    border-radius: 0.7rem;
+    background: var(--color-soft);
+    color: var(--color-ink);
+  }
+
+  /* Cuộn được nhưng không vẽ thanh cuộn */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .thin-scroll::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .thin-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .thin-scroll::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border-radius: 4px;
+  }
+}
+
+/* ============================================================================
+   POP-IN — hiệu ứng vào của trang giới thiệu.
+
+   Từng khối nảy lên một chút rồi ổn định, các khối lệch nhau bằng
+   `animation-delay` đặt inline ở chỗ dùng. `backwards` để phần tử ẩn sẵn trong
+   lúc chờ tới lượt, nếu không nó sẽ hiện đủ rồi mới biến mất và nhảy vào.
+   ========================================================================= */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.pop-in {
+  animation: pop-in 0.52s cubic-bezier(0.22, 1.35, 0.36, 1) backwards;
+}
+
+/* Tôn trọng cài đặt giảm chuyển động của hệ điều hành */
+@media (prefers-reduced-motion: reduce) {
+  .pop-in {
+    animation: none;
+  }
+}
+
+/* ============================================================================
+   ĐỔI GIAO DIỆN MƯỢT.
+
+   `body` vẽ nền bằng `background-image: var(--app-gradient)`. Bản sáng là MỘT
+   lớp linear-gradient, bản tối là BA lớp (2 radial + 1 linear, xem khối .dark).
+   CSS chỉ nội suy được giữa hai gradient cùng số lớp cùng kiểu, nên
+   `transition: background-image` ở đây hoàn toàn vô tác dụng — nền sẽ nhảy cụp
+   một cái dù có khai báo transition hay không.
+
+   Cách chạy được là để TRÌNH DUYỆT chụp ảnh cả trang trước và sau rồi cross-fade
+   hai tấm ảnh: View Transitions API, gọi từ components/shell/theme-toggle.tsx.
+   Đã là ảnh chụp thì gradient mấy lớp, ảnh, bóng đổ… đều mượt như nhau.
+
+   `.theme-transition` là đường lui cho trình duyệt chưa hỗ trợ, chỉ tồn tại
+   ~420ms quanh lúc bấm nút: làm mượt màu nền/chữ/viền, riêng dải gradient vẫn
+   nhảy — không có cách nào khác.
+
+   TUYỆT ĐỐI không đặt `transition` vĩnh viễn lên `*`: mọi hover của .nav-pill,
+   .icon-circle, .btn-* sẽ ì theo, và phải tự viết lại nhánh reduced-motion cho
+   từng cái.
+   ========================================================================= */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 420ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/*
+  Nhấc núm công tắc ra khỏi ảnh chụp chung để nó TRƯỢT thật trong lúc nền
+  cross-fade, thay vì mờ dần ở chỗ cũ rồi hiện ra ở chỗ mới.
+  `view-transition-name` phải duy nhất trong tài liệu — chỉ có đúng một
+  <ThemeToggle /> (components/shell/app-shell.tsx), đừng render cái thứ hai.
+*/
+.theme-switch-knob {
+  view-transition-name: theme-knob;
+}
+::view-transition-group(theme-knob) {
+  animation-duration: 340ms;
+  animation-timing-function: cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+
+/*
+  Độ đặc hiệu (0,1,1) nên tạm thắng .nav-pill (0,1,0) trong đúng 420ms người
+  dùng đang bấm công tắc. Liệt kê từng thuộc tính chứ không dùng `all`: `all`
+  sẽ nuốt luôn transform/opacity của núm và của .pop-in.
+*/
+html.theme-transition * {
+  transition:
+    background-color 380ms ease,
+    border-color 380ms ease,
+    color 380ms ease,
+    fill 380ms ease,
+    stroke 380ms ease,
+    box-shadow 380ms ease;
+}
+/* Núm và icon giữ nhịp riêng, không bị quy tắc chung ở trên nuốt mất */
+html.theme-transition .theme-switch-knob {
+  transition: translate 320ms cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+html.theme-transition .theme-switch-icon {
+  transition:
+    opacity 200ms ease,
+    rotate 320ms cubic-bezier(0.34, 1.4, 0.5, 1),
+    scale 320ms cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+
+/*
+  Chặn hai lớp: theme-toggle.tsx đã tự bỏ qua startViewTransition khi người dùng
+  bật giảm chuyển động, đây là lớp phòng hờ nếu class được gắn từ đường khác.
+*/
+@media (prefers-reduced-motion: reduce) {
+  html.theme-transition * {
+    transition: none;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-group(*) {
+    animation: none;
+  }
+}
+
+/* Nội dung passage do biên tập nhập — đã sanitize server-side */
+.passage-body p {
+  margin-bottom: 1.05rem;
+  line-height: 1.75;
+}
+.passage-body p:last-child {
+  margin-bottom: 0;
+}
+.passage-body h3 {
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+}
+
+/* Highlight của thí sinh */
+mark[data-hl='yellow'] {
+  background: var(--color-hl-yellow);
+}
+mark[data-hl='green'] {
+  background: var(--color-hl-green);
+}
+mark[data-hl='blue'] {
+  background: var(--color-hl-blue);
+}
+mark[data-hl='pink'] {
+  background: var(--color-hl-pink);
+}
+mark[data-hl] {
+  border-radius: 3px;
+  padding: 0.05em 0;
+  color: inherit;
+  cursor: pointer;
+}
+mark[data-has-note='true'] {
+  border-bottom: 2px dotted var(--color-accent);
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+}

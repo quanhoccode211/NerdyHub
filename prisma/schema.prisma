@@ -1,0 +1,439 @@
+// ============================================================================
+// Nền tảng Kho đề & Thi thử Trực tuyến — schema
+//
+// Cổng SQLite của SPEC mục 3. Ba khác biệt bắt buộc so với bản Postgres:
+//   1. SQLite không có enum  -> dùng String, union type ở lib/enums.ts, validate bằng Zod
+//   2. SQLite không có scalar list -> String[]/Int[] lưu JSON string, hậu tố ...Json
+//   3. SQLite không có @db.Text  -> bỏ, TEXT là mặc định
+// Đổi sang PostgreSQL: sửa datasource + hoàn nguyên 3 điểm trên. Không đụng quan hệ.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+// Prisma 7: connection URL nằm ở prisma.config.ts, không còn ở đây.
+datasource db {
+  provider = "sqlite"
+}
+
+// ============ KỲ THI & ĐỀ ============
+
+model Exam {
+  id          String @id @default(cuid())
+  slug        String @unique // "vstep", "topik", "thpt-quoc-gia"
+  name        String // "VSTEP"
+  fullName    String
+  language    String // Language: EN KO JA ZH DE VI
+  category    String // ExamCategory: LANGUAGE_CERT NATIONAL_EXAM APTITUDE
+  description String
+
+  levels     ExamLevel[]
+  papers     TestPaper[]
+  studyPlans StudyPlan[]
+
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([slug, isActive])
+}
+
+model ExamLevel {
+  id        String      @id @default(cuid())
+  examId    String
+  exam      Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
+  slug      String // "b2", "n3", "hsk-4", "topik-2"
+  name      String // "Bậc 4 (B2)"
+  cefr      String? // null nếu không áp dụng
+  sortOrder Int         @default(0)
+  papers    TestPaper[]
+
+  @@unique([examId, slug])
+}
+
+// ============ PROVENANCE — BẮT BUỘC, KHÔNG NULLABLE ============
+
+model Provenance {
+  id            String   @id @default(cuid())
+  license       String // LicenseType — xem lib/enums.ts
+  sourceName    String
+  sourceUrl     String?
+  attribution   String? // chuỗi ghi nguồn bắt buộc hiển thị
+  licenseDocUrl String?
+  authorId      String?
+  acquiredAt    DateTime @default(now())
+  notes         String?
+
+  /// false => KHÔNG BAO GIỜ hiển thị công khai. Xem lib/content-filter.ts
+  canPublish Boolean
+
+  papers    TestPaper[]
+  questions Question[]
+
+  @@index([license, canPublish])
+}
+
+model TestPaper {
+  id           String     @id @default(cuid())
+  slug         String
+  title        String
+  examId       String
+  exam         Exam       @relation(fields: [examId], references: [id])
+  levelId      String?
+  level        ExamLevel? @relation(fields: [levelId], references: [id])
+  provenanceId String
+  provenance   Provenance @relation(fields: [provenanceId], references: [id])
+
+  year          Int?
+  totalDuration Int // tổng thời gian, giây
+  sections      Section[]
+  attempts      Attempt[]
+
+  status      String    @default("DRAFT") // ContentStatus
+  publishedAt DateTime?
+
+  attemptCount Int    @default(0) // denormalized, cho sắp xếp
+  avgScore     Float? // denormalized
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([examId, slug])
+  @@index([examId, levelId, status])
+}
+
+model Section {
+  id           String    @id @default(cuid())
+  paperId      String
+  paper        TestPaper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  skill        String // Skill
+  title        String
+  instructions String
+  duration     Int // giây. 0 = không giới hạn riêng
+  sortOrder    Int
+
+  // Quy tắc phát audio — quyết định tính chân thực
+  audioUrl      String?
+  audioPlayMode String  @default("ONCE_NO_SEEK") // ONCE_NO_SEEK | FREE
+  transcript    String? // chỉ lộ sau khi nộp bài
+
+  passages  Passage[]
+  questions Question[]
+
+  @@index([paperId, sortOrder])
+}
+
+model Passage {
+  id        String     @id @default(cuid())
+  sectionId String
+  section   Section    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  title     String?
+  content   String // HTML đã sanitize
+  imageUrl  String?
+  sortOrder Int
+  questions Question[]
+}
+
+model Question {
+  id           String     @id @default(cuid())
+  sectionId    String
+  section      Section    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  passageId    String?
+  passage      Passage?   @relation(fields: [passageId], references: [id])
+  provenanceId String
+  provenance   Provenance @relation(fields: [provenanceId], references: [id])
+
+  number   Int
+  type     String // QuestionType
+  content  String
+  imageUrl String?
+  audioUrl String?
+
+  choices Choice[]
+
+  /// String[] -> JSON. Nhiều đáp án chấp nhận được cho FILL_BLANK / SHORT_ANSWER
+  correctTextJson String @default("[]")
+  points          Float  @default(1)
+
+  explanation String?
+  difficulty  String? // EASY | MEDIUM | HARD
+
+  /// String[] -> JSON. ["inference", "vocabulary", "hàm số"]
+  tagsJson String @default("[]")
+
+  answers AttemptAnswer[]
+
+  @@index([sectionId, number])
+}
+
+model Choice {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  label      String // "A", "B", "C", "D"
+  content    String
+  isCorrect  Boolean  @default(false)
+  sortOrder  Int
+}
+
+/// Bảng quy đổi điểm — SPEC F3: không hardcode trong code chấm
+model ScoreConversion {
+  id        String  @id @default(cuid())
+  examSlug  String
+  levelSlug String?
+  skill     String? // null = áp cho tổng điểm
+  minRaw    Float
+  maxRaw    Float
+  scaled    Float
+  label     String? // "Bậc 4", "3급"
+
+  @@index([examSlug, levelSlug, skill])
+}
+
+// ============ NGƯỜI DÙNG & NĐ 13/2023 ============
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String?
+  image         String?
+  emailVerified DateTime?
+
+  // Bắt buộc theo NĐ 13/2023 Điều 20
+  birthDate       DateTime?
+  isMinor         Boolean   @default(false) // < 16 tuổi
+  guardianConsent Boolean   @default(false)
+  guardianEmail   String?
+
+  consents     Consent[]
+  attempts     Attempt[]
+  studyPlans   StudyPlan[]
+  calendarConn CalendarConnection?
+  role         String              @default("USER") // Role
+
+  /// Chấp nhận Điều khoản sử dụng. Lưu kèm PHIÊN BẢN: khi điều khoản đổi,
+  /// phải biết ai đã đồng ý bản nào để còn xin đồng ý lại.
+  termsAcceptedAt DateTime?
+  termsVersion    String?
+
+  // Auth.js
+  accounts Account[]
+  sessions Session[]
+
+  createdAt DateTime  @default(now())
+  /// Soft delete. Job dọn dẹp xoá cứng sau 48h — xem scripts/purge-deleted-users.ts
+  deletedAt DateTime?
+  /// Mốc hẹn xoá cứng, để job kiểm chứng được thay vì suy ra từ deletedAt
+  purgeAfter DateTime?
+
+  @@index([email])
+  @@index([deletedAt, purgeAfter])
+}
+
+// ============ AUTH.JS ============
+// Ba bảng dưới đây là yêu cầu của @auth/prisma-adapter, không có trong SPEC
+// nhưng bắt buộc phải có để dùng Auth.js với Google OAuth.
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expires      DateTime
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+/// Xác nhận của người giám hộ cho tài khoản dưới 16 tuổi (NĐ 13/2023 Điều 20).
+/// Tách khỏi VerificationToken vì mục đích pháp lý khác và cần lưu vết ai đã đồng ý.
+model GuardianConsentToken {
+  id            String    @id @default(cuid())
+  userId        String
+  token         String    @unique
+  guardianEmail String
+  expires       DateTime
+  confirmedAt   DateTime?
+  ipAddress     String?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, confirmedAt])
+}
+
+/// Consent PHẢI tách bạch từng mục đích, không gộp
+model Consent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String // ConsentPurpose
+  granted   Boolean
+  grantedAt DateTime @default(now())
+  ipAddress String?
+  userAgent String?
+
+  @@unique([userId, purpose])
+}
+
+// ============ BÀI LÀM — TRÁI TIM HỆ THỐNG ============
+
+model Attempt {
+  id      String    @id @default(cuid())
+  userId  String? // null = khách vãng lai
+  user    User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// Cookie session cho khách chưa đăng nhập — SPEC F6
+  guestId String?
+  paperId String
+  paper   TestPaper @relation(fields: [paperId], references: [id])
+
+  mode   String // EXAM | PRACTICE
+  status String // IN_PROGRESS | SUBMITTED | EXPIRED | ABANDONED
+
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+  /// Nguồn sự thật của đồng hồ. Client chỉ hiển thị.
+  expiresAt   DateTime
+  timeSpent   Int       @default(0)
+
+  // Kết quả
+  rawScore    Float?
+  scaledScore Float?
+  percentile  Float?
+  /// Json -> String. { "LISTENING": 7.5, "READING": 8.0 }
+  sectionScoresJson String?
+
+  answers     AttemptAnswer[]
+  annotations Annotation[]
+
+  currentSectionId String?
+  lastSyncAt       DateTime @default(now())
+
+  @@index([userId, submittedAt])
+  @@index([guestId])
+  @@index([paperId, scaledScore]) // cho percentile
+}
+
+model AttemptAnswer {
+  id         String   @id @default(cuid())
+  attemptId  String
+  attempt    Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+
+  /// String[] -> JSON
+  selectedChoiceIdsJson String  @default("[]")
+  textAnswer            String?
+  isCorrect             Boolean? // null = chưa chấm (ESSAY/SPEAKING)
+  pointsEarned          Float    @default(0)
+
+  isFlagged    Boolean @default(false)
+  timeSpent    Int     @default(0)
+  changedCount Int     @default(0) // dữ liệu phân tích tốt
+
+  @@unique([attemptId, questionId])
+}
+
+/// Highlight & ghi chú trực tiếp trên đề — điểm khác biệt cạnh tranh
+model Annotation {
+  id        String  @id @default(cuid())
+  attemptId String
+  attempt   Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  targetType   String // "passage" | "question"
+  targetId     String
+  type         String // HIGHLIGHT | NOTE
+  startOffset  Int?
+  endOffset    Int?
+  selectedText String?
+  color        String? @default("yellow")
+  noteContent  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([attemptId, targetType, targetId])
+}
+
+// ============ KẾ HOẠCH ÔN & CALENDAR ============
+
+model StudyPlan {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  examId      String
+  exam        Exam     @relation(fields: [examId], references: [id])
+  targetLevel String?
+  targetDate  DateTime
+  weeklyGoal  Int      @default(3)
+
+  /// Int[] -> JSON. [1,3,5] = T2, T4, T6
+  studyDaysJson String @default("[1,3,5]")
+  studyTime     String @default("19:00") // HH:mm, giờ VN
+
+  isActive  Boolean    @default(true)
+  reminders Reminder[]
+  createdAt DateTime   @default(now())
+
+  @@index([userId, isActive])
+}
+
+model Reminder {
+  id          String    @id @default(cuid())
+  studyPlanId String
+  studyPlan   StudyPlan @relation(fields: [studyPlanId], references: [id], onDelete: Cascade)
+
+  type        String // ReminderType
+  scheduledAt DateTime
+  sentAt      DateTime?
+  channel     String // ReminderChannel
+
+  googleEventId String?
+  payloadJson   String?
+
+  @@index([scheduledAt, sentAt])
+}
+
+model CalendarConnection {
+  id       String @id @default(cuid())
+  userId   String @unique
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider String @default("google")
+
+  /// MÃ HOÁ AES-256-GCM trước khi lưu
+  accessToken  String
+  /// MÃ HOÁ AES-256-GCM trước khi lưu
+  refreshToken String
+  expiresAt    DateTime
+
+  calendarId  String?
+  syncEnabled Boolean   @default(true)
+  lastSyncAt  DateTime?
+  createdAt   DateTime  @default(now())
+}
