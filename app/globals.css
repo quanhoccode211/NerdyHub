@@ -624,17 +624,18 @@ body {
   }
 
   /**
-   * Chữ "Nerdy Hub" ở góc trái trên — font viết tay riêng.
-   * Chỉ dùng cho đúng chuỗi ASCII này, xem ghi chú ở app/layout.tsx.
+   * Con dấu cặp kính. Xem ghi chú ở LogoMark trong components/shell/icons.tsx.
    *
-   * Font viết tay có thân chữ nhỏ hơn hẳn so với cỡ chữ khai báo, nên phải
-   * nống cỡ lên và nới letter-spacing thì mới cân với logo bên cạnh.
+   * `aspect-ratio` khớp đúng viewBox đã cắt sát nét của file SVG — đổi viewBox
+   * thì phải đổi luôn con số ở đây, lệch một chút là logo bị bóp hoặc bị cắt.
    */
-  .wordmark {
-    font-family: var(--font-wordmark), var(--font-app), sans-serif;
-    font-weight: 400;
-    letter-spacing: 0.01em;
-    line-height: 1.35;
+  .logo-mark {
+    display: block;
+    flex: none;
+    aspect-ratio: 612 / 421;
+    background-color: currentColor;
+    -webkit-mask: url('/logo-glasses.svg') no-repeat center / contain;
+    mask: url('/logo-glasses.svg') no-repeat center / contain;
   }
 
   /* Nhãn tiêu đề khối: icon vuông bo + chữ đậm */

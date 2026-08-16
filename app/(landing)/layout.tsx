@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { LogoMark } from '@/components/shell/icons'
+import { BRAND_LOGO_SIZE, LogoMark } from '@/components/shell/icons'
 
 /**
  * Khung riêng cho trang giới thiệu.
@@ -15,13 +15,27 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
     // md trở lên khoá đúng chiều cao màn hình — hero phải xem hết được mà không
     // cuộn. Mobile vẫn min-h-screen vì ở đó cuộn là chuyện bình thường.
     <div className="theme-light flex min-h-screen justify-center p-[10px] md:h-screen">
-      {/* lg:py-6 chứ không py-9: hero khoá đúng một màn hình, 24px đó trả về cho
-          cụm minh hoạ — xem ghi chú trong app/(landing)/page.tsx. */}
-      <div className="shell-card flex w-full flex-col px-5 py-5 md:px-9 md:py-7 lg:px-12 lg:py-6">
-        <header className="flex flex-none items-center">
-          <Link href="/" aria-label="Nerdy Hub — trang chủ" className="flex items-center gap-2.5">
-            <LogoMark size={34} />
-            <span className="wordmark text-[20px]">Nerdy Hub</span>
+      {/*
+        Lề NGANG và lề TRÊN phải trùng khít components/shell/app-shell.tsx —
+        con dấu ở góc là thứ duy nhất có mặt ở cả hai khung, nên khung nào rộng
+        hơn là nó nhảy ngang đúng bằng khoảng chênh khi người dùng bấm vào ứng
+        dụng. Trước đây bên này px-12 còn bên kia px-7: kính nhảy 20px.
+
+        Lề DƯỚI thì không phải khớp, và cố ý giữ riêng: hero khoá đúng một màn
+        hình nên chỗ trống dưới cùng là của cụm minh hoạ — xem ghi chú trong
+        app/(landing)/page.tsx.
+      */}
+      <div className="shell-card flex w-full flex-col px-4 pt-4 pb-5 md:px-6 md:pt-5 md:pb-7 lg:px-7 lg:pb-6">
+        {/*
+          min-h-11 = đúng chiều cao hàng pill điều hướng của AppShell. Header
+          bên này không có pill nào để tự đội chiều cao lên, nên thiếu nó thì
+          con dấu nằm cao hơn bên kia 6px dù lề trên đã bằng nhau.
+        */}
+        <header className="flex min-h-11 flex-none items-center">
+          {/* aria-label gánh phần tên thương hiệu: con dấu là ảnh nền qua CSS
+              mask nên trình đọc màn hình không đọc ra chữ nào từ nó. */}
+          <Link href="/" aria-label="Nerdy Hub — trang chủ" className="flex items-center">
+            <LogoMark size={BRAND_LOGO_SIZE} />
           </Link>
         </header>
 

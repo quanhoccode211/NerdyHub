@@ -12,6 +12,7 @@ import {
   CalendarIcon,
   ChartIcon,
   HomeIcon,
+  BRAND_LOGO_SIZE,
   LogoMark,
   SettingsIcon,
   SparkIcon,
@@ -58,13 +59,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="shell-card w-full px-4 pt-4 pb-6 md:px-6 md:pt-5 md:pb-8 lg:px-7">
         {/* ---------- NAV NGANG ---------- */}
         <header className="flex items-center gap-3">
-          <Link
-            href="/"
-            aria-label="Trang chủ"
-            className="flex flex-none items-center gap-2 rounded-pill border border-line bg-card py-1.5 pr-3.5 pl-1.5"
-          >
-            <LogoMark size={30} />
-            <span className="wordmark hidden text-[16px] sm:inline">Nerdy Hub</span>
+          {/*
+            Không bọc pill như hàng nav bên cạnh: pill cũ tồn tại để ôm con dấu
+            CÙNG chữ "Nerdy Hub". Bỏ chữ đi mà giữ pill thì còn lại một vành
+            viền rộng quây quanh mỗi cặp kính, đọc ra như một nút bấm chứ không
+            phải thương hiệu.
+          */}
+          <Link href="/" aria-label="Nerdy Hub — trang chủ" className="flex flex-none items-center">
+            <LogoMark size={BRAND_LOGO_SIZE} />
           </Link>
 
           {/*

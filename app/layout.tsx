@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Google_Sans_Flex, Playwrite_DE_LA_Guides, Roboto_Mono } from 'next/font/google'
+import { Google_Sans_Flex, Roboto_Mono } from 'next/font/google'
 import { Providers } from '@/components/providers'
 import './globals.css'
 
@@ -21,23 +21,6 @@ const robotoMono = Roboto_Mono({
   subsets: ['latin', 'vietnamese'],
   weight: ['300', '400', '500', '600', '700'],
   variable: '--font-app',
-  display: 'swap',
-})
-
-/**
- * Playwrite DE LA Guides — CHỈ dùng cho chữ "Nerdy Hub" ở góc trái trên.
- *
- * Font viết tay, chỉ có một nét (weight 400) và KHÔNG khai báo subset nào cả —
- * nghĩa là không có bộ ký tự tiếng Việt. Ở đây không sao vì nó chỉ tô đúng hai
- * chữ "Nerdy Hub" toàn ký tự ASCII. TUYỆT ĐỐI không dùng cho chữ tiếng Việt,
- * dấu sẽ rơi sang font dự phòng.
- *
- * Chữ ký hàm của font này khác các font thường: `weight` là BẮT BUỘC, và không
- * nhận `subsets` lẫn `preload` (font không chia subset nên next/font tự lo).
- */
-const playwrite = Playwrite_DE_LA_Guides({
-  weight: '400',
-  variable: '--font-wordmark',
   display: 'swap',
 })
 
@@ -101,7 +84,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="vi"
-      className={`${robotoMono.variable} ${playwrite.variable} ${googleSansFlex.variable}`}
+      className={`${robotoMono.variable} ${googleSansFlex.variable}`}
       suppressHydrationWarning
     >
       <head>

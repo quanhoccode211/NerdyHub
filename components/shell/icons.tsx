@@ -19,18 +19,36 @@ const S = (p: IconProps) => ({
   'aria-hidden': true,
 })
 
-export function LogoMark({ size = 34 }: IconProps) {
+/**
+ * Chiều cao con dấu ở góc trái trên, dùng chung cho trang giới thiệu và cho
+ * AppShell. Là hằng số chứ không phải con số gõ ở mỗi nơi: hai khung này nằm
+ * kề nhau khi chuyển trang nên lệch vài px là mắt bắt được ngay — mà đó đúng
+ * là chuyện đã xảy ra khi mỗi bên tự khai một cỡ (34 với 30).
+ */
+export const BRAND_LOGO_SIZE = 32
+
+/**
+ * Con dấu thương hiệu — cặp kính, nạp từ `public/logo-glasses.svg`.
+ *
+ * `size` là CHIỀU CAO, không phải cạnh của một ô vuông: cặp kính rộng gấp rưỡi
+ * chiều cao, ép nó vào ô vuông thì hoặc méo hoặc thừa một khoảng trống hai bên
+ * mà mắt vẫn tính là phần của logo — cụm logo + chữ sẽ trông lệch.
+ *
+ * Vẽ bằng CSS mask chứ không nhúng thẳng SVG vào JSX: file là bản trace nên
+ * riêng dữ liệu path đã 20KB, nhúng inline là 20KB đó lặp lại trong HTML của
+ * MỌI trang. Mask thì trình duyệt tải một lần rồi dùng lại từ cache.
+ *
+ * Mask lấy màu từ `currentColor` nên con dấu tự lật theo giao diện y như chữ
+ * "Nerdy Hub" bên cạnh. File gốc tô cứng `#151a26`; giữ nguyên màu đó thì ở
+ * dark mode nó là hình đen nằm trên nền đen.
+ */
+export function LogoMark({ size = 34, className }: IconProps) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" aria-hidden="true">
-      <circle cx="20" cy="20" r="19" fill="#DDF5F0" stroke="#A5E5D9" strokeWidth="1.5" />
-      <path
-        d="M13 15.5h7.5M13 20h9M13 24.5h5.5"
-        stroke="#17191E"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <circle cx="27.5" cy="24" r="3" fill="#17191E" />
-    </svg>
+    <span
+      aria-hidden="true"
+      className={className ? `logo-mark ${className}` : 'logo-mark'}
+      style={{ height: size }}
+    />
   )
 }
 

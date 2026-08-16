@@ -9,9 +9,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
       <div className="w-full max-w-[520px]">
-        <Link href="/" className="mb-6 flex items-center justify-center gap-3">
+        <Link
+          href="/"
+          aria-label="Nerdy Hub — trang chủ"
+          className="mb-6 flex items-center justify-center"
+        >
           <LogoMark size={38} />
-          <span className="wordmark text-[20px]">Nerdy Hub</span>
         </Link>
         <div className="shell-card p-7 md:p-9">{children}</div>
       </div>
