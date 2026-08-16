@@ -117,7 +117,7 @@ export function DailyTasks() {
     <section className="card flex flex-col p-5 md:p-6">
       <CardHeader
         icon={<TasksIcon size={17} />}
-        title="Việc hôm nay"
+        title="To-do list"
         meta={
           hydrated && tasks.length > 0 ? (
             <span className="pill bg-soft text-[13px] text-muted-strong">

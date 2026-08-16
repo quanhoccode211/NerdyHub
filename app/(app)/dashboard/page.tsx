@@ -35,7 +35,7 @@ export default async function DashboardPage() {
     <>
       <PageHeader
         eyebrow={firstName ? `Chào ${firstName} 👋` : 'Chào bạn 👋'}
-        title={totalDone > 0 ? 'Hôm nay luyện tiếp nhé!' : 'Bắt đầu luyện đề thôi!'}
+        title={totalDone > 0 ? 'Hôm nay luyện tiếp nhé!' : 'Lock in lock in brooooooo'}
         badge={
           totalDone > 0 ? (
             <span className="pill bg-sky text-[13.5px] text-on-tone">
