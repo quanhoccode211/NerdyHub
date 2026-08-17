@@ -76,6 +76,8 @@ components/
   exam-room/       Store, sync 3 lớp, highlight engine, timer, review
   calendar/        Lưới tuần bận/rảnh
   shell/use-modal  Bẫy focus + Escape + khoá cuộn, dùng chung mọi hộp thoại
+  shell/nav-slide  Hiệu ứng chuyển trang — xem mục riêng bên dưới
+  game/            Tầng game của khu Tiện ích (client thuần)
 ```
 
 ## Lịch ôn (F5)
@@ -91,6 +93,15 @@ components/
 - Vị trí khối tính sẵn ở **server** dưới dạng phút, view chỉ quy ra phần trăm — server
   và trình duyệt lệch múi giờ thì khối sẽ vẽ lệch với chính con số giờ in cạnh nó.
 - Chỉ xin `calendar.readonly`. `freeBusy` không trả tiêu đề, mô tả hay người tham dự.
+- **Chỉ phần gọi Google nằm trong `<Suspense>`**, không phải cả trang. Kiểm cấu hình,
+  kiểm đăng nhập và đọc kết nối trong DB đều là truy vấn cục bộ vài mili giây — kéo
+  chúng vào trong khung xương chỉ làm trang nháy thêm một nhịp vô nghĩa. Ranh giới đặt
+  thấp, ngay trên `getBusySlots`.
+- **Khung xương cao đúng bằng lưới thật** (`(dayEnd - dayStart) * 44px`). Thấp hơn thì
+  lúc dữ liệu về cả trang giật nảy xuống — đổi một cú khựng lấy một cú nhảy thì không
+  lời gì.
+- **Không cache kết quả `freeBusy`.** `dynamic = 'force-dynamic'` là chủ ý: hiện một
+  tuần bận cũ sai theo đúng hướng nguy hiểm nhất, vì nó gợi ý ôn vào giờ đang có việc.
 
 ### Hai bất biến quan trọng nhất
 
@@ -143,6 +154,88 @@ truyền vào không đủ để mở khoá.
   vẫn đúng vị trí sau khi thẻ `<mark>` được chèn/gỡ, sau reload và sau khi nộp.
 - **Bốn trạng thái câu hỏi phân biệt bằng cả màu lẫn hình dạng** (nền đặc / viền / icon cờ
   / ring), không chỉ bằng màu.
+
+---
+
+## Hiệu ứng chuyển trang
+
+Đổi tab, và bước từ trang giới thiệu vào ứng dụng, đều có một cú trượt ngang: vùng nội
+dung lùi sang trái rồi trang mới trôi vào từ phải, còn ô đen đánh dấu tab chạy sang vị
+trí mới. Code ở `components/shell/nav-slide.tsx` + khối `ĐỔI TRANG` trong `globals.css`.
+
+**Dùng thẳng View Transitions API của trình duyệt, KHÔNG dùng `<ViewTransition>` của
+React.** React ghép cặp cũ/mới theo **vị trí trong cây component**, mà cây ở đây đứt ở
+mọi ranh giới route group: `(landing)`, `(marketing)` và `(app)` mỗi nhóm dựng layout
+riêng — kể cả `(marketing)` và `(app)` tuy cùng dựng `AppShell` nhưng là hai instance
+khác nhau. Đi qua ranh giới nào là React thấy một cây biến mất và một cây khác hiện ra,
+không có cặp nào để nội suy, và nó bỏ qua luôn. Đã đo bằng cách vá
+`document.startViewTransition` rồi đếm số lần gọi: đổi tab trong `(app)` cho 1, còn
+landing → dashboard cho **0**, kể cả khi trang đích đã nằm sẵn trong cache của router.
+Trình duyệt thì ghép cặp theo `view-transition-name` — một chuỗi CSS — nên hai thẻ
+`<main>` ở hai layout chẳng dính dáng gì nhau vẫn nối được vào nhau.
+
+### Cạm bẫy lớn nhất: cái gì không có tên thì bị ĐÓNG BĂNG
+
+Trong lúc transition chạy, mọi phần tử **không** mang `view-transition-name` đều bị gom
+vào nhóm `root` — một ảnh chụp **tĩnh** của trang cũ, cross-fade sang ảnh mới. Nghĩa là
+**mọi `transition` CSS đặt trên DOM thật của những phần tử đó không được vẽ ra lấy một
+khung hình.**
+
+Đây là thứ đã ngốn bốn vòng chỉnh tay. Icon ở tab vừa chọn giữ nguyên màu tối trong khi
+ô đen đã phủ lên, tức nó biến mất hơn 300ms; mọi lần chỉnh `transition-delay` đều không
+đổi được gì, vì thứ đang hiển thị là ảnh cũ chứ không phải DOM. Cách chữa là **đặt tên
+cho hàng tab** rồi tắt animation của nó (`::view-transition-old(nav-rail) {display:none}`
++ `new {animation:none}`) — có tên thì nó thoát khỏi ảnh `root`, và `::view-transition-new`
+là bản vẽ **sống** nên transition trên DOM thật mới chạy được.
+
+Triệu chứng để nhận ra lần sau: **một thứ lẽ ra phải đổi lại đứng im đúng bằng thời
+lượng transition**, và chỉnh timing kiểu gì cũng không nhúc nhích.
+
+### Ba luật còn lại
+
+**Tên phải DUY NHẤT trong một trang.** Chỉ pill đang mở mới mang `nav-active-pill`; gắn
+cho cả sáu là trình duyệt bỏ qua cả nhóm và không có gì chạy. Cũng vì vậy chỉ được
+render đúng một `<ThemeToggle />` (nó mang `theme-knob`).
+
+**Mọi rule phải khoanh trong `:active-view-transition-type(slide-*)`.** Trang này còn
+một view transition khác chạy từ trước — nút sáng/tối — và lần chuyển đó **không mang
+type nào**. Rule không khoanh sẽ đè vào nó và làm hỏng cú cross-fade nền.
+
+**Thời lượng ô đen và thời lượng đổi màu icon là MỘT cặp biến**, `--nav-pill-travel` /
+`--nav-pill-ease`, không phải hai con số gõ ở hai chỗ. Icon phải đổi xong đúng lúc ô đen
+tới nơi; hai chỗ khai riêng thì chúng lệch nhau, và đó đúng là chuyện đã xảy ra.
+
+### Vài chi tiết nhỏ nhưng cố ý
+
+- **Thẻ trắng, rail điều hướng và con dấu đứng yên**, chỉ vùng nội dung trượt. Khung mà
+  trôi theo thì hiệu ứng đọc ra như bị đẩy cả cửa sổ chứ không phải đổi nội dung.
+- **Hướng trượt đọc từ thứ tự tab trên rail**, không phải từ lịch sử duyệt. Các tab là
+  mục ngang hàng; cho cái nào cũng trượt cùng một chiều thì chuyển động hoặc vô nghĩa,
+  hoặc nói sai — mắt đọc "đi tiếp" trong khi người dùng vừa quay lại chỗ cũ.
+- **Ảnh chụp vùng nội dung giữ tỉ lệ gốc** (`object-fit: none`). Mặc định trình duyệt
+  nắn ảnh cũ cho vừa khung mới, và chữ bị kéo giãn méo mó giữa hiệu ứng.
+- `SlideLink` vẫn là `<a href>` thật: chuột giữa, Ctrl+click và bộ thu thập của công cụ
+  tìm kiếm không đổi gì. `router.push` trả về ngay chứ không chờ route render, nên
+  callback chỉ được thả khi `usePathname()` đổi — kèm trần 1200ms để một route lỗi không
+  bỏ lớp phủ nằm đè vĩnh viễn.
+- `next dev` **tắt prefetch**, nên đo tốc độ chuyển tab ở môi trường dev luôn ra chậm
+  hơn thực tế. Đo trên bản build production.
+
+---
+
+## Con dấu thương hiệu
+
+Cặp kính ở góc trái trên, `public/logo-glasses.svg`, vẽ bằng **CSS mask** chứ không nhúng
+SVG vào JSX: file là bản trace nên riêng dữ liệu path đã 20KB, nhúng inline là 20KB đó
+lặp lại trong HTML của mọi trang. Mask lấy màu từ `currentColor` nên con dấu tự lật theo
+giao diện — file gốc tô cứng `#151a26`, giữ nguyên là hình đen trên nền đen ở dark mode.
+
+`aspect-ratio` trong `.logo-mark` phải khớp viewBox đã cắt sát nét của file; đổi viewBox
+mà quên đổi con số này thì logo bị bóp hoặc bị cắt.
+
+**Lề trái và lề trên của `(landing)/layout.tsx` phải trùng khít `app-shell.tsx`.** Con
+dấu là mốc neo đứng yên giữa lúc mọi thứ khác trượt, nên lệch vài px là nó giật một cái
+ngay giữa hiệu ứng. Cỡ con dấu là hằng số dùng chung `BRAND_LOGO_SIZE`, đừng gõ số rời.
 
 ---
 
@@ -255,6 +348,19 @@ RESET_USERS=1 npm run db:seed
 
 ## Thêm kỳ thi mới
 
+Thẻ kỳ thi ở `/de-thi` là **nền trắng + một dải màu dọc bên trái**. Dải bám theo **ngôn
+ngữ** (`LANGUAGE_STRIPES` trong `lib/enums.ts`), nên kỳ thi mới tự có dải mà không phải
+khai gì thêm — miễn là ngôn ngữ của nó đã nằm trong `LANGUAGES`.
+
+Bản trước tô nền pastel theo `cardTone(i)`, tức theo **thứ tự thẻ trong danh sách**: cùng
+một kỳ thi lại mang màu khác nhau tuỳ nó đứng thứ mấy, nên màu không nói lên điều gì và
+người dùng không nhớ được. Giờ VSTEP ở đâu cũng là dải Anh.
+
+Dải là **màu tượng trưng, không phải cờ thu nhỏ**: cờ thật có tỉ lệ, ngôi sao, huy hiệu —
+nhét vào 6px thì thành vệt bẩn, mà lại dễ vẽ sai quốc kỳ của người ta. Các mốc màu trong
+gradient **trùng nhau ở mỗi ranh giới** để ra băng cứng; gradient mềm sẽ trộn đỏ với vàng
+thành cam, một màu không có trên lá cờ nào trong danh sách.
+
 Nhập đề vẫn qua `prisma/seed-data.ts` (F8 Admin CMS chưa có). Có đúng một trường dễ
 quên nên nó được đặt là **bắt buộc** để TypeScript nhắc thay bạn:
 
@@ -274,7 +380,7 @@ kể cả khi câu trả lời là `null`.
 
 ---
 
-## Hai cái bẫy đã mất thời gian, ghi lại để khỏi vấp lại
+## Những cái bẫy đã mất thời gian, ghi lại để khỏi vấp lại
 
 **Đổi schema Prisma thì phải KHỞI ĐỘNG LẠI `next dev`.** `prisma migrate dev` cập nhật
 DB và sinh lại client trên đĩa, nhưng tiến trình dev đang chạy vẫn giữ module cũ trong
@@ -293,6 +399,16 @@ mặt: `bg-card` mới là token đúng.
 `border-box`, nên một bên có `border: 1px` còn bên kia `none` sẽ làm toàn bộ nội dung
 bên trong xê dịch đúng 1px khi người dùng bật/tắt dark mode. Dùng
 `border: 1px solid transparent` rồi đổi `border-color`.
+
+**`position: relative` đặt nhầm chỗ có thể nống bố cục lên gấp ba.** Nhãn tooltip của
+nav (`.nav-tip`) vốn là `absolute`; thêm một dòng `position: relative` để nâng nó lên
+trên ô đen là kéo nó trở lại dòng chảy bố cục, và chữ nhãn (đang `nowrap`) nống mỗi tab
+từ 51px lên 143px. Muốn nâng thứ gì lên trên thì kiểm `z-index` của nó trước — cái đang
+`absolute` thường đã có sẵn.
+
+**Đừng chạy `npx prettier` trên repo này.** Dự án không có file cấu hình Prettier, nên
+nó sẽ chạy với mặc định (nháy kép, chấm phẩy) và định dạng lại ngược hoàn toàn với văn
+phong đang dùng (nháy đơn, không chấm phẩy). `npm run lint` mới là công cụ đúng.
 
 **Trong flex container, chữ phải nằm trong đúng MỘT phần tử.** `<li className="flex
 gap-2"><Icon/>chữ <strong>đậm</strong> chữ</li>` tạo ra BỐN flex item, không phải hai:
