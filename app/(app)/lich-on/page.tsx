@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { auth } from '@/auth'
 import { PageHeader } from '@/components/shell/app-shell'
@@ -167,13 +168,54 @@ async function CalendarSection({ userId }: { userId: string | null }) {
     )
   }
 
+  /*
+    LỊCH ĐỨNG ĐẦU TRANG. Đây là thứ người dùng vào đây để xem; thanh trạng thái kết
+    nối là việc quản trị, mỗi tháng đụng tới một lần — nó xuống cuối.
+  */
+  return (
+    <>
+      {/*
+        RANH GIỚI SUSPENSE ĐẶT Ở ĐÂY, không cao hơn.
+
+        Mọi thứ phía trên — kiểm cấu hình, kiểm đăng nhập, đọc kết nối trong DB —
+        đều là truy vấn cục bộ, xong trong vài mili giây. Riêng `getBusySlots`
+        phải đi hỏi máy chủ Google, và đó là lý do trang này khựng: không có ranh
+        giới thì React giữ NGUYÊN trang cũ cho tới khi Google trả lời, nên cú
+        bấm tab đọc ra như máy bị treo. Tệ hơn nữa từ khi có hiệu ứng trượt —
+        `SlideLink` giữ khung hình tới lúc route mới commit, nên toàn bộ thời
+        gian chờ Google biến thành một khung đứng im.
+
+        Có ranh giới thì route commit ngay với khung + khung xương, hiệu ứng
+        trượt chạy trọn vẹn, và lưới lịch chảy vào sau khi Google trả lời.
+
+        KHÔNG cache kết quả: `dynamic = 'force-dynamic'` phía trên là chủ ý —
+        lịch là dữ liệu sống, hiện một tuần bận cũ là sai theo hướng nguy hiểm
+        nhất vì nó gợi ý ôn đúng vào giờ đang có việc.
+      */}
+      <Suspense fallback={<WeekGridSkeleton />}>
+        <WeekGridPanel accessToken={conn.accessToken} />
+      </Suspense>
+
+      <section className="card mt-5 flex flex-wrap items-center justify-between gap-4 p-5 md:p-6">
+        <p className="flex min-w-0 items-center gap-2 text-[15px] font-semibold">
+          <CheckIcon size={16} className="flex-none text-good" />
+          <span>Đã kết nối Google Calendar</span>
+        </p>
+        <DisconnectCalendarButton />
+      </section>
+    </>
+  )
+}
+
+/** Phần chờ Google: tách riêng để `<Suspense>` có cái mà bọc. */
+async function WeekGridPanel({ accessToken }: { accessToken: string }) {
   let week: GridDay[]
   let freeCount = 0
   try {
     const now = new Date()
     const until = new Date(now)
     until.setDate(until.getDate() + WINDOW.days)
-    const busy = await getBusySlots(conn.accessToken, now, until)
+    const busy = await getBusySlots(accessToken, now, until)
     week = buildWeekGrid(busy, WINDOW)
     freeCount = week.reduce((n, d) => n + d.blocks.filter((b) => b.kind === 'free').length, 0)
   } catch {
@@ -191,10 +233,6 @@ async function CalendarSection({ userId }: { userId: string | null }) {
     )
   }
 
-  /*
-    LỊCH ĐỨNG ĐẦU TRANG. Đây là thứ người dùng vào đây để xem; thanh trạng thái kết
-    nối là việc quản trị, mỗi tháng đụng tới một lần — nó xuống cuối.
-  */
   return (
     <>
       <section className="card p-5 md:p-6">
@@ -233,15 +271,36 @@ async function CalendarSection({ userId }: { userId: string | null }) {
           <ChevronRightIcon size={16} />
         </Link>
       </section>
-
-      <section className="card mt-5 flex flex-wrap items-center justify-between gap-4 p-5 md:p-6">
-        <p className="flex min-w-0 items-center gap-2 text-[15px] font-semibold">
-          <CheckIcon size={16} className="flex-none text-good" />
-          <span>Đã kết nối Google Calendar</span>
-        </p>
-        <DisconnectCalendarButton />
-      </section>
     </>
+  )
+}
+
+/**
+ * Khung xương trong lúc chờ Google.
+ *
+ * Dựng ĐÚNG bằng khung thật: cùng thẻ `card`, cùng tiêu đề, và ô chờ cao đúng
+ * `(dayEndHour - dayStartHour) * 44px` như WeekGrid. Khung xương thấp hơn lưới
+ * thật thì lúc dữ liệu về, cả trang giật nảy một cái xuống dưới — đổi một cú
+ * khựng lấy một cú nhảy thì chẳng lời gì.
+ */
+function WeekGridSkeleton() {
+  return (
+    <section className="card p-5 md:p-6" aria-busy="true">
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <h2 className="text-[18px] font-bold tracking-[-0.01em]">
+            Khoảng trống {WINDOW.days} ngày tới
+          </h2>
+          <p className="mt-1 text-[14px] text-muted">Đang đọc lịch từ Google…</p>
+        </div>
+        <WeekGridLegend bufferMinutes={WINDOW.bufferMinutes} />
+      </div>
+
+      <div
+        className="skeleton-block mt-5 rounded-xl"
+        style={{ height: `${(WINDOW.dayEndHour - WINDOW.dayStartHour) * 44 + 28}px` }}
+      />
+    </section>
   )
 }
 
