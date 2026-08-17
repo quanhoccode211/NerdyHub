@@ -9,6 +9,7 @@ import { ThemeToggle } from './theme-toggle'
 import {
   ACTIVE_PILL_VT_NAME,
   BRAND_VT_NAME,
+  NAV_RAIL_VT_NAME,
   PAGE_CONTENT_STYLE,
   SLIDE_BACK,
   SLIDE_FORWARD,
@@ -103,8 +104,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             aria-label="Điều hướng chính"
             className="no-scrollbar flex min-w-0 flex-1 items-center justify-center overflow-x-auto"
           >
-            {/* Một thanh nền liền bọc cả hàng tab — xem .nav-rail trong globals.css */}
-            <div className="nav-rail">
+            {/*
+              Một thanh nền liền bọc cả hàng tab — xem .nav-rail trong globals.css.
+
+              `viewTransitionName` ở đây KHÔNG phải để làm hiệu ứng, mà để hàng
+              tab thoát khỏi ảnh chụp tĩnh `root` và cập nhật ngay — xem
+              NAV_RAIL_VT_NAME.
+            */}
+            <div className="nav-rail" style={{ viewTransitionName: NAV_RAIL_VT_NAME }}>
               {NAV.map(({ href, label, Icon }, i) => {
                 const active = pathname === href || pathname.startsWith(`${href}/`)
                 return (

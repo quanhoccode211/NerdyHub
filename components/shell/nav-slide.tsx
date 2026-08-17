@@ -41,6 +41,22 @@ export const PAGE_CONTENT_STYLE = { viewTransitionName: PAGE_CONTENT }
 export const BRAND_VT_NAME = 'brand-logo'
 
 /**
+ * Cả hàng tab (thanh nền + các icon), đặt tên để nó KHÔNG bị đóng băng.
+ *
+ * Đây là chỗ đã tốn bốn vòng chỉnh sai. Trong lúc view transition chạy, mọi
+ * phần tử KHÔNG có tên đều bị gom vào ảnh chụp `root` — một tấm ảnh TĨNH của
+ * trang cũ, cross-fade sang ảnh mới trong 420ms. Hàng icon nằm trong đó, nên
+ * `transition: color` đặt trên DOM thật KHÔNG được vẽ ra lấy một khung hình:
+ * thứ người dùng nhìn thấy là ảnh cũ mờ dần, và icon ở tab vừa chọn vẫn mang
+ * màu tối trong khi ô đen đã phủ lên — nó biến mất suốt hơn 300ms.
+ *
+ * Mọi lần chỉnh `transition-delay` đều vô nghĩa vì lý do đó. Đặt tên cho hàng
+ * tab mới là cách chữa: có tên thì nó được nhấc ra khỏi ảnh `root` và cập nhật
+ * NGAY, đúng như con dấu thương hiệu vẫn làm.
+ */
+export const NAV_RAIL_VT_NAME = 'nav-rail'
+
+/**
  * Ô đen đánh dấu tab đang mở.
  *
  * Chỉ gắn cho ĐÚNG MỘT pill — cái đang active. Nhờ vậy pill cũ và pill mới mang

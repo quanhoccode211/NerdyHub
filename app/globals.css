@@ -623,35 +623,22 @@ body {
   /**
    * Nền do `.nav-pill-indicator` lo, ở đây chỉ còn màu chữ/icon.
    *
-   * Icon phải sáng XONG vào lúc ô đen đứng yên, và lật gọn trong một nhịp.
+   * KHÔNG có `transition-delay`, và đừng thêm lại.
    *
-   * Con số chốt bằng cách đếm khung hình từ video người dùng quay (25fps, mỗi
-   * khung 40ms): ô đen ổn định ở khung 62, icon mãi khung 64 mới sáng — trễ
-   * 80ms SAU khi ô đen đã đứng yên, và suốt ~200ms trước đó ô đen là một khối
-   * đen trống trơn vì icon bên dưới vẫn còn màu tối.
+   * Đã tốn bốn vòng chỉnh delay ở đây (300 → 390 → 230 → 115ms) mà lần nào
+   * người dùng cũng bảo "icon sáng vẫn chậm". Lý do là cả bốn đều chữa nhầm
+   * bệnh: trong lúc view transition chạy, hàng tab bị gom vào ảnh chụp TĨNH của
+   * trang cũ, nên `transition` đặt ở đây KHÔNG được vẽ ra lấy một khung hình.
+   * Thứ người dùng thấy là ảnh cũ mờ dần trong 420ms, không phải màu icon đổi.
    *
-   * Mấu chốt: ô đen khai `animation-duration: 360ms`, nhưng đường cong
-   * `cubic-bezier(0.4, 0, 0.2, 1)` giảm tốc rất sớm — nó đi hết ~95% quãng
-   * đường trong khoảng 250ms đầu. Mắt thấy "đã tới" ở 250ms chứ không phải
-   * 360ms. Vậy nên phải canh theo 250ms, không phải theo con số khai báo.
+   * Chỗ chữa thật nằm ở `::view-transition-*(nav-rail)` phía trên — đặt tên cho
+   * hàng tab để nó thoát khỏi ảnh `root` và cập nhật ngay.
    *
-   * 75ms + 40ms = xong ở 115ms, tức khi ô đen mới đi được khoảng hai phần ba
-   * quãng đường. Icon sáng lên TRƯỚC lúc ô đen phủ tới, không phải sau.
+   * Dòng transition này vì vậy chỉ còn tác dụng cho hover và cho lần đổi màu
+   * thường không kèm điều hướng. Giữ ngắn, không delay.
    *
-   * Nghe thì ngược, nhưng đây đúng là cách bản thiết kế tham chiếu làm: trong
-   * video mẫu, chữ ở tab đích đã trắng sẵn từ lúc ô đen mới chớm chạm vào nó.
-   * Sáng sớm thì cùng lắm có một nhịp ngắn icon sáng nằm trên nền xám nhạt —
-   * hơi mờ nhưng vẫn đọc được. Sáng muộn thì ngược lại: icon TỐI nằm trên nền
-   * ĐEN, tức mất hẳn, và đó mới là thứ đập vào mắt.
-   *
-   * Bốn lần chỉnh mới ra, ghi lại cả bốn kẻo có người đi lại đường cũ:
-   *   140 + 160 = 300ms  đổi lừ đừ, xong sau khi ô đen tới -> "không thấy gì"
-   *   300 +  90 = 390ms  đanh nhưng trễ hẳn một nhịp
-   *   150 +  80 = 230ms  vẫn còn chậm
-   *   75  +  40 = 115ms  hiện tại
-   *
-   * Bài học: thời gian đổi quyết định nó có ĐANH không, thời điểm bắt đầu
-   * quyết định nó có KHỚP không — hai chuyện tách rời, đừng chỉnh gộp.
+   * Chiều ngược lại: pill vừa mất active rơi về `.nav-pill` (0.16s, không
+   * delay) nên tối lại ngay khi ô đen rời đi.
    *
    * Đổi 360ms hoặc đổi đường cong ở trên thì phải tính lại con số ở đây.
    *
@@ -662,7 +649,7 @@ body {
   .nav-pill[data-active='true'] {
     border-color: transparent;
     color: var(--color-accent-fg);
-    transition: color 40ms ease-out 75ms;
+    transition: color 40ms ease-out;
   }
 
   .pill {
@@ -988,6 +975,32 @@ body {
   }
   &::view-transition-new(nav-active-pill) {
     animation: 120ms ease-out both nav-slide-fade;
+  }
+
+  /*
+    HÀNG TAB CẬP NHẬT TỨC THÌ, không mờ dần theo ảnh chụp trang.
+
+    Đây là chỗ chữa đúng bệnh "icon sáng chậm". Không đặt tên thì hàng tab nằm
+    trong nhóm `root`, tức một ảnh TĨNH của trang cũ cross-fade sang ảnh mới
+    trong 420ms — icon ở tab vừa chọn giữ nguyên màu tối trong lúc ô đen đã phủ
+    lên, nên nó mất hút hơn 300ms. Mọi `transition-delay` đặt trên DOM thật đều
+    vô nghĩa vì trong quãng đó DOM thật không được vẽ.
+
+    `display: none` cho ảnh cũ + `animation: none` cho ảnh mới = hàng tab hiện
+    ngay trạng thái mới ở khung hình đầu tiên. Cùng thủ thuật với con dấu ngay
+    bên dưới.
+
+    `z-index` thấp hơn ô đen (90) để ô đen bay phía trên hàng tab.
+  */
+  &::view-transition-group(nav-rail) {
+    animation: none;
+    z-index: 80;
+  }
+  &::view-transition-old(nav-rail) {
+    display: none;
+  }
+  &::view-transition-new(nav-rail) {
+    animation: none;
   }
 
   /*
