@@ -14,8 +14,19 @@ generator client {
 }
 
 // Prisma 7: connection URL nằm ở prisma.config.ts, không còn ở đây.
+//
+// POSTGRES từ đợt chuyển lên Vercel. SQLite là file trên đĩa, mà Vercel chạy
+// serverless — mỗi lần gọi là một máy khác và đĩa thì mất sau mỗi request.
+//
+// Ba thoả hiệp SQLite ghi ở đầu file VẪN GIỮ NGUYÊN, cố ý:
+//   - String thay cho enum
+//   - JSON string thay cho scalar list (hậu tố ...Json)
+// Postgres làm được cả hai kiểu gốc, nhưng hoàn nguyên chúng nghĩa là sửa
+// lib/json-fields.ts cùng mọi chỗ đọc/ghi — một đợt thay máu không liên quan gì
+// tới việc đưa web lên mạng. Chạy tốt như hiện tại; muốn dọn thì tách thành
+// việc riêng, đừng gộp vào lần deploy đầu.
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // ============ KỲ THI & ĐỀ ============

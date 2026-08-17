@@ -33,26 +33,57 @@ Mở http://localhost:3000. Không cần đăng nhập để làm bài.
 
 | SPEC | Thực tế | Lý do |
 |---|---|---|
-| PostgreSQL 16 | **SQLite** | Máy dev không có Postgres/Docker. Xem [Đổi sang PostgreSQL](#đổi-sang-postgresql). |
+| PostgreSQL 16 | **PostgreSQL** | Khớp SPEC. Từng chạy SQLite vì máy dev không có Postgres/Docker; đổi lại khi lên Vercel — xem [Chạy thật trên Vercel](#chạy-thật-trên-vercel). |
 | Prisma 5 | **Prisma 7.9** | Bản hiện hành. Connection nằm ở `prisma.config.ts` + driver adapter, không còn `url` trong schema. |
 | Next.js 15 | **Next.js 16.3** | Bản hiện hành từ `create-next-app`. `params`/`searchParams` là Promise, Turbopack mặc định. |
 | Redis (percentile, rate limit) | **SQL + in-memory** | Không có Redis. Cùng chữ ký hàm để thay thế sau — xem `lib/rate-limit.ts`, `updatePercentile()`. |
 | Recharts | **SVG tự vẽ** | Biểu đồ đều tĩnh; phong cách thiết kế gốc rất riêng, dựng thẳng nhanh hơn và không gánh thêm JS. |
 
-### Ba chỗ SQLite ép phải đổi schema
+### Ba chỗ SQLite từng ép phải đổi schema — và vì sao GIỮ NGUYÊN
 
 1. **Không có `enum`** → dùng `String`, union type ở `lib/enums.ts`, Zod validate ở biên API.
 2. **Không có scalar list** → `String[]`/`Int[]` lưu JSON string, hậu tố `...Json`, đọc/ghi qua `lib/json-fields.ts`.
 3. **Không có `@db.Text`** → bỏ (TEXT là mặc định).
 
-### Đổi sang PostgreSQL
+Postgres làm được cả `enum` lẫn scalar list thật, nên về lý thì hoàn nguyên được.
+**Cố ý không làm.** Hoàn nguyên nghĩa là sửa `lib/json-fields.ts` cùng mọi chỗ đọc/ghi
+đi qua nó — một đợt thay máu ở tầng dữ liệu, không liên quan gì tới việc đưa web lên
+mạng, mà lại đụng đúng phần chấm điểm. Bản hiện tại chạy đúng trên Postgres. Muốn dọn
+thì tách thành việc riêng và có cách kiểm chứng riêng.
 
-1. `prisma/schema.prisma`: đổi `provider = "postgresql"`, hoàn nguyên 3 điểm trên.
-2. `lib/db.ts`: đổi adapter sang `@prisma/adapter-pg`.
-3. `.env`: trỏ `DATABASE_URL` tới Postgres.
-4. Bỏ `lib/json-fields.ts`, dùng mảng trực tiếp.
+## Chạy thật trên Vercel
 
-Quan hệ giữa các bảng không phải sửa gì.
+Next chạy trên Node runtime của Vercel nên không cần adapter gì thêm. Chỉ có **database
+là bắt buộc phải đổi**: SQLite là một file trên đĩa, mà serverless thì mỗi request có
+thể rơi vào một máy khác và đĩa không giữ lại gì.
+
+`provider` của Prisma là **hằng trong schema, không đọc được từ biến môi trường** — nên
+không có kiểu "SQLite ở máy dev, Postgres khi chạy thật". Máy dev cũng phải trỏ vào một
+Postgres thật; dùng nhánh dev riêng cho rẻ.
+
+Bốn bước, theo đúng thứ tự:
+
+```bash
+npx prisma migrate deploy
+```
+
+```bash
+npm run db:seed
+```
+
+Trước hai lệnh đó phải có `DATABASE_URL` trong `.env` (Neon / Supabase / Vercel Postgres,
+nhớ `sslmode=require`). Sau đó `npm run dev` để kiểm tại chỗ, rồi mới deploy.
+
+Biến môi trường phải khai trên Vercel: `DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY`,
+`NEXT_PUBLIC_SITE_URL`, và cặp `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` nếu muốn
+đăng nhập Google. Hai khoá giữa sinh bằng `npm run gen:secrets`.
+
+⚠️ **`DATABASE_URL` phải có mặt lúc BUILD, không chỉ lúc chạy.** `generateStaticParams`
+của `/de-thi/[examSlug]` và trang đề đọc DB để dựng sẵn đường dẫn; thiếu biến thì build
+đổ chứ không phải chạy xong mới lỗi.
+
+⚠️ **Bộ migration cũ của SQLite nằm ở `prisma/migrations-sqlite-cu/`.** Prisma không đọc
+tới đó. Giữ lại làm dấu vết; xoá được khi nào thấy chắc tay.
 
 ---
 
