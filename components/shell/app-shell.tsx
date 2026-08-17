@@ -6,6 +6,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import { clearGuestIdentityAction } from '@/app/actions/sign-out'
 import { ThemeToggle } from './theme-toggle'
+import { ACTIVE_PILL_VT_NAME, BRAND_VT_NAME, TAB_BACK, TAB_FORWARD, TabSlide } from './nav-slide'
 import {
   BellIcon,
   BookIcon,
@@ -46,6 +47,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
 
+  /* Vị trí tab đang mở trên rail — dùng để suy ra HƯỚNG trượt, xem NAV.map dưới. */
+  const activeIndex = NAV.findIndex(
+    ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
+  )
+
   return (
     /*
       Viền 10px: chỉ để lộ đúng một vệt gradient quanh thẻ. Không đặt max-width —
@@ -65,7 +71,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             viền rộng quây quanh mỗi cặp kính, đọc ra như một nút bấm chứ không
             phải thương hiệu.
           */}
-          <Link href="/" aria-label="Nerdy Hub — trang chủ" className="flex flex-none items-center">
+          <Link
+            href="/"
+            aria-label="Nerdy Hub — trang chủ"
+            className="flex flex-none items-center"
+            /*
+              Mốc neo của hiệu ứng trượt: đặt tên view-transition thì con dấu
+              được nhấc ra khỏi ảnh chụp chung và tự ghép cặp với con dấu bên
+              trang giới thiệu. Hai bên đã nằm đúng cùng toạ độ nên cặp này
+              "morph" bằng không — mắt thấy nó đứng yên trong lúc mọi thứ khác
+              trượt qua. Xem components/shell/nav-slide.tsx.
+            */
+            style={{ viewTransitionName: BRAND_VT_NAME }}
+          >
             <LogoMark size={BRAND_LOGO_SIZE} />
           </Link>
 
@@ -78,7 +96,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             aria-label="Điều hướng chính"
             className="no-scrollbar flex min-w-0 flex-1 items-center justify-center gap-2 overflow-x-auto"
           >
-            {NAV.map(({ href, label, Icon }) => {
+            {NAV.map(({ href, label, Icon }, i) => {
               const active = pathname === href || pathname.startsWith(`${href}/`)
               return (
                 <Link
@@ -90,6 +108,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                      đọc màn hình chỉ đọc được "liên kết" trống. */
                   aria-label={label}
                   className="nav-pill"
+                  /*
+                    Hướng trượt đọc từ vị trí tab trên rail, không phải từ lịch
+                    sử duyệt. Bấm sang tab bên phải thì nội dung lùi sang trái;
+                    bấm ngược lại thì nó trôi ngược lại.
+
+                    Trang không nằm trong rail (trang kết quả, xem lại bài) cho
+                    `activeIndex = -1`, nên mọi tab đều tính là "bên phải" và
+                    trượt tới — đúng hướng, vì từ đó bấm tab nào cũng là rời một
+                    nhánh con để về mặt bằng chính.
+                  */
+                  transitionTypes={[i > activeIndex ? TAB_FORWARD : TAB_BACK]}
+                  /* Chỉ pill đang mở mới mang tên — xem ACTIVE_PILL_VT_NAME. */
+                  style={active ? { viewTransitionName: ACTIVE_PILL_VT_NAME } : undefined}
                 >
                   <Icon size={22} />
                   {/* Hiện khi rê chuột hoặc khi focus bằng bàn phím */}
@@ -111,7 +142,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* ---------- NỘI DUNG ---------- */}
-        <main className="mt-6 md:mt-7">{children}</main>
+        {/*
+          CHỈ phần này trượt. Thẻ trắng, rail điều hướng, con dấu và cụm nút bên
+          phải đều đứng nguyên — chúng là cái khung để mắt bám vào, khung mà trôi
+          theo thì hiệu ứng đọc ra như bị đẩy cả cửa sổ.
+        */}
+        <main className="mt-6 md:mt-7">
+          <TabSlide routeKey={pathname}>{children}</TabSlide>
+        </main>
       </div>
     </div>
   )

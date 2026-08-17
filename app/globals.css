@@ -712,6 +712,130 @@ body {
 }
 
 /* ============================================================================
+   VÀO ỨNG DỤNG — cả khung trượt sang trái.
+
+   Chỉ chạy khi điều hướng mang transition type `nav-forward`, hiện chỉ có nút
+   "Vào học thôi" ở cuối hero gắn. Dựng bằng <ViewTransition> của React, xem
+   components/shell/nav-slide.tsx.
+
+   Thời lượng cố ý LỆCH NHAU: khung cũ mờ đi nhanh (150ms) để khỏi tranh chỗ,
+   khung mới hiện chậm hơn (220ms) và chờ khung cũ đi hẳn rồi mới rõ dần. Riêng
+   phần DI CHUYỂN thì cả hai cùng 420ms nên mắt đọc ra một cú trượt liền mạch
+   chứ không phải hai animation rời.
+   ========================================================================= */
+@keyframes nav-slide {
+  from {
+    translate: var(--nav-slide-offset);
+  }
+  to {
+    translate: 0;
+  }
+}
+
+@keyframes nav-slide-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+::view-transition-old(.nav-forward) {
+  /* `reverse` lật keyframe lại, nên khung cũ chạy TỪ 0 RA -88px: lùi sang trái */
+  --nav-slide-offset: -88px;
+  animation:
+    150ms ease-in both nav-slide-fade reverse,
+    420ms cubic-bezier(0.4, 0, 0.2, 1) both nav-slide reverse;
+}
+
+::view-transition-new(.nav-forward) {
+  /* Khung mới trôi vào từ bên phải */
+  --nav-slide-offset: 88px;
+  animation:
+    220ms ease-out 150ms both nav-slide-fade,
+    420ms cubic-bezier(0.4, 0, 0.2, 1) both nav-slide;
+}
+
+/* Chiều ngược lại — quay về một tab nằm bên trái trên rail */
+::view-transition-old(.nav-back) {
+  --nav-slide-offset: 88px;
+  animation:
+    150ms ease-in both nav-slide-fade reverse,
+    420ms cubic-bezier(0.4, 0, 0.2, 1) both nav-slide reverse;
+}
+
+::view-transition-new(.nav-back) {
+  --nav-slide-offset: -88px;
+  animation:
+    220ms ease-out 150ms both nav-slide-fade,
+    420ms cubic-bezier(0.4, 0, 0.2, 1) both nav-slide;
+}
+
+/*
+  Ô ĐEN đánh dấu tab đang mở — trượt từ pill cũ sang pill mới.
+
+  Không có keyframe nào ở đây, và đó là ý chính: hai pill ở hai đầu lần chuyển
+  mang cùng `view-transition-name`, nên trình duyệt tự dựng animation chạy từ
+  hình chữ nhật cũ sang hình chữ nhật mới. Ta chỉ chỉnh nhịp.
+
+  Nhanh hơn phần nội dung (280ms so với 420ms): ô đen là thứ trả lời câu "tôi
+  vừa bấm cái nào", nên nó phải tới đích trước khi mắt kịp đi tìm.
+
+  `z-index` để nó chạy phía trên vùng nội dung đang trượt, nếu không nó bị ảnh
+  chụp của nội dung che mất một đoạn giữa đường.
+*/
+::view-transition-group(nav-active-pill) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 90;
+}
+
+/*
+  Con dấu thương hiệu là MỐC NEO — nó không được nhúc nhích.
+
+  Không có mốc đứng yên thì cả màn hình trượt cùng lúc, và người dùng mất điểm
+  tựa để hiểu rằng NỘI DUNG vừa đổi chứ không phải cả cửa sổ bị đẩy đi.
+
+  `display: none` cho ảnh cũ: hai con dấu chồng nhau trong lúc chuyển sẽ loé
+  lên một nhịp vì chúng nằm đúng cùng chỗ. `z-index` để nó nổi trên phần trượt.
+*/
+::view-transition-group(brand-logo) {
+  animation: none;
+  z-index: 100;
+}
+
+::view-transition-old(brand-logo) {
+  display: none;
+}
+
+::view-transition-new(brand-logo) {
+  animation: none;
+}
+
+/*
+  Lớp phủ của view transition ăn hết sự kiện chuột, nên cú bấm nào rơi vào giữa
+  lúc animation chạy sẽ mất trắng. Trả lại cho trang bên dưới.
+*/
+::view-transition {
+  pointer-events: none;
+}
+
+/*
+  Trượt ngang là kiểu chuyển động dễ gây khó chịu nhất với người nhạy cảm
+  chuyển động — nó mô phỏng cả khung nhìn dịch chuyển. Tắt thời lượng là quay
+  về hành vi mặc định của trình duyệt: đổi trang tức thì.
+*/
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+
+/* ============================================================================
    WORDLE — ô chữ lật khi được chấm màu.
    ========================================================================= */
 @keyframes tile-flip {

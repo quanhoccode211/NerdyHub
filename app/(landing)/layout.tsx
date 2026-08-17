@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { BRAND_LOGO_SIZE, LogoMark } from '@/components/shell/icons'
+import { BRAND_VT_NAME } from '@/components/shell/nav-slide'
 
 /**
  * Khung riêng cho trang giới thiệu.
@@ -21,6 +22,10 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
         hơn là nó nhảy ngang đúng bằng khoảng chênh khi người dùng bấm vào ứng
         dụng. Trước đây bên này px-12 còn bên kia px-7: kính nhảy 20px.
 
+        Từ lúc có hiệu ứng trượt thì việc khớp này không còn là chuyện gọn mắt
+        nữa: con dấu là MỐC NEO đứng yên giữa lúc mọi thứ khác trượt, lệch một
+        chút là nó giật một cái ngay giữa hiệu ứng.
+
         Lề DƯỚI thì không phải khớp, và cố ý giữ riêng: hero khoá đúng một màn
         hình nên chỗ trống dưới cùng là của cụm minh hoạ — xem ghi chú trong
         app/(landing)/page.tsx.
@@ -34,7 +39,12 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
         <header className="flex min-h-11 flex-none items-center">
           {/* aria-label gánh phần tên thương hiệu: con dấu là ảnh nền qua CSS
               mask nên trình đọc màn hình không đọc ra chữ nào từ nó. */}
-          <Link href="/" aria-label="Nerdy Hub — trang chủ" className="flex items-center">
+          <Link
+            href="/"
+            aria-label="Nerdy Hub — trang chủ"
+            className="flex items-center"
+            style={{ viewTransitionName: BRAND_VT_NAME }}
+          >
             <LogoMark size={BRAND_LOGO_SIZE} />
           </Link>
         </header>
