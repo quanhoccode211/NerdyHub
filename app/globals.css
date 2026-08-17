@@ -425,18 +425,47 @@ body {
    * Pill điều hướng: CHỈ ICON, tên hiện ra khi rê chuột.
    * Mặc định trắng viền mảnh, active là khối đặc màu accent.
    */
+  /**
+   * MỘT thanh nền bọc cả hàng tab, không phải mỗi icon một viên.
+   *
+   * Trước đây từng `.nav-pill` tự mang viền và nền trắng, nên hàng nav đọc ra
+   * là sáu cái nút rời nhau. Gom lại thành một thanh liền thì ô đen mới có chỗ
+   * để "chạy trong" — nó trượt bên trong một cái máng, thay vì nhảy giữa các
+   * nút không liên quan gì tới nhau.
+   *
+   * `inline-flex` để thanh ôm sát số tab hiện có, không kéo dài hết bề ngang.
+   */
+  .nav-rail {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1rem;
+    padding: 0.25rem;
+    border-radius: var(--radius-pill);
+    background: var(--color-soft);
+  }
+
   .nav-pill {
     position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: var(--radius-pill);
-    padding: 0.62rem 0.95rem;
+    /*
+      Chỉ chừa đủ chỗ cho icon thở. Rộng hơn thì hàng tab kéo dài gần hết bề
+      ngang header và ô đen phải bay một quãng xa mỗi lần đổi tab — chuyển động
+      dài ra mà không nói thêm được gì.
+    */
+    padding: 0.5rem 0.8rem;
     font-size: 0.9375rem;
     font-weight: 500;
     color: var(--color-muted-strong);
-    border: 1px solid var(--color-line);
-    background: var(--color-card);
+    /*
+      Viền TRONG SUỐT chứ không bỏ hẳn: `box-sizing` là `border-box` nên thêm
+      hay bớt viền sẽ làm nội dung bên trong xê dịch 1px — cùng cái bẫy đã ghi
+      ở .shell-card.
+    */
+    border: 1px solid transparent;
+    background: transparent;
     white-space: nowrap;
     transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
   }
@@ -453,15 +482,20 @@ body {
    */
   .nav-pill-indicator {
     position: absolute;
-    /* -1px để phủ trọn cả đường viền 1px của pill, không hở một vòng sáng */
-    inset: -1px;
+    inset: 0;
     border-radius: var(--radius-pill);
     background: var(--color-accent);
   }
 
-  /* Icon và nhãn phải nổi TRÊN ô đen, nếu không chúng bị nó che mất */
-  .nav-pill > svg,
-  .nav-pill > .nav-tip {
+  /**
+   * Icon phải nổi TRÊN ô đen, nếu không nó bị ô đen che mất.
+   *
+   * CHỈ icon. Nhãn `.nav-tip` đã `position: absolute` với `z-index: 60` sẵn rồi
+   * — đặt `position: relative` cho nó là kéo nó trở lại dòng chảy bố cục, và
+   * chữ nhãn (đang `nowrap`) sẽ nống mỗi tab rộng gấp gần ba lần. Đo được: 143px
+   * thay vì 51px.
+   */
+  .nav-pill > svg {
     position: relative;
     z-index: 1;
   }
@@ -551,8 +585,12 @@ body {
       transition: none;
     }
   }
-  .nav-pill:hover {
-    border-color: var(--color-line-strong);
+  /*
+    Tab chưa chọn: rê chuột chỉ làm đậm chữ. KHÔNG vẽ thêm nền — thanh nav giờ
+    đã có nền riêng, thêm một mảng màu nữa bên trong là hai lớp xám chồng nhau
+    và ô đen mất đi độ tương phản vốn là thứ chỉ ra tab đang mở.
+  */
+  .nav-pill:not([data-active='true']):hover {
     color: var(--color-ink);
   }
   /**

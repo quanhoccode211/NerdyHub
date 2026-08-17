@@ -101,58 +101,61 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           */}
           <nav
             aria-label="Điều hướng chính"
-            className="no-scrollbar flex min-w-0 flex-1 items-center justify-center gap-2 overflow-x-auto"
+            className="no-scrollbar flex min-w-0 flex-1 items-center justify-center overflow-x-auto"
           >
-            {NAV.map(({ href, label, Icon }, i) => {
-              const active = pathname === href || pathname.startsWith(`${href}/`)
-              return (
-                <SlideLink
-                  key={href}
-                  href={href}
-                  data-active={active}
-                  aria-current={active ? 'page' : undefined}
-                  /* Chỉ còn icon nên tên phải nằm ở aria-label, không thì trình
-                     đọc màn hình chỉ đọc được "liên kết" trống. */
-                  aria-label={label}
-                  className="nav-pill"
-                  /*
-                    Hướng trượt đọc từ vị trí tab trên rail, không phải từ lịch
-                    sử duyệt. Bấm sang tab bên phải thì nội dung lùi sang trái;
-                    bấm ngược lại thì nó trôi ngược lại.
+            {/* Một thanh nền liền bọc cả hàng tab — xem .nav-rail trong globals.css */}
+            <div className="nav-rail">
+              {NAV.map(({ href, label, Icon }, i) => {
+                const active = pathname === href || pathname.startsWith(`${href}/`)
+                return (
+                  <SlideLink
+                    key={href}
+                    href={href}
+                    data-active={active}
+                    aria-current={active ? 'page' : undefined}
+                    /* Chỉ còn icon nên tên phải nằm ở aria-label, không thì trình
+                       đọc màn hình chỉ đọc được "liên kết" trống. */
+                    aria-label={label}
+                    className="nav-pill"
+                    /*
+                      Hướng trượt đọc từ vị trí tab trên rail, không phải từ lịch
+                      sử duyệt. Bấm sang tab bên phải thì nội dung lùi sang trái;
+                      bấm ngược lại thì nó trôi ngược lại.
 
-                    Trang không nằm trong rail (trang kết quả, xem lại bài) cho
-                    `activeIndex = -1`, nên mọi tab đều tính là "bên phải" và
-                    trượt tới — đúng hướng, vì từ đó bấm tab nào cũng là rời một
-                    nhánh con để về mặt bằng chính.
-                  */
-                  type={i > activeIndex ? SLIDE_FORWARD : SLIDE_BACK}
-                >
-                  {/*
-                    Ô đen là một phần tử NỀN riêng, không phải cái pill này.
+                      Trang không nằm trong rail (trang kết quả, xem lại bài) cho
+                      `activeIndex = -1`, nên mọi tab đều tính là "bên phải" và
+                      trượt tới — đúng hướng, vì từ đó bấm tab nào cũng là rời một
+                      nhánh con để về mặt bằng chính.
+                    */
+                    type={i > activeIndex ? SLIDE_FORWARD : SLIDE_BACK}
+                  >
+                    {/*
+                      Ô đen là một phần tử NỀN riêng, không phải cái pill này.
 
-                    Chỉ nó mang `view-transition-name`, nên chỉ nó bay khi đổi
-                    tab — icon nằm ngoài ảnh chụp và đứng yên tại chỗ. Gắn tên
-                    lên cả pill (bản trước) là icon lọt vào ảnh, và giữa đường
-                    có hai icon chồng mờ lên nhau.
+                      Chỉ nó mang `view-transition-name`, nên chỉ nó bay khi đổi
+                      tab — icon nằm ngoài ảnh chụp và đứng yên tại chỗ. Gắn tên
+                      lên cả pill (bản trước) là icon lọt vào ảnh, và giữa đường
+                      có hai icon chồng mờ lên nhau.
 
-                    Chỉ dựng cho pill đang mở: tên view-transition phải DUY NHẤT
-                    trong một trang, có hai cái là trình duyệt bỏ qua cả nhóm.
-                  */}
-                  {active ? (
-                    <span
-                      className="nav-pill-indicator"
-                      aria-hidden="true"
-                      style={{ viewTransitionName: ACTIVE_PILL_VT_NAME }}
-                    />
-                  ) : null}
-                  <Icon size={22} />
-                  {/* Hiện sau khi rê chuột và giữ 2 giây — xem .nav-tip */}
-                  <span className="nav-tip" aria-hidden="true">
-                    {label}
-                  </span>
-                </SlideLink>
-              )
-            })}
+                      Chỉ dựng cho pill đang mở: tên view-transition phải DUY NHẤT
+                      trong một trang, có hai cái là trình duyệt bỏ qua cả nhóm.
+                    */}
+                    {active ? (
+                      <span
+                        className="nav-pill-indicator"
+                        aria-hidden="true"
+                        style={{ viewTransitionName: ACTIVE_PILL_VT_NAME }}
+                      />
+                    ) : null}
+                    <Icon size={22} />
+                    {/* Hiện sau khi rê chuột và giữ 2 giây — xem .nav-tip */}
+                    <span className="nav-tip" aria-hidden="true">
+                      {label}
+                    </span>
+                  </SlideLink>
+                )
+              })}
+            </div>
           </nav>
 
           <div className="flex flex-none items-center gap-2">
