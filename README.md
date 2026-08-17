@@ -429,9 +429,25 @@ tên này đứng **đầu** `--font-sans`.
 - **Thiếu file thì không hỏng gì** — trình duyệt bỏ qua `@font-face` không tải được và rơi
   về font kế tiếp, tức đúng hành vi cũ. Chỉ có một dòng 404 trong console.
 
-⚠️ Twemoji là tài sản của Twitter/X, giấy phép **CC-BY 4.0** — được dùng cả trong sản phẩm
-thương mại nhưng **bắt buộc ghi công**. Khác hẳn tình trạng của Helvetica Neue bên trên
-(không có giấy phép nào cả). Thêm file thì thêm luôn dòng credit.
+Đã kiểm trên `/de-thi`: face `status=loaded`, `document.fonts.check` trả `true` cho
+🇬🇧 🇰🇷 🇻🇳 🇩🇪, và bề rộng canvas của 🇬🇧 khác giữa hai font stack (32 so với 32,42) — tức
+font cờ thật sự đang vẽ chứ không rơi về font hệ thống.
+
+#### Ghi công — bắt buộc, không phải phép lịch sự
+
+`public/fonts/TwemojiCountryFlags.woff2` (78.292 byte) lấy từ gói npm
+[`country-flag-emoji-polyfill`](https://www.npmjs.com/package/country-flag-emoji-polyfill)
+`0.1.10` của **TalkJS**. Chỉ copy đúng file font, **không** thêm gói vào `package.json` —
+dự án không cần đoạn JS nào của nó.
+
+| phần | giấy phép |
+|---|---|
+| code của gói | MIT © 2022 TalkJS |
+| **hình cờ** | **CC-BY-4.0**, từ [Twemoji](https://twitter.github.io/twemoji) (Twitter/X) |
+
+CC-BY-4.0 cho dùng cả trong sản phẩm thương mại **nhưng buộc phải ghi công**. Đây là điểm
+khác hẳn Helvetica Neue bên trên — cái đó không có giấy phép nào cả. Đừng xoá dòng credit
+trong `globals.css` cạnh `@font-face`.
 
 **Giấy phép — đọc trước khi phát hành.** Helvetica Neue là font thương mại của
 Monotype/Linotype; ba file trong `app/fonts/` là bản việt hoá lưu hành tự do, **không kèm

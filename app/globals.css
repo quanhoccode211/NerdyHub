@@ -1110,8 +1110,15 @@ body {
    thiếu dòng này là font cờ tranh mất cả chữ thường ở những glyph nó có.
 
    THIẾU FILE THÌ KHÔNG HỎNG GÌ: trình duyệt bỏ qua @font-face không tải được và
-   rơi về font kế tiếp, tức đúng hành vi hiện nay (chữ "GB"/"KR"). Không có màn
-   hình trắng, không có lỗi bố cục — chỉ một dòng 404 trong console.
+   rơi về font kế tiếp, tức chữ "GB"/"KR" như trước. Không có màn hình trắng,
+   không có lỗi bố cục — chỉ một dòng 404 trong console.
+
+   GHI CÔNG (bắt buộc, không phải phép lịch sự): file
+   public/fonts/TwemojiCountryFlags.woff2 lấy từ gói npm
+   `country-flag-emoji-polyfill` 0.1.10 của TalkJS (78.292 byte). Phần code của
+   gói là MIT, nhưng HÌNH CỜ đến từ Twemoji (Twitter/X) và phát hành theo
+   CC-BY-4.0 — giấy phép đó cho dùng cả trong sản phẩm thương mại NHƯNG buộc
+   phải ghi công. Đừng xoá dòng credit này, và giữ mục tương ứng trong README.
    ========================================================================= */
 @font-face {
   font-family: 'Flag Emoji';
