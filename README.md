@@ -303,6 +303,27 @@ Cờ `enteringApp` là **biến cấp module**, không phải `sessionStorage`: 
 quan. AppShell đọc cờ **lúc render** chứ không phải trong effect — chờ tới effect thì các
 thẻ đã kịp vẽ ra đầy đủ một nhịp rồi mới nhảy về trong suốt, thành một cú nháy.
 
+### Bốn thứ ở header phải ĐỨNG YÊN, và cách làm giống hệt nhau
+
+Con dấu, hàng tab, ô đen đánh dấu tab, và **cụm nút bên phải** (chuông, sáng/tối, tài
+khoản) đều không được trôi theo cú trượt. Cả bốn dùng chung một công thức: đặt
+`view-transition-name` để thoát khỏi ảnh chụp `root`, rồi `display: none` cho ảnh cũ +
+`animation: none` cho ảnh mới.
+
+Cụm nút bên phải mang tên `header-actions`. Ba nút giống hệt nhau ở mọi trang chức năng
+nên không có gì để chuyển tiếp; nằm trong ảnh `root` thì chúng bị cross-fade cùng cả
+trang và mắt đọc ra là chúng cũng đang "đổi trang".
+
+⚠️ **Núm đen của công tắc sáng/tối thì KHÔNG được đóng băng — đừng dọn cho nhất quán.**
+`.theme-switch-knob` mang sẵn `view-transition-name: theme-knob`, nên nó tự tách khỏi ảnh
+chụp của `header-actions` và chạy theo luật riêng: cross-fade 340ms tại chỗ, hai ảnh
+giống hệt nhau ở cùng toạ độ nên mắt không thấy gì — đã là "đứng yên" rồi.
+
+Đã thử áp đúng bộ ba như `nav-rail` cho nó và **núm biến mất hẳn** trong lúc chuyển
+trang. Thủ thuật đó chỉ đúng với phần tử tự nó là một nhóm độc lập; núm này nằm **lồng
+trong** `header-actions` (nhóm đã đóng băng, `z-index: 80`) nên tách ra rồi bỏ animation
+của nhóm là nó mất chỗ đứng.
+
 ### Vài chi tiết nhỏ nhưng cố ý
 
 - **Thẻ trắng, rail điều hướng và con dấu đứng yên**, chỉ vùng nội dung trượt. Khung mà
@@ -504,6 +525,26 @@ bên dashboard.
 `--wordmark-stagger` (200ms) là chỗ đáng cắt nhất nếu cần nhanh hơn nữa — nó từng là 500ms
 và một mình chiếm quá nửa thời gian chờ. Cắt xong nhớ **tính lại `POP_OUT_MS`** — hai chỗ
 này là một cặp.
+
+### Bố cục hero: chặn bề ngang, và nâng bằng CẶP lề
+
+Cụm hero chặn `max-w-[1240px]` rồi `mx-auto` — căn giữa thay vì trải hết bề ngang thẻ
+trắng. Dưới 1240px con số này không đổi được gì, chỉ màn hình rộng mới thấy khác. Chọn
+chặn bề ngang chứ không dồn chữ vào giữa từng dòng, vì bố cục hai cột (khẩu hiệu trái /
+mô tả phải) đã được chỉnh theo breakpoint `xl` với lý do riêng ghi trong code.
+
+**Nâng cụm lên 24px phải dùng `md:-mt-6` KÈM `md:mb-6`, không được chỉ đặt lề âm.** Khối
+hero là `flex-1` trong một cột flex: chỉ lề âm thì phần chiều cao khả dụng tăng thêm 24px
+và hàng minh hoạ (cũng `flex-1`) nở ra đúng chừng đó — tức **ảnh to lên**. Lề dương bù cho
+tổng chỗ chiếm bằng 0, khối chỉ dịch lên chứ không giãn. Đã đo: mép trên ảnh 107 → 83,
+chiều cao ảnh 419,8 → 419,8.
+
+Cũng không dùng `transform: translateY` dù nó giữ nguyên kích thước — transform biến khối
+này thành containing block của mọi con `absolute`, một cái bẫy nằm chờ người sau thêm
+tooltip hay popover vào hero.
+
+⚠️ Hộp ảnh giờ **trùm lên dải header 20px**. Nó chỉ vô hại vì phần trên cùng của file PNG
+là khoảng trong suốt — nét vẽ bắt đầu thấp hơn. Đổi bộ ảnh minh hoạ thì kiểm lại chỗ này.
 
 ### Nút đăng nhập ở góc phải trang giới thiệu
 
@@ -746,6 +787,24 @@ mặt: `bg-card` mới là token đúng.
 `border-box`, nên một bên có `border: 1px` còn bên kia `none` sẽ làm toàn bộ nội dung
 bên trong xê dịch đúng 1px khi người dùng bật/tắt dark mode. Dùng
 `border: 1px solid transparent` rồi đổi `border-color`.
+
+**Muốn viền thẻ đậm hơn thì đổi MÀU, đừng nới px.** Cùng một lý do `border-box`: tăng
+`.card` lên 1,5px là nội dung bên trong *mọi* thẻ co lại 0,5px mỗi cạnh. `.card` dùng
+`--color-line-strong` chứ không phải `--color-line`, và token đó đã hạ tông xuống
+`#c0cede`:
+
+| màu viền | tương phản với nền trắng |
+|---|---|
+| `#e7edf4` (`--color-line`) | 1,18 — gần như không đọc được đường ranh |
+| `#d9e2ec` (giá trị cũ) | 1,31 |
+| **`#c0cede` (hiện tại)** | **1,60** |
+
+Token này khai ở **hai** nơi trong bảng màu sáng: `@theme` và `.theme-light` (khối khoá
+sáng riêng cho trang giới thiệu). Sửa một chỗ là trang chủ mang màu viền khác phần còn
+lại của web. Nó còn dùng cho viền hover của `.btn-secondary` và núm thanh cuộn
+`.thin-scroll` — cả hai đậm theo, và đó là hướng đúng cho cả hai. Dark mode không đụng
+tới: ở đó `--color-line-strong` (`#3a4356`) **sáng hơn** `--color-line`, nên viền vẫn là
+thứ nổi lên khỏi nền.
 
 **`position: relative` đặt nhầm chỗ có thể nống bố cục lên gấp ba.** Nhãn tooltip của
 nav (`.nav-tip`) vốn là `absolute`; thêm một dòng `position: relative` để nâng nó lên

@@ -192,26 +192,23 @@
   /**
    * TRADEMARK "NERDY HUB" trượt ra / thụt lại — xem .brand-wordmark bên dưới.
    *
-   * Chậm gấp đôi bản đầu (420/260ms) theo yêu cầu: đây là chuyển động DUY NHẤT
-   * của phần khung, và khung thì nên đi thong thả hơn nội dung để không tranh
-   * chỗ với dãy thẻ đang nảy lên.
-   *
-   * `--wordmark-stagger`: "HUB" đi sau "NERDY" đúng nửa giây, ở CẢ HAI chiều.
-   * Nó nhân với `--wordmark-lag` (chỉ số dòng: 0, 1) nên thêm dòng thứ ba là
-   * tự có nhịp, không phải khai thêm độ trễ nào.
+   * `--wordmark-stagger` là độ trễ của dòng "HUB" so với "NERDY", áp cho CẢ HAI
+   * chiều. Nó nhân với `--wordmark-lag` (chỉ số dòng: 0, 1) nên thêm dòng thứ
+   * ba là tự có nhịp, không phải khai thêm độ trễ nào.
    *
    * Đường cong là ease-out/ease-in BẬC BA, không phải bậc năm như bản đầu
    * (0.22,1,0.36,1 / 0.55,0,1,0.45): bậc năm phanh gấp gần cuối và vọt nhanh ở
    * đầu, ở quãng đường ngắn 71px thì mắt đọc ra là giật chứ không phải nhanh.
    *
-   * `--wordmark-stagger` là độ trễ của dòng "HUB" so với "NERDY", áp cho CẢ HAI
-   * chiều. Từng là 500ms; hạ xuống 200ms theo yêu cầu — và đây cũng chính là
-   * con số ăn thời gian nhất của cả cú rời trang, nên hạ nó là rút ngắn được
-   * `POP_OUT_MS` tương ứng (910ms -> 610ms).
-   *
    * ĐỔI BẤT KỲ SỐ NÀO Ở ĐÂY THÌ SỬA LUÔN `POP_OUT_MS` trong
    * components/shell/nav-slide.tsx: JS phải chờ chữ thụt hết vào sau con dấu
-   * rồi mới điều hướng. Tổng chiều ra = delay + stagger + dur = 610ms.
+   * rồi mới điều hướng.
+   *
+   *   tổng chiều ra = out-delay + stagger + out-dur = 60 + 200 + 350 = 610ms
+   *   POP_OUT_MS    = 630ms (610 cộng một nhịp dư)
+   *
+   * `--wordmark-stagger` là con số ăn thời gian nhất của cả cú rời trang — hạ
+   * nó rút ngắn quãng chờ nhiều hơn hẳn so với hạ thời lượng.
    */
   --wordmark-in-dur: 560ms;
   --wordmark-out-dur: 350ms;
