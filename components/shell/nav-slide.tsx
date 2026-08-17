@@ -114,14 +114,17 @@ export const ENTER_APP = 'enter-app'
  *   • nội dung nảy ngược: `--pop-last` (6) * `--pop-out-step` (32ms)
  *     + `--pop-out-dur` (220ms) = 412ms
  *   • trademark thụt vào sau con dấu, dòng "HUB" đi sau cùng:
- *     `--wordmark-out-delay` (60ms) + `--wordmark-stagger` (200ms)
- *     + `--wordmark-out-dur` (350ms) = 610ms  <- vẫn dài hơn, chính nó quyết định
+ *     `--wordmark-out-delay` (60ms) + `--wordmark-stagger` (100ms)
+ *     + `--wordmark-out-dur` (350ms) = 510ms  <- vẫn dài hơn, chính nó quyết định
  *
- * 630ms là 610 cộng một nhịp dư. Đặt ngắn hơn là điều hướng lúc chữ còn đang
+ * 530ms là 510 cộng một nhịp dư. Đặt ngắn hơn là điều hướng lúc chữ còn đang
  * trượt dở, và nó bị cắt ngang giữa chừng vì bên ứng dụng không có trademark
  * nào để nối tiếp. Đổi bất kỳ biến nào ở trên thì tính lại con số này.
+ *
+ * Từng là 630ms khi `--wordmark-stagger` còn 200ms. Hạ stagger xuống 100ms rút
+ * được 100ms khỏi quãng người dùng nhìn màn hình trắng chờ điều hướng.
  */
-const POP_OUT_MS = 630
+const POP_OUT_MS = 530
 
 /**
  * Cờ một lần: "vừa bước từ trang giới thiệu vào".

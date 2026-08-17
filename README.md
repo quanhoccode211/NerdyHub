@@ -394,11 +394,17 @@ Ba nhịp:
 
 1. Bấm nút → gắn `.pop-leaving` lên `<html>`. CSS chạy `pop-in` với `reverse`, và thứ tự
    cũng lộn: `--pop-last − --pop-i`. Thứ hiện ra sau cùng là thứ biến mất đầu tiên.
-2. Chờ hết dãy (`POP_OUT_MS` = 630ms) rồi `router.push`. Không trượt: trang cũ lúc này
+2. Chờ hết dãy (`POP_OUT_MS` = 530ms) rồi `router.push`. Không trượt: trang cũ lúc này
    đã trống, trượt thêm một nhịp là thừa.
 3. AppShell thấy cờ `enteringApp` thì gắn `.enter-stagger` lên `<main>`, các thẻ nảy lên
    theo chỉ số ghép từ hai cấp (`--pop-row` của hàng, `--pop-col` của thẻ), rồi **tự gỡ
-   sau 900ms**.
+   sau 620ms**.
+
+⚠️ **Trần gỡ class tính bằng chỉ số LỚN NHẤT là 8, không phải 6.** Công thức delay là
+`--pop-row * 2 + --pop-col`, mà row cao nhất 3 và col cao nhất 2. Ghi chú cũ ghi 6 nên
+trần đặt 900ms trong khi dãy chạy tới 960ms — thẻ cuối bị gỡ class giữa chừng và nhảy
+phịch về trạng thái cuối. Nay dãy dùng `--pop-enter-dur` (0,36s) và `--pop-enter-step`
+(26ms) riêng: `8 × 26 + 360` = 568ms, nằm gọn trong trần 620ms.
 
 **Ba chỗ dễ làm hỏng:**
 
@@ -651,30 +657,50 @@ trang. Đã kiểm: `/dashboard`, `/de-thi`, `/thong-ke` đều không có chu�
 - `padding-block: 4px` + `margin-block: -4px`: overflow cắt cả chiều dọc, mà `leading: 0.9`
   làm hộp dòng thấp hơn nét chữ — không chừa chỗ thì đỉnh chữ hoa bị xén. Margin âm bù lại
   nên bố cục không đổi một px nào.
-- `translateX(-100%)` chứ không phải số px: `-100%` là bề rộng chính nó, đổi cỡ chữ hay
-  đổi tên thương hiệu vẫn đúng.
+- **Quãng đường là `calc(-100% - 14px)`, KHÔNG phải `-100%`.** Phần `-100%` bám theo bề
+  rộng chính nó nên đổi cỡ chữ hay đổi tên thương hiệu vẫn đúng. Nhưng lúc nghỉ chữ bắt
+  đầu ở **12px** (`padding-left` của khung), nên dịch đúng một bề rộng thì mép *phải* của
+  chữ dừng ở `mép cắt + 12px` — **vẫn hở 12px trong vùng nhìn thấy**. Đo bằng
+  `getBoundingClientRect` xác nhận. 14px = 12px padding + 2px dư; đổi padding thì sửa
+  luôn số này.
+
+  ⚠️ Đây từng là lỗi sống rất lâu vì mask gradient che gần hết mẩu hở. Triệu chứng của nó
+  không nằm ở chỗ "thấy chữ thừa" mà ở chỗ **dòng NERDY chạy xong ở 410ms rồi đứng lại
+  đợi HUB tới 510ms** — đọc ra là "chữ khựng lại nấp sau logo rồi mới biến mất". Nay chữ
+  khuất hẳn *trước* khi animation kết thúc, tức vẫn đang chạy lúc biến mất.
 - **Mask gradient 10px ở mép trái** làm mềm chỗ cắt. Thiếu nó thì chữ "nảy" ra khỏi một
   mép cứng — đó là chỗ đọc ra thô nhất. 10px chứ không rộng hơn: chữ lúc nghỉ bắt đầu ở
   12px nên vùng mờ kết thúc trước khi chạm nét.
 
-**"HUB" đi sau "NERDY" nửa giây, ở cả hai chiều.** Vì vậy animation đặt trên **từng dòng**
+**"HUB" đi sau "NERDY" 100ms, ở cả hai chiều.** Vì vậy animation đặt trên **từng dòng**
 chứ không phải khối chữ chung; `--wordmark-lag` là **chỉ số dòng** (0, 1) nhân với
 `--wordmark-stagger`, nên thêm dòng thứ ba là tự có nhịp.
 
 | | NERDY | HUB |
 |---|---|---|
-| vào (560ms) | bắt đầu 90ms, xong 650ms | bắt đầu 290ms, xong **850ms** |
-| ra (350ms) | bắt đầu 60ms, xong 410ms | bắt đầu 260ms, xong **610ms** |
+| vào (560ms) | bắt đầu 90ms, xong 650ms | bắt đầu 190ms, xong **750ms** |
+| ra (350ms) | bắt đầu 60ms, xong 410ms | bắt đầu 160ms, xong **510ms** |
 
-⚠️ **Chính dòng "HUB" quyết định `POP_OUT_MS`** (630ms trong `nav-slide.tsx`), chứ không
+⚠️ **Chính dòng "HUB" quyết định `POP_OUT_MS`** (530ms trong `nav-slide.tsx`), chứ không
 phải hiệu ứng nảy của nội dung (xong ở 412ms). Chữ phải thụt hết vào sau con dấu *trước*
-khi trang đổi, vì bên ứng dụng không có trademark nào để nối tiếp. Hệ quả phải biết: cú
-bấm "Vào học thôi" chờ **0,63 giây** rồi mới điều hướng, cộng thêm ~750ms dãy thẻ nảy lên
-bên dashboard.
+khi trang đổi, vì bên ứng dụng không có trademark nào để nối tiếp.
 
-`--wordmark-stagger` (200ms) là chỗ đáng cắt nhất nếu cần nhanh hơn nữa — nó từng là 500ms
-và một mình chiếm quá nửa thời gian chờ. Cắt xong nhớ **tính lại `POP_OUT_MS`** — hai chỗ
-này là một cặp.
+`--wordmark-stagger` là chỗ ăn thời gian nhất và đã cắt hai lần: 500ms → 200ms → **100ms**.
+Cắt xong nhớ **tính lại `POP_OUT_MS`** — hai chỗ này là một cặp.
+
+### Chiều RA phải giữ chuyển động cho tới lúc khuất hẳn
+
+`--wordmark-ease-out` là **`cubic-bezier(0.4, 0, 1, 1)`**, không phải
+`cubic-bezier(0.32, 0, 0.67, 0)` như bản đầu. Đường cong cũ có **cả hai điểm điều khiển
+đều `y = 0`**, nghĩa là suốt phần lớn thời lượng chữ gần như đứng yên rồi mới vụt đi ở
+đoạn cuối — mắt đọc ra là "chữ khựng một nhịp rồi mới biến mất".
+
+Đường cong mới nhúc nhích ngay từ khung hình đầu, tăng tốc đều, và **kết thúc ở vận tốc
+lớn nhất** — chữ vẫn đang chạy lúc khuất hẳn sau con dấu, không có điểm dừng nào. Cùng
+đường cong với `--pop-out-ease` của dãy nội dung nên hai thứ rời trang cùng một nhịp.
+
+Triệu chứng để nhận ra lần sau: **một chuyển động ngắn mà đọc ra là "đứng im rồi nhảy"** —
+kiểm hai điểm điều khiển của bezier trước khi đi chỉnh thời lượng.
 
 ### Bố cục hero: chặn bề ngang, và nâng bằng CẶP lề
 

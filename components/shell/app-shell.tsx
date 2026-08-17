@@ -88,10 +88,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       mọi lần đổi tab sau đó cũng nảy một loạt thẻ — tức đổi luôn hiệu ứng
       trượt vốn phải giữ nguyên.
 
-      Trần thời gian = chỉ số lớn nhất (6) * --pop-enter-step (55ms)
-      + --pop-dur (520ms), làm tròn lên.
+      Trần thời gian = chỉ số lớn nhất * --pop-enter-step + --pop-enter-dur.
+
+      Chỉ số lớn nhất là 8, không phải 6: công thức trong globals.css là
+      `--pop-row * 2 + --pop-col`, mà row cao nhất là 3 và col cao nhất là 2.
+      Ghi chú cũ ghi 6 nên trần tính ra 850 → làm tròn 900, trong khi dãy thật
+      chạy tới 8 * 55 + 520 = 960ms. Tức thẻ cuối cùng bị gỡ class giữa chừng và
+      nhảy phịch về trạng thái cuối — mất đúng cái nhịp mềm mà cả hiệu ứng này
+      sinh ra để có.
+
+      Nay: 8 * 26ms + 360ms = 568ms, làm tròn lên 620ms.
     */
-    const t = window.setTimeout(() => setEntering(false), 900)
+    const t = window.setTimeout(() => setEntering(false), 620)
     return () => window.clearTimeout(t)
   }, [entering])
 

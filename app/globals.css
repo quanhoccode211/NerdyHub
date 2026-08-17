@@ -200,8 +200,8 @@
    * components/shell/nav-slide.tsx: JS phải chờ chữ thụt hết vào sau con dấu
    * rồi mới điều hướng.
    *
-   *   tổng chiều ra = out-delay + stagger + out-dur = 60 + 200 + 350 = 610ms
-   *   POP_OUT_MS    = 630ms (610 cộng một nhịp dư)
+   *   tổng chiều ra = out-delay + stagger + out-dur = 60 + 100 + 350 = 510ms
+   *   POP_OUT_MS    = 530ms (510 cộng một nhịp dư)
    *
    * `--wordmark-stagger` là con số ăn thời gian nhất của cả cú rời trang — hạ
    * nó rút ngắn quãng chờ nhiều hơn hẳn so với hạ thời lượng.
@@ -209,9 +209,22 @@
   --wordmark-in-dur: 560ms;
   --wordmark-out-dur: 350ms;
   --wordmark-out-delay: 60ms;
-  --wordmark-stagger: 200ms;
+  --wordmark-stagger: 100ms;
   --wordmark-ease-in: cubic-bezier(0.33, 1, 0.68, 1);
-  --wordmark-ease-out: cubic-bezier(0.32, 0, 0.67, 0);
+  /*
+    CHIỀU RA PHẢI GIỮ CHUYỂN ĐỘNG LIÊN TỤC CHO TỚI LÚC BIẾN MẤT.
+
+    Bản cũ dùng `cubic-bezier(0.32, 0, 0.67, 0)` — cả hai điểm điều khiển đều có
+    y = 0, nghĩa là suốt phần lớn thời lượng chữ gần như ĐỨNG YÊN rồi mới vụt đi
+    ở đoạn cuối. Mắt đọc ra là "chữ khựng lại một nhịp rồi mới biến mất", đúng
+    cái cảm giác sai mà hiệu ứng này không nên có.
+
+    `cubic-bezier(0.4, 0, 1, 1)` là ease-in thường: nhúc nhích ngay từ đầu, tăng
+    tốc đều, và kết thúc ở vận tốc lớn nhất — tức chữ vẫn đang chạy lúc khuất hẳn
+    sau con dấu, không có điểm dừng nào. Cùng đường cong với `--pop-out-ease` của
+    dãy nội dung, nên hai thứ rời trang cùng một nhịp.
+  */
+  --wordmark-ease-out: cubic-bezier(0.4, 0, 1, 1);
 
   --pop-dur: 0.52s;
   --pop-ease: cubic-bezier(0.22, 1.35, 0.36, 1);
@@ -219,7 +232,21 @@
   --pop-out-dur: 0.22s;
   --pop-out-ease: cubic-bezier(0.4, 0, 1, 1);
   --pop-out-step: 32ms;
-  --pop-enter-step: 55ms;
+  /*
+    DÃY THẺ NẢY LÊN BÊN DASHBOARD — hai biến RIÊNG, không dùng chung `--pop-dur`
+    và `--pop-step` với trang giới thiệu.
+
+    Lúc tải trang giới thiệu lần đầu, người dùng chưa đọc gì nên dãy chậm rãi là
+    một lời chào. Còn lúc vừa bấm nút vào ứng dụng, họ đã chờ xong chặng rời
+    trang rồi — thêm gần một giây nữa để các thẻ lần lượt hiện ra là bắt người ta
+    đợi hai lần cho một hành động.
+
+    Cũ: (3*2 + 2) * 55ms + 520ms = 960ms — mà trần gỡ class bên app-shell.tsx
+    chỉ có 900ms, nên thẻ cuối bị cắt ngang.
+    Nay: (3*2 + 2) * 26ms + 360ms = 568ms, trần 620ms.
+  */
+  --pop-enter-step: 26ms;
+  --pop-enter-dur: 0.36s;
 
   --nav-icon-size: 28px;
   --nav-pill-pad-y: 0.9375rem;
@@ -927,9 +954,25 @@ body {
   mask-image: linear-gradient(90deg, transparent 0, #000 10px);
 }
 
+/*
+  QUÃNG ĐƯỜNG PHẢI LÀ `-100% - 14px`, KHÔNG PHẢI `-100%`.
+
+  `100%` là bề rộng của chính dòng chữ (71,4px). Nhưng lúc nghỉ, chữ không bắt
+  đầu ở mép cắt — nó bắt đầu ở 12px, vì `padding-left` của `.brand-wordmark`.
+  Dịch đúng một bề rộng thì mép PHẢI của chữ dừng ở `mép cắt + 12px`, tức vẫn
+  còn hở 12px nằm trong vùng nhìn thấy. Đã đo tận nơi bằng getBoundingClientRect.
+
+  Mask gradient (mờ dần 10px đầu) che gần hết mẩu hở đó nên lỗi này sống sót
+  rất lâu. Nhưng nó gây ra một triệu chứng đọc được: dòng NERDY chạy xong ở
+  410ms rồi ĐỨNG LẠI với mẩu hở, đợi dòng HUB chạy nốt tới 510ms — nhìn ra là
+  chữ "khựng lại nấp sau logo rồi mới biến mất".
+
+  14px = 12px padding + 2px dư. Nhờ vậy chữ khuất hẳn TRƯỚC khi animation kết
+  thúc, tức nó vẫn đang chạy lúc biến mất — không có điểm dừng nào để mắt bắt.
+*/
 @keyframes brand-wordmark-in {
   from {
-    transform: translateX(-100%);
+    transform: translateX(calc(-100% - 14px));
   }
   to {
     transform: translateX(0);
@@ -937,9 +980,9 @@ body {
 }
 
 /*
-  `-100%` là 100% BỀ RỘNG CHÍNH NÓ (~71px), đủ để lùi hẳn vào trong vùng con
-  dấu. Không dùng số px cố định: đổi cỡ chữ hay đổi tên thương hiệu là con số đó
-  sai ngay, và chữ sẽ ló ra một đoạn ở khung hình đầu.
+  Phần `-100%` bám theo BỀ RỘNG CHÍNH NÓ nên đổi cỡ chữ hay đổi tên thương hiệu
+  vẫn đúng; chỉ phần bù `14px` là số cố định, và nó bám theo `padding-left` của
+  `.brand-wordmark`. Đổi padding đó thì sửa luôn con số này.
 
   `backwards` để nó nằm sẵn ở vị trí lùi trong lúc chờ delay, nếu không nó hiện
   đủ ở chỗ cuối rồi mới nhảy về sau con dấu để trượt ra.
@@ -962,12 +1005,13 @@ body {
   --wordmark-lag: 1;
 }
 
+/* Cùng quãng đường với chiều vào — xem ghi chú ở `brand-wordmark-in` */
 @keyframes brand-wordmark-out {
   from {
     transform: translateX(0);
   }
   to {
-    transform: translateX(-100%);
+    transform: translateX(calc(-100% - 14px));
   }
 }
 
@@ -979,8 +1023,8 @@ body {
 
   RÀNG BUỘC VỚI JS: dòng đi sau cùng ("HUB") xong ở
   `--wordmark-out-delay` + `--wordmark-stagger` + `--wordmark-out-dur`
-  = 60 + 200 + 350 = 610ms, và con số đó phải NHỎ HƠN `POP_OUT_MS` trong
-  components/shell/nav-slide.tsx (630ms). Chữ phải thụt hết vào sau con dấu
+  = 60 + 100 + 350 = 510ms, và con số đó phải NHỎ HƠN `POP_OUT_MS` trong
+  components/shell/nav-slide.tsx (530ms). Chữ phải thụt hết vào sau con dấu
   TRƯỚC khi trang đổi, vì bên ứng dụng không có trademark nào để nối tiếp — hụt
   là nó bị cắt ngang lúc đang trượt dở.
 
@@ -1093,7 +1137,8 @@ body {
 
 .enter-stagger > header,
 .enter-stagger > div > * {
-  animation: var(--pop-dur) var(--pop-ease) backwards pop-in;
+  /* `--pop-enter-dur`, KHÔNG phải `--pop-dur` — xem ghi chú ở chỗ khai biến */
+  animation: var(--pop-enter-dur) var(--pop-ease) backwards pop-in;
   animation-delay: calc((var(--pop-row, 0) * 2 + var(--pop-col, 0)) * var(--pop-enter-step));
 }
 
