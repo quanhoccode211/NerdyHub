@@ -469,13 +469,30 @@ dung.
 - **Hướng trượt đọc từ thứ tự tab trên rail**, không phải từ lịch sử duyệt. Các tab là
   mục ngang hàng; cho cái nào cũng trượt cùng một chiều thì chuyển động hoặc vô nghĩa,
   hoặc nói sai — mắt đọc "đi tiếp" trong khi người dùng vừa quay lại chỗ cũ.
-- **Tab đang mở KHÔNG phải link — nó là `<span>`.** Bấm lại chính tab đang đứng sẽ chạy
-  lại nguyên bộ hiệu ứng: ô đen bay từ pill đó về đúng pill đó, icon đổi màu một vòng,
-  nội dung trượt ra rồi trượt vào cùng một trang — một chuyển động không nói lên điều gì,
-  và người dùng đọc ra là giao diện bị nháy. Bỏ hẳn thẻ `<a>` chứ không chỉ chặn
+- **Tab của ĐÚNG trang đang đứng không phải link — nó là `<span>`.** Bấm lại chính tab đang
+  đứng sẽ chạy lại nguyên bộ hiệu ứng: ô đen bay từ pill đó về đúng pill đó, icon đổi màu
+  một vòng, nội dung trượt ra rồi trượt vào cùng một trang — một chuyển động không nói lên
+  điều gì, và người dùng đọc ra là giao diện bị nháy. Bỏ hẳn thẻ `<a>` chứ không chỉ chặn
   `onClick`: chặn `onClick` vẫn còn chuột giữa, Ctrl+click, Enter khi focus bằng bàn phím
   và menu chuột phải. `aria-current="page"` là cách chuẩn để báo "bạn đang ở đây" mà
   không cần link.
+
+  ⚠️ **Điều kiện khoá là KHỚP CHÍNH XÁC, không phải "nằm trong nhánh".** `app-shell.tsx`
+  giữ hai biến riêng và đừng gộp lại:
+
+  | | ý nghĩa | quyết định |
+  |---|---|---|
+  | `inSection` | `pathname === href` **hoặc** bắt đầu bằng `href/` | phần NHÌN: ô đen, màu icon |
+  | `isCurrent` | chỉ `pathname === href` | còn bấm được hay không |
+
+  Trước đây một biến gánh cả hai việc, nên đứng ở `/tien-ich/pomodoro` thì tab Tiện ích bị
+  khoá và **không còn cách nào bấm về `/tien-ich`** — đúng lúc người dùng cần nó nhất, vì
+  đó là nút quay về mặt bằng chính của khu. Ba nhánh có trang con thật: `/de-thi`,
+  `/tien-ich`, `/cai-dat`.
+
+  Ở trang con, tab vẫn sáng và vẫn giữ ô đen (`data-active={inSection}`, không phải
+  `false`), nhưng mang `aria-current="true"` chứ không phải `"page"` — người dùng không
+  đứng ở trang đó, họ đang ở một trang con của nó.
 - **Hàng tab không cuộn ngang.** Từng có `overflow-x-auto` + `no-scrollbar` phòng màn hình
   hẹp; bỏ rồi. Sáu icon là mốc điều hướng luôn phải thấy hết, mà thanh cuộn thì giấu bớt
   tab đi và không để lại dấu hiệu nào cho biết còn tab ở ngoài rìa. `min-w-0` cũng bỏ

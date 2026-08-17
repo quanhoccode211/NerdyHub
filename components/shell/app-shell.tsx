@@ -176,7 +176,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             */}
             <div className="nav-rail" style={{ viewTransitionName: NAV_RAIL_VT_NAME }}>
               {NAV.map(({ href, label, Icon }, i) => {
-                const active = pathname === href || pathname.startsWith(`${href}/`)
+                /*
+                  HAI KHÁI NIỆM KHÁC NHAU, đừng gộp lại làm một.
+
+                  `inSection` — đang ở đâu đó BÊN TRONG nhánh này, kể cả các
+                  trang con. Quyết định phần NHÌN: ô đen đánh dấu và màu icon.
+                  Đứng ở /tien-ich/pomodoro thì tab Tiện ích vẫn phải sáng, nếu
+                  không người dùng mất dấu mình đang ở khu nào.
+
+                  `isCurrent` — đang đứng ĐÚNG trang gốc của nhánh. Quyết định
+                  việc còn bấm được hay không.
+
+                  Trước đây chỉ có một biến dùng cho cả hai việc, nên từ
+                  /tien-ich/pomodoro không có cách nào bấm về /tien-ich: tab bị
+                  khoá vì "đang ở trong nhánh đó rồi". Mà đó lại đúng là lúc
+                  người ta cần nó nhất — nút quay về mặt bằng chính của khu.
+                */
+                const inSection = pathname === href || pathname.startsWith(`${href}/`)
+                const isCurrent = pathname === href
 
                 /*
                   Ruột của pill giống hệt nhau ở cả hai nhánh, tách ra để nhánh
@@ -195,7 +212,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       Chỉ dựng cho pill đang mở: tên view-transition phải DUY NHẤT
                       trong một trang, có hai cái là trình duyệt bỏ qua cả nhóm.
                     */}
-                    {active ? (
+                    {inSection ? (
                       <span
                         className="nav-pill-indicator"
                         aria-hidden="true"
@@ -214,7 +231,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 )
 
                 /*
-                  TAB ĐANG MỞ KHÔNG PHẢI LINK — là <span>.
+                  TAB CỦA ĐÚNG TRANG ĐANG ĐỨNG KHÔNG PHẢI LINK — là <span>.
 
                   Bấm lại chính tab đang đứng sẽ chạy lại nguyên bộ hiệu ứng
                   chuyển trang: ô đen bay từ pill đó về đúng pill đó, icon đổi
@@ -227,8 +244,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   cả menu chuột phải — mỗi lối đó là một cách nữa để lặp lại
                   đúng cú nháy này. `aria-current="page"` là cách chuẩn để báo
                   "bạn đang ở đây" cho trình đọc màn hình mà không cần link.
+
+                  ĐIỀU KIỆN LÀ `isCurrent`, KHÔNG PHẢI `inSection`: ở trang con
+                  thì bấm tab vẫn có nghĩa — nó đưa về trang gốc của nhánh, tức
+                  một cú điều hướng thật, không phải cú nháy tại chỗ.
                 */
-                if (active) {
+                if (isCurrent) {
                   return (
                     <span
                       key={href}
@@ -248,7 +269,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <SlideLink
                     key={href}
                     href={href}
-                    data-active={false}
+                    /*
+                      `inSection` chứ không phải `false`: ở trang con thì tab
+                      này vẫn phải sáng như đang mở, chỉ khác là bấm được. Gõ
+                      cứng `false` ở đây là ô đen vẫn vẽ (nó theo `inSection`)
+                      nhưng icon lại ăn màu của tab tắt — trắng trên trắng.
+                    */
+                    data-active={inSection}
+                    /*
+                      "true" chứ không phải "page": người dùng KHÔNG đứng ở
+                      trang này, họ đang ở một trang con của nó. Dùng "page" ở
+                      đây là nói sai với trình đọc màn hình, mà bỏ trống hẳn thì
+                      mất luôn thông tin "bạn đang trong khu này".
+                    */
+                    aria-current={inSection ? 'true' : undefined}
                     aria-label={label}
                     className="nav-pill"
                     /*
