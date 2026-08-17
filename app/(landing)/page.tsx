@@ -34,7 +34,42 @@ export default function LandingPage() {
       thừa dồn vào giữa mô tả và hàng liên hệ, minh hoạ nằm sát header.
       Dưới md vẫn canh giữa — dải đó cuộn được nên không cần ghim.
     */
-    <div className="flex flex-1 flex-col justify-center gap-5 pt-2 pb-5 md:min-h-0 md:justify-start md:gap-7 md:pt-1 md:pb-6">
+    /*
+      `--pop-last` = chỉ số LỚN NHẤT trong đám `--pop-i` bên dưới (7 element,
+      0..6). Lúc rời trang, CSS lấy `--pop-last - --pop-i` để lộn ngược thứ tự
+      hiện ra — xem `.pop-leaving` trong globals.css. Thêm hay bớt một element
+      có `--pop-i` thì phải sửa số này, nếu không phần tử cuối rời đi trước cả
+      khi nó tới lượt hoặc chờ hụt một nhịp.
+    */
+    /*
+      `max-w` + `mx-auto`: cụm hero căn GIỮA thay vì trải hết bề ngang thẻ trắng.
+
+      Chọn chặn bề ngang chứ không dồn chữ vào giữa theo kiểu căn giữa từng dòng:
+      bố cục hai cột (khẩu hiệu trái / mô tả phải) đã được chỉnh theo breakpoint
+      `xl` với lý do riêng — xem ghi chú ở khối <section> chữ bên dưới — dồn vào
+      giữa là phá luôn phần đó. Dưới 1240px con số này không đổi được gì, nên
+      máy tính xách tay và điện thoại y như cũ; chỉ màn hình rộng mới thấy khác.
+    */
+    /*
+      `md:-mt-6 md:mb-6` — NÂNG CẢ CỤM LÊN 24px, không đổi cỡ thứ gì.
+
+      Cặp lề âm/dương là bắt buộc đi cùng nhau. Khối này là `flex-1` trong một
+      cột flex, nên nếu chỉ đặt lề âm thì phần chiều cao khả dụng TĂNG thêm 24px
+      và hàng minh hoạ (cũng `flex-1`) sẽ nở ra chừng đó — tức ảnh to lên, đúng
+      cái không được phép đổi. Lề dương bù lại cho tổng chỗ chiếm bằng 0, khối
+      chỉ dịch lên chứ không giãn.
+
+      Không dùng `transform: translateY` dù nó cũng giữ nguyên kích thước:
+      transform biến khối này thành containing block của mọi con `absolute`,
+      một cái bẫy nằm chờ người sau thêm tooltip hay popover vào hero.
+
+      Chỉ áp từ `md`: dưới đó trang cuộn được và cụm đã canh giữa, kéo lên nữa là
+      chạm header.
+    */
+    <div
+      style={{ '--pop-last': 6 } as React.CSSProperties}
+      className="mx-auto flex w-full max-w-[1240px] flex-1 flex-col justify-center gap-5 pt-2 pb-5 md:-mt-6 md:mb-6 md:min-h-0 md:justify-start md:gap-7 md:pt-1 md:pb-6"
+    >
       {/*
         Ba khối minh hoạ — mỗi khối pop-in lệch nhau, xem .pop-in trong globals.css.
 
@@ -57,9 +92,26 @@ export default function LandingPage() {
         Dưới md giữ clamp thuần: dải đó min-h-screen và cuộn là bình thường, trừ
         chiều cao viewport ở đó là vô nghĩa.
       */}
+      {/*
+        `items-start`, KHÔNG phải `items-end`.
+
+        Hàng minh hoạ `md:flex-1` ăn hết chiều cao còn thừa, và `md:h-full` cho
+        ảnh cao bằng đúng khung đó — nên THƯỜNG không dư gì cả và dòng này không
+        đổi được gì. Nó chỉ có tác dụng ở đúng một trường hợp: cửa sổ cao và hẹp,
+        lúc đó `md:max-w-[30vw]` chặn bề ngang lại và chiều cao ảnh tụt xuống
+        dưới chiều cao khung. `items-end` dồn toàn bộ phần dư LÊN TRÊN, tức đẩy
+        cụm minh hoạ xuống xa header; `items-start` cho nó rơi xuống dưới.
+
+        CẢNH BÁO KHI ĐO LẠI: `.pop-in` mở đầu bằng `scale(0.92) translateY(14px)`
+        và fill là `backwards`. Ở môi trường không vẽ khung hình (tab ẩn, trình
+        duyệt headless không compositing), animation không bao giờ chạy nên khung
+        `from` bị GIỮ NGUYÊN — `getBoundingClientRect()` trả về hộp đã bị co 0,92
+        lần và dịch xuống 14px. Đúng cái bẫy đã làm tôi đọc ra "dư 30,8px" trong
+        khi bố cục thật dư 0. Muốn số thật thì tắt `.pop-in` trước rồi hãy đo.
+      */}
       <section
         aria-hidden="true"
-        className="flex items-end justify-center gap-3 md:min-h-0 md:flex-1 md:gap-6"
+        className="flex items-start justify-center gap-3 md:min-h-0 md:flex-1 md:gap-6"
       >
         {panels.map((p, i) => (
           <Image
@@ -77,7 +129,9 @@ export default function LandingPage() {
               đẩy rộng cả trang, vì flex không xuống dòng.
             */
             className="pop-in h-[clamp(100px,32vw,320px)] w-auto object-contain md:h-full md:max-h-[560px] md:max-w-[30vw]"
-            style={{ animationDelay: `${i * 90}ms` }}
+            /* Chỉ số thứ tự, không phải mili giây: chiều ra cần lộn ngược dãy
+               này, mà một con số gõ cứng thì không lộn được. */
+            style={{ '--pop-i': i } as React.CSSProperties}
           />
         ))}
       </section>
@@ -95,23 +149,23 @@ export default function LandingPage() {
             3.4→4.1rem). Ở mọi tỉ lệ màn hình desktop thì 6vh nhỏ hơn 5.2vw nên
             chính vh mới là số quyết định. */}
         <h1 className="text-[clamp(2.05rem,min(5.2vw,6vh),4.1rem)] leading-[1.1] font-bold tracking-[-0.02em]">
-          <span className="pop-in block" style={{ animationDelay: '280ms' }}>
+          <span className="pop-in block" style={{ '--pop-i': 3 } as React.CSSProperties}>
             {pun.setup}
           </span>
-          <span className="pop-in block" style={{ animationDelay: '360ms' }}>
+          <span className="pop-in block" style={{ '--pop-i': 4 } as React.CSSProperties}>
             {pun.punchline}
           </span>
         </h1>
 
-        {/* Đoạn văn chạy Google Sans Flex (quy tắc @layer base trong globals.css).
-            Giữ nguyên 46ch, nhưng ý nghĩa của con số đã khác: `ch` là bề rộng
-            chữ "0", và ở font TỈ LỆ nó rộng hơn hẳn bề rộng trung bình một ký tự
-            (đo thật: ch = 0,645em, trung bình = 0,459em). Nên 46ch ở đây là ~65
-            ký tự mỗi dòng, đúng khoảng dễ đọc, trong khi cũng 46ch ở Roboto Mono
-            chỉ là 46 ký tự. Nới thêm là vượt quá 70 ký tự, mỏi mắt. */}
+        {/* `ch` là bề rộng chữ "0", KHÔNG phải bề rộng trung bình một ký tự — ở
+            font tỉ lệ hai số đó khác nhau. Đo trên Helvetica Neue (bảng hmtx):
+            ch = 0,556em còn trung bình chữ thường = 0,501em, nên 46ch ở đây là
+            ~51 ký tự mỗi dòng — vẫn nằm trong khoảng dễ đọc 45–75. Đổi font thì
+            đo lại chứ đừng quy đổi thẳng: cũng 46ch ở Roboto Mono là đúng 46 ký
+            tự, còn ở Google Sans Flex là ~65. */}
         <p
           className="pop-in max-w-[46ch] text-[16.5px] leading-[1.75] text-muted-strong xl:pt-2"
-          style={{ animationDelay: '440ms' }}
+          style={{ '--pop-i': 5 } as React.CSSProperties}
         >
           Nerdy Hub là kho đề và phòng thi thử trực tuyến cho VSTEP, TOPIK và THPT Quốc gia.
           Làm bài có bấm giờ đúng như thi thật, chấm điểm tự động theo thang riêng của từng kỳ,
@@ -123,7 +177,7 @@ export default function LandingPage() {
       {/* Liên hệ + nút vào ứng dụng (thay thanh subscribe của bản gốc) */}
       <section
         className="pop-in flex flex-col items-start justify-between gap-6 border-t border-line pt-6 sm:flex-row sm:items-center md:mt-auto"
-        style={{ animationDelay: '520ms' }}
+        style={{ '--pop-i': 6 } as React.CSSProperties}
       >
         <dl className="flex flex-wrap gap-x-10 gap-y-4">
           <div>

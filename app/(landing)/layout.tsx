@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { LandingAuth } from '@/components/landing/landing-auth'
 import { BRAND_LOGO_SIZE, LogoMark } from '@/components/shell/icons'
 import { BRAND_VT_NAME, PAGE_CONTENT_STYLE } from '@/components/shell/nav-slide'
 
@@ -32,21 +33,70 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
       */}
       <div className="shell-card flex w-full flex-col px-4 pt-4 pb-5 md:px-6 md:pt-5 md:pb-7 lg:px-7 lg:pb-6">
         {/*
-          min-h-11 = đúng chiều cao hàng pill điều hướng của AppShell. Header
-          bên này không có pill nào để tự đội chiều cao lên, nên thiếu nó thì
-          con dấu nằm cao hơn bên kia 6px dù lề trên đã bằng nhau.
+          `--brand-row-height` = chiều cao hàng nav của AppShell, TÍNH RA từ
+          chính các số dựng nên hàng đó (xem globals.css). Header bên này không
+          có pill nào để tự đội chiều cao lên, nên thiếu nó thì con dấu nằm cao
+          hơn bên kia.
+
+          Trước đây chỗ này gõ `min-h-11` (44px) kèm ghi chú "đúng bằng hàng
+          pill". Đúng lúc viết, rồi hàng nav nở gấp rưỡi mà con số này nằm im:
+          đo được con dấu lệch 14px giữa hai khung, tức nó giật một cái ngay
+          giữa hiệu ứng chuyển trang — mà con dấu chính là mốc neo đứng yên.
         */}
-        <header className="flex min-h-11 flex-none items-center">
+        <header className="flex min-h-[var(--brand-row-height)] flex-none items-center justify-between gap-4">
           {/* aria-label gánh phần tên thương hiệu: con dấu là ảnh nền qua CSS
               mask nên trình đọc màn hình không đọc ra chữ nào từ nó. */}
           <Link
             href="/"
             aria-label="Nerdy Hub — trang chủ"
-            className="flex items-center"
+            /*
+              KHÔNG có `gap` ở đây: khoảng cách 12px giữa con dấu và chữ do
+              `padding-left` của .brand-wordmark lo. Để `gap` thì mép cắt của
+              khung nằm lệch 12px sang phải con dấu, và chữ sẽ hiện ra từ giữa
+              khoảng trống chứ không phải từ sau con dấu.
+            */
+            className="flex flex-none items-center"
             style={{ viewTransitionName: BRAND_VT_NAME }}
           >
             <LogoMark size={BRAND_LOGO_SIZE} />
+            {/*
+              CHỮ THẬT, không phải ảnh.
+
+              Chữ trong bản trademark là một font grotesque, mà web đã chạy sẵn
+              Helvetica Neue — dựng bằng text thì sắc nét ở mọi cỡ và mọi độ
+              phân giải, không tốn thêm một request nào, và tự lật màu theo giao
+              diện qua `currentColor` y như con dấu bên cạnh. Nhúng ảnh thì phải
+              nuôi hai bản sáng/tối và nó vẫn mờ trên màn hình retina.
+
+              CHỈ CÓ Ở TRANG GIỚI THIỆU. Trong ứng dụng, header còn hàng nav sáu
+              tab và cụm nút bên phải, thêm chữ vào là hàng đó chật và con dấu
+              mất vai trò mốc neo. Vì vậy nó nằm ở (landing)/layout.tsx chứ
+              không phải trong <LogoMark>.
+
+              `leading-[0.9]` để hai dòng bó sát nhau thành một khối chữ nhật —
+              đúng như bản trademark; leading mặc định sẽ tách chúng thành hai
+              dòng chữ rời. Tổng cao ~36px, vẫn thấp hơn con dấu (48px) nên hàng
+              header giữ nguyên 72px.
+
+              Ba lớp span, không gộp được lớp nào: ngoài cùng là khung CẮT đứng
+              yên, giữa là lớp mang kiểu chữ, trong cùng là TỪNG DÒNG tự trượt
+              lấy — hai dòng lệch nhau nửa giây nên chúng không thể dùng chung
+              một animation. Xem .brand-wordmark trong globals.css.
+            */}
+            <span aria-hidden="true" className="brand-wordmark">
+              <span className="text-[20px] leading-[0.9] font-bold tracking-[0.01em]">
+                <span className="brand-wordmark-line">NERDY</span>
+                <span className="brand-wordmark-line">HUB</span>
+              </span>
+            </span>
           </Link>
+
+          {/*
+            Nằm ở LAYOUT chứ không phải page.tsx, nên nó KHÔNG mang `--pop-i` và
+            không nảy lên cùng phần nội dung — giống hệt con dấu. Đó là chủ ý:
+            header là cái khung, khung mà cũng nhảy múa thì mất mốc để mắt bám.
+          */}
+          <LandingAuth />
         </header>
 
         {/* min-h-0: cụm minh hoạ bên trong co giãn bằng flex-1, mà flex item mặc
