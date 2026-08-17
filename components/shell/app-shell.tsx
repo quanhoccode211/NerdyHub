@@ -9,11 +9,14 @@ import { ThemeToggle } from './theme-toggle'
 import {
   ACTIVE_PILL_VT_NAME,
   BRAND_VT_NAME,
+  HEADER_ACTIONS_VT_NAME,
   NAV_RAIL_VT_NAME,
   PAGE_CONTENT_STYLE,
   SLIDE_BACK,
   SLIDE_FORWARD,
   SlideLink,
+  clearEnteringApp,
+  isEnteringApp,
 } from './nav-slide'
 import {
   BellIcon,
@@ -55,6 +58,44 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
 
+  /**
+   * "Vừa bước từ trang giới thiệu vào" — bật hiệu ứng các khối nảy lên lần lượt.
+   *
+   * Đọc cờ NGAY LÚC RENDER chứ không phải trong effect, và đó là điều bắt buộc:
+   * `.enter-stagger` phải có mặt ở khung hình ĐẦU TIÊN. Chờ tới effect thì các
+   * thẻ đã kịp vẽ ra đầy đủ một nhịp rồi mới nhảy về trong suốt để chạy
+   * animation — thành ra một cú nháy.
+   *
+   * Không lo lệch hydrate: cờ chỉ được bật ngay trước một lần điều hướng phía
+   * client, mà lần đó thì AppShell dựng thẳng trên trình duyệt, không có bản
+   * render sẵn từ server để mà lệch.
+   */
+  const [entering, setEntering] = useState(isEnteringApp)
+
+  useEffect(() => {
+    if (!entering) return
+
+    /*
+      Trang giới thiệu đã tháo xong -> gỡ class thoát khỏi <html>. Gỡ ở đây chứ
+      không phải ngay sau `router.push`: gỡ sớm là những element chưa tới lượt
+      bật lại đầy đủ trong đúng khung hình cuối trước khi trang đổi.
+    */
+    document.documentElement.classList.remove('pop-leaving')
+    clearEnteringApp()
+
+    /*
+      Gỡ `.enter-stagger` sau khi dãy chạy xong. BẮT BUỘC phải gỡ: AppShell
+      không unmount khi đổi tab giữa các trang chức năng, nên class còn lại là
+      mọi lần đổi tab sau đó cũng nảy một loạt thẻ — tức đổi luôn hiệu ứng
+      trượt vốn phải giữ nguyên.
+
+      Trần thời gian = chỉ số lớn nhất (6) * --pop-enter-step (55ms)
+      + --pop-dur (520ms), làm tròn lên.
+    */
+    const t = window.setTimeout(() => setEntering(false), 900)
+    return () => window.clearTimeout(t)
+  }, [entering])
+
   /* Vị trí tab đang mở trên rail — dùng để suy ra HƯỚNG trượt, xem NAV.map dưới. */
   const activeIndex = NAV.findIndex(
     ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
@@ -72,7 +113,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen justify-center p-[10px]">
       <div className="shell-card w-full px-4 pt-4 pb-6 md:px-6 md:pt-5 md:pb-8 lg:px-7">
         {/* ---------- NAV NGANG ---------- */}
-        <header className="flex items-center gap-3">
+        {/*
+          `min-h-[var(--brand-row-height)]` ở đây là THỪA trong trường hợp
+          thường — hàng nav đã cao đúng bằng đó rồi. Khai vẫn hơn: nó nói ra
+          rằng chiều cao hàng này là một hợp đồng dùng chung với trang giới
+          thiệu (xem app/(landing)/layout.tsx), chứ không phải hệ quả tình cờ
+          của cỡ pill. Con dấu là mốc neo đứng yên giữa hiệu ứng trượt, hai bên
+          lệch vài px là nó giật.
+        */}
+        <header className="flex min-h-[var(--brand-row-height)] items-center gap-3">
           {/*
             Không bọc pill như hàng nav bên cạnh: pill cũ tồn tại để ôm con dấu
             CÙNG chữ "Nerdy Hub". Bỏ chữ đi mà giữ pill thì còn lại một vành
@@ -96,13 +145,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
 
           {/*
-            Icon-only nên hàng pill đủ hẹp để nằm giữa header ở mọi cỡ màn hình
-            thường. Vẫn giữ overflow-x cho màn hình rất hẹp, nhưng ẩn thanh cuộn
-            — nó hiện ra dưới hàng pill trông như một vệt lỗi.
+            KHÔNG cuộn ngang. Hàng tab hiện nguyên vẹn ở mọi bề rộng.
+
+            Trước đây chỗ này là `overflow-x-auto` + `no-scrollbar` để phòng màn
+            hình rất hẹp. Bỏ đi theo yêu cầu: sáu icon là một mốc điều hướng
+            luôn phải thấy hết, mà thanh cuộn thì giấu bớt tab đi và người dùng
+            không có dấu hiệu nào cho biết còn tab nữa ở ngoài rìa.
+
+            `min-w-0` cũng bỏ theo: nó tồn tại để cho phép hàng tab CO LẠI nhỏ
+            hơn nội dung — đúng cái điều kiện sinh ra thanh cuộn. Giữ lại thì
+            hàng tab vẫn bị bóp, chỉ khác là không cuộn được nữa.
           */}
           <nav
             aria-label="Điều hướng chính"
-            className="no-scrollbar flex min-w-0 flex-1 items-center justify-center overflow-x-auto"
+            className="flex flex-1 items-center justify-center"
           >
             {/*
               Một thanh nền liền bọc cả hàng tab — xem .nav-rail trong globals.css.
@@ -114,28 +170,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="nav-rail" style={{ viewTransitionName: NAV_RAIL_VT_NAME }}>
               {NAV.map(({ href, label, Icon }, i) => {
                 const active = pathname === href || pathname.startsWith(`${href}/`)
-                return (
-                  <SlideLink
-                    key={href}
-                    href={href}
-                    data-active={active}
-                    aria-current={active ? 'page' : undefined}
-                    /* Chỉ còn icon nên tên phải nằm ở aria-label, không thì trình
-                       đọc màn hình chỉ đọc được "liên kết" trống. */
-                    aria-label={label}
-                    className="nav-pill"
-                    /*
-                      Hướng trượt đọc từ vị trí tab trên rail, không phải từ lịch
-                      sử duyệt. Bấm sang tab bên phải thì nội dung lùi sang trái;
-                      bấm ngược lại thì nó trôi ngược lại.
 
-                      Trang không nằm trong rail (trang kết quả, xem lại bài) cho
-                      `activeIndex = -1`, nên mọi tab đều tính là "bên phải" và
-                      trượt tới — đúng hướng, vì từ đó bấm tab nào cũng là rời một
-                      nhánh con để về mặt bằng chính.
-                    */
-                    type={i > activeIndex ? SLIDE_FORWARD : SLIDE_BACK}
-                  >
+                /*
+                  Ruột của pill giống hệt nhau ở cả hai nhánh, tách ra để nhánh
+                  "đang mở" và nhánh "đi được" không trôi khỏi nhau khi sửa.
+                */
+                const inner = (
+                  <>
                     {/*
                       Ô đen là một phần tử NỀN riêng, không phải cái pill này.
 
@@ -162,13 +203,76 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <span className="nav-tip" aria-hidden="true">
                       {label}
                     </span>
+                  </>
+                )
+
+                /*
+                  TAB ĐANG MỞ KHÔNG PHẢI LINK — là <span>.
+
+                  Bấm lại chính tab đang đứng sẽ chạy lại nguyên bộ hiệu ứng
+                  chuyển trang: ô đen bay từ pill đó về đúng pill đó, icon đổi
+                  màu một vòng, nội dung trượt ra rồi trượt vào cùng một trang.
+                  Một chuyển động không nói lên điều gì, và người dùng đọc ra là
+                  giao diện bị nháy.
+
+                  Bỏ luôn thẻ <a> chứ không chỉ chặn onClick: chặn onClick vẫn
+                  còn chuột giữa, Ctrl+click, Enter khi focus bằng bàn phím và
+                  cả menu chuột phải — mỗi lối đó là một cách nữa để lặp lại
+                  đúng cú nháy này. `aria-current="page"` là cách chuẩn để báo
+                  "bạn đang ở đây" cho trình đọc màn hình mà không cần link.
+                */
+                if (active) {
+                  return (
+                    <span
+                      key={href}
+                      data-active="true"
+                      aria-current="page"
+                      /* Chỉ còn icon nên tên phải nằm ở aria-label, không thì trình
+                         đọc màn hình chỉ đọc được một ô trống. */
+                      aria-label={label}
+                      className="nav-pill"
+                    >
+                      {inner}
+                    </span>
+                  )
+                }
+
+                return (
+                  <SlideLink
+                    key={href}
+                    href={href}
+                    data-active={false}
+                    aria-label={label}
+                    className="nav-pill"
+                    /*
+                      Hướng trượt đọc từ vị trí tab trên rail, không phải từ lịch
+                      sử duyệt. Bấm sang tab bên phải thì nội dung lùi sang trái;
+                      bấm ngược lại thì nó trôi ngược lại.
+
+                      Trang không nằm trong rail (trang kết quả, xem lại bài) cho
+                      `activeIndex = -1`, nên mọi tab đều tính là "bên phải" và
+                      trượt tới — đúng hướng, vì từ đó bấm tab nào cũng là rời một
+                      nhánh con để về mặt bằng chính.
+                    */
+                    type={i > activeIndex ? SLIDE_FORWARD : SLIDE_BACK}
+                  >
+                    {inner}
                   </SlideLink>
                 )
               })}
             </div>
           </nav>
 
-          <div className="flex flex-none items-center gap-2">
+          {/*
+            Đặt tên để cụm nút này ĐỨNG YÊN khi đổi tab, y như con dấu và hàng
+            nav — xem HEADER_ACTIONS_VT_NAME. Ba nút giống hệt nhau ở mọi trang
+            nên không có gì để chuyển tiếp; nằm trong ảnh chụp `root` thì chúng
+            bị cross-fade theo cả trang và đọc ra như cũng đang đổi.
+          */}
+          <div
+            className="flex flex-none items-center gap-2"
+            style={{ viewTransitionName: HEADER_ACTIONS_VT_NAME }}
+          >
             <button type="button" className="icon-circle" aria-label="Thông báo">
               <BellIcon size={17} />
             </button>
@@ -183,7 +287,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           phải đều đứng nguyên — chúng là cái khung để mắt bám vào, khung mà trôi
           theo thì hiệu ứng đọc ra như bị đẩy cả cửa sổ.
         */}
-        <main className="mt-6 md:mt-7" style={PAGE_CONTENT_STYLE}>
+        <main
+          className={`mt-6 md:mt-7${entering ? ' enter-stagger' : ''}`}
+          style={PAGE_CONTENT_STYLE}
+        >
           {children}
         </main>
       </div>
@@ -231,7 +338,17 @@ function AccountMenu({
 
   if (!user) {
     return (
-      <Link href="/dang-nhap" className="btn-primary px-4 py-2 text-[14.5px]">
+      /*
+        `btn-secondary` (nền sáng, chữ tối) chứ không phải `btn-primary`: phải
+        khớp với nút cùng chức năng ở góc phải trang giới thiệu — xem
+        components/landing/landing-auth.tsx. Cùng một hành động mà hai trang cho
+        hai màu thì người dùng đọc ra là hai thứ khác nhau.
+
+        Đổi cả kích thước theo: `btn-secondary` có viền 1px nên cao hơn 2px, và
+        vì nút canh giữa theo hàng header nên chênh đó đẩy mép trên lệch 1px
+        giữa hai trang. Giờ cả hai đều 108,7×39,8, lề phải 29px.
+      */
+      <Link href="/dang-nhap" className="btn-secondary px-4 py-2 text-[14.5px]">
         Đăng nhập
       </Link>
     )

@@ -24,8 +24,15 @@ const S = (p: IconProps) => ({
  * AppShell. Là hằng số chứ không phải con số gõ ở mỗi nơi: hai khung này nằm
  * kề nhau khi chuyển trang nên lệch vài px là mắt bắt được ngay — mà đó đúng
  * là chuyện đã xảy ra khi mỗi bên tự khai một cỡ (34 với 30).
+ *
+ * Đây là CHIỀU CAO; bề ngang tự ra 1,5 lần theo `aspect-ratio` của .logo-mark,
+ * nên 48 nghĩa là con dấu chiếm 48×70px.
+ *
+ * Trần trên của số này là `--brand-row-height` (72px, xem globals.css): con dấu
+ * cao hơn hàng nav thì nó tự nống header của AppShell lên và hai khung lại lệch
+ * nhau, vì bên trang giới thiệu không có gì để nống theo.
  */
-export const BRAND_LOGO_SIZE = 32
+export const BRAND_LOGO_SIZE = 48
 
 /**
  * Con dấu thương hiệu — cặp kính, nạp từ `public/logo-glasses.svg`.
