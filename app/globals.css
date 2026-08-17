@@ -96,6 +96,19 @@
   --radius-tile: 20px;
   --radius-pill: 999px;
 
+  /**
+   * Quãng bay của ô đen đánh dấu tab, và cũng là quãng đổi màu của icon.
+   *
+   * Là BIẾN chứ không phải hai con số gõ ở hai chỗ, vì chúng bắt buộc phải bằng
+   * nhau: icon phải đổi xong đúng lúc ô đen tới nơi. Trước đây hai chỗ khai
+   * riêng và đã lệch nhau qua bốn vòng chỉnh tay.
+   *
+   * Dùng chung cả đường cong: cùng thời lượng mà khác easing thì hai thứ vẫn
+   * đi lệch nhịp ở quãng giữa.
+   */
+  --nav-pill-travel: 360ms;
+  --nav-pill-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
   --font-sans: var(--font-app), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-prose: var(--font-prose-src), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
@@ -623,22 +636,21 @@ body {
   /**
    * Nền do `.nav-pill-indicator` lo, ở đây chỉ còn màu chữ/icon.
    *
-   * KHÔNG có `transition-delay`, và đừng thêm lại.
+   * Icon ĐỔI MÀU TẠI CHỖ, tối sang sáng, đi song song với ô đen và về đích
+   * cùng lúc — cùng thời lượng, cùng đường cong, KHÔNG delay.
    *
-   * Đã tốn bốn vòng chỉnh delay ở đây (300 → 390 → 230 → 115ms) mà lần nào
-   * người dùng cũng bảo "icon sáng vẫn chậm". Lý do là cả bốn đều chữa nhầm
-   * bệnh: trong lúc view transition chạy, hàng tab bị gom vào ảnh chụp TĨNH của
-   * trang cũ, nên `transition` đặt ở đây KHÔNG được vẽ ra lấy một khung hình.
-   * Thứ người dùng thấy là ảnh cũ mờ dần trong 420ms, không phải màu icon đổi.
+   * KHÔNG dựng bằng cách ẩn/hiện hay đổi opacity: icon không được biến mất rồi
+   * xuất hiện lại. Đây là kiểu chuyển màu giống hệt nút sáng/tối, chỉ khác là
+   * nó bám nhịp ô đen thay vì nhịp riêng.
    *
-   * Chỗ chữa thật nằm ở `::view-transition-*(nav-rail)` phía trên — đặt tên cho
-   * hàng tab để nó thoát khỏi ảnh `root` và cập nhật ngay.
+   * ĐIỀU KIỆN ĐỂ NÓ CHẠY ĐƯỢC: hàng tab phải có `view-transition-name` (xem
+   * `::view-transition-*(nav-rail)`). `::view-transition-new` là bản vẽ SỐNG,
+   * còn nhóm `root` là ảnh chụp TĨNH — nằm trong `root` thì transition này
+   * không được vẽ ra lấy một khung hình, và đó chính là lý do bốn vòng chỉnh
+   * delay trước (300 → 390 → 230 → 115ms) đều không đổi được gì.
    *
-   * Dòng transition này vì vậy chỉ còn tác dụng cho hover và cho lần đổi màu
-   * thường không kèm điều hướng. Giữ ngắn, không delay.
-   *
-   * Chiều ngược lại: pill vừa mất active rơi về `.nav-pill` (0.16s, không
-   * delay) nên tối lại ngay khi ô đen rời đi.
+   * Chiều ngược lại: pill vừa mất active rơi về `.nav-pill` (0.16s) nên tối
+   * lại nhanh hơn — nó cần nhường chỗ chứ không cần đi cùng ô đen.
    *
    * Đổi 360ms hoặc đổi đường cong ở trên thì phải tính lại con số ở đây.
    *
@@ -649,7 +661,7 @@ body {
   .nav-pill[data-active='true'] {
     border-color: transparent;
     color: var(--color-accent-fg);
-    transition: color 40ms ease-out;
+    transition: color var(--nav-pill-travel) var(--nav-pill-ease);
   }
 
   .pill {
@@ -959,22 +971,24 @@ body {
     chụp của nội dung che mất một đoạn giữa đường.
   */
   &::view-transition-group(nav-active-pill) {
-    animation-duration: 360ms;
-    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    /* Cùng biến với transition màu icon ở .nav-pill — hai thứ phải về đích cùng lúc */
+    animation-duration: var(--nav-pill-travel);
+    animation-timing-function: var(--nav-pill-ease);
     z-index: 90;
   }
 
   /*
-    Nhãn bên trong ô đen đổi nhanh hơn cái hộp. Ở video tham chiếu, ô đen đi tới
-    đâu là chữ ở đó đã trắng sẵn — nghĩa là ảnh mới hiện gần hết ngay từ đầu
-    hành trình, chứ không mờ dần suốt cả quãng. Ép cặp ảnh đổi xong trong 120ms
-    đầu để bắt đúng cảm giác đó.
+    Ô đen KHÔNG cross-fade, chỉ bay.
+
+    Nó là một hình chữ nhật đặc rỗng ruột — icon nằm ngoài nó, ở hàng tab. Hai
+    ảnh cũ/mới giống hệt nhau nên cross-fade chẳng nội suy được gì, mà lớp phủ
+    `plus-lighter` mặc định lại làm màu đen bị nhạt đi một nhịp ở quãng giữa.
   */
   &::view-transition-old(nav-active-pill) {
-    animation: 120ms ease-out both nav-slide-fade reverse;
+    display: none;
   }
   &::view-transition-new(nav-active-pill) {
-    animation: 120ms ease-out both nav-slide-fade;
+    animation: none;
   }
 
   /*
