@@ -8,14 +8,14 @@
      P2 #c4d5e5  xanh khói nhạt   — nền thẻ nội dung
      P3 #7cb0d6  xanh dương vừa   — nền thẻ nhấn, cột biểu đồ
      P4 #b2a9e3  tím periwinkle   — nền thẻ nội dung
-     P5 #151a26  navy gần đen     — chữ, điểm nhấn, nền dark mode
+     P5 #151a26  navy gần đen     — chữ, điểm nhấn
 
    Bảng chỉ có BA màu có sắc, nên các thẻ xoay vòng qua P2 → P4 → pha P2/P3 →
    P3. Tên token cũ (mint, rose, cream, lime, sand…) được giữ nguyên và trỏ vào
    màu mới: đổi tên sẽ phải sửa hàng chục chỗ gọi mà không được thêm gì.
    ========================================================================= */
 @theme {
-  /* Nền & bề mặt — LIGHT MODE (mặc định) */
+  /* Nền & bề mặt */
   --color-bg: #e6ebf2;
   --color-shell: #ffffff;
   --color-card: #ffffff;
@@ -29,9 +29,6 @@
 
     Token này còn dùng cho viền hover của `.btn-secondary` và núm thanh cuộn
     `.thin-scroll` — cả hai đậm theo, và đó là hướng đúng cho cả hai.
-
-    Sửa ở đây thì sửa luôn bản trong `.theme-light` bên dưới, không thì trang
-    giới thiệu (khoá sáng riêng) mang màu viền khác phần còn lại của web.
   */
   --color-line-strong: #c0cede;
 
@@ -42,9 +39,8 @@
 
   /**
    * Chữ ĐẶT TRÊN các nền pastel (bg-mint, bg-rose, bg-cream, bg-blush, bg-lime,
-   * bg-sand, các gradient thẻ…). KHÔNG dùng --color-ink cho những chỗ đó: ink
-   * lật màu theo giao diện, còn các nền pastel thì luôn sáng, nên ở dark mode
-   * chữ sẽ sáng-trên-sáng. Token này là cặp foreground cố định của chúng.
+   * bg-sand, các gradient thẻ…). KHÔNG dùng --color-ink cho những chỗ đó:
+   * token này là cặp foreground cố định của các nền pastel luôn sáng.
    */
   --color-on-tone: #151a26;
 
@@ -331,18 +327,13 @@
 
 /* ============================================================================
    MÀU KHÔNG PHẢI TOKEN TAILWIND
-   Gradient, vạch nền vòng tròn, màu biểu đồ — những thứ trước đây viết thẳng
-   mã hex trong TSX nên không đổi theo giao diện. Đặt ở đây để có bản dark.
+   Gradient, vạch nền vòng tròn, màu biểu đồ — tập trung ở đây để quản lý chung.
    ========================================================================= */
 :root {
   color-scheme: light;
 
   /**
    * Nền dưới cùng của cả web — dải màu nằm SAU khung thẻ trắng.
-   *
-   * Sáng: chuyển ngang xám → đào → hồng → tím nhạt.
-   * Tối: xem khối .dark bên dưới — ba lớp chồng nhau vì một linear-gradient
-   * không tả được cả góc trên trái ấm lẫn góc dưới trái tím.
    */
   --app-gradient: linear-gradient(
     90deg,
@@ -379,8 +370,7 @@
    * nên dấu tick buộc phải là background-image.
    *
    * Nét dấu tick nằm TRÊN nền --color-accent nên phải là màu --color-accent-fg.
-   * Data URI không nội suy được biến CSS, nên khai hai bản: bản này nét trắng
-   * cho giao diện sáng, bản nét tối nằm trong khối .dark bên dưới.
+   * Data URI không nội suy được biến CSS nên khai thẳng mã màu.
    */
   --check-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 13l4 4L19 7'/%3E%3C/svg%3E");
 
@@ -390,182 +380,11 @@
   --chart-accent-fill: rgba(124, 176, 214, 0.26);
   --chart-label: #5f6b7d;
 
-  /**
-   * Màu phân loại theo kỹ năng.
-   *
-   * Đây là màu PHÂN LOẠI dữ liệu, không phải màu trang trí: năm kỹ năng phải
-   * phân biệt được với nhau trên biểu đồ tròn. Bảng thương hiệu chỉ có ba màu
-   * cùng một vùng xanh-tím nên không đủ để tách năm nhóm — giữ dải rộng hơn,
-   * lấy P3/P4 làm hai màu đầu cho ăn nhập với phần còn lại của giao diện.
-   */
   --skill-1: #7cb0d6;
   --skill-2: #b2a9e3;
   --skill-3: #2f9e5b;
   --skill-4: #d98324;
   --skill-5: #c2557f;
-}
-
-/* ============================================================================
-   DARK MODE TOKENS — class strategy (.dark trên <html>)
-   Bảng màu tối giữ nguyên ngữ nghĩa nhưng đảo sáng/tối, giảm độ chói.
-
-   LƯU Ý về các nền pastel (mint/rose/cream/blush/lime/sky/sand/peri):
-   chúng VẪN SÁNG ở dark mode, chỉ dịu bớt cho đỡ chói. Lý do: chữ trên chúng
-   dùng --color-on-tone (luôn tối), và ảnh minh hoạ ở trang chủ là pastel sáng
-   nướng sẵn trong file — làm nền tối sẽ lệch hẳn với ảnh. Ngược lại các biến
-   *-soft là nền chip nhỏ nằm TRÊN thẻ nên phải tối đi, đi cùng --color-ink.
-   ========================================================================= */
-.dark {
-  color-scheme: dark;
-
-  /* Nền tối lấy thẳng P5 #151a26 làm gốc, các bề mặt là sắc độ của nó */
-  --color-bg: #10141f;
-  --color-shell: #171d2a;
-  --color-card: #1b2231;
-  --color-soft: #232a3b;
-  --color-line: #2b3345;
-  --color-line-strong: #3a4356;
-
-  --color-ink: #e6ebf2;
-  --color-muted: #6b7688;
-  --color-muted-strong: #9aa5b6;
-
-  --color-accent: #e6ebf2;
-  --color-accent-soft: #232a3b;
-  --color-accent-fg: #151a26;
-
-  --color-mint: #aec6da;
-  --color-mint-deep: #93b3cd;
-  --color-mint-soft: #1d2836;
-  --color-peri: #9f96d6;
-  --color-peri-deep: #8a7fcc;
-  --color-peri-soft: #262340;
-  --color-sky: #8fb8d9;
-  --color-sky-deep: #78a6cd;
-  --color-sand: #6ba3cb;
-  --color-sand-deep: #578cb4;
-  --color-blush: #9f96d6;
-
-  --color-good: #4ade80;
-  --color-good-soft: #1a3326;
-  --color-warn: #fbbf24;
-  --color-warn-soft: #332a1a;
-  --color-bad: #f87171;
-  --color-bad-soft: #331a1a;
-
-  --color-hl-yellow: #856d2e;
-  --color-hl-green: #2e6b42;
-  --color-hl-blue: #2e4a6b;
-  --color-hl-pink: #6b2e4a;
-
-  --color-purple: #9f96d6;
-  --color-purple-soft: #262340;
-  --color-pink: #8fb8d9;
-  --color-pink-soft: #1d2836;
-  --color-green: #4ade80;
-  --color-green-soft: #1a3326;
-  --color-amber: #fbbf24;
-  --color-amber-soft: #332a1a;
-  --color-red: #f87171;
-  --color-red-soft: #331a1a;
-  --color-bar-light: #2b3345;
-  --color-bar-dark: #7cb0d6;
-  --color-rose: #9f96d6;
-  --color-cream: #8fb8d9;
-  --color-lime: #aec6da;
-
-  /* Gradient dịu bớt một nấc; vòng/nhãn trên nền pastel vẫn phải là màu tối */
-  --pomo-focus-bg: linear-gradient(145deg, #b3a9e0 0%, #8a7fcc 100%);
-  --pomo-short-bg: linear-gradient(145deg, #c2d5e4 0%, #93b3cd 100%);
-  --pomo-long-bg: linear-gradient(145deg, #8fb8d9 0%, #578cb4 100%);
-  --pomo-track: rgba(255, 255, 255, 0.38);
-
-  --tile-mint: linear-gradient(145deg, #c2d5e4 0%, #93b3cd 100%);
-  --tile-peri: linear-gradient(145deg, #b3a9e0 0%, #8a7fcc 100%);
-  --tile-sky: linear-gradient(145deg, #a6c8e2 0%, #78a6cd 100%);
-  --tile-sand: linear-gradient(145deg, #84b0d2 0%, #578cb4 100%);
-  --tile-chip: rgba(255, 255, 255, 0.55);
-  --tile-track: rgba(255, 255, 255, 0.42);
-
-  /* Góc dưới trái tím, góc trên trái hơi ấm, giữa gần như đen xanh */
-  --app-gradient:
-    radial-gradient(120% 90% at 0% 100%, #2f1546 0%, rgba(47, 21, 70, 0) 55%),
-    radial-gradient(90% 70% at 0% 0%, #2b1c24 0%, rgba(43, 28, 36, 0) 45%),
-    linear-gradient(155deg, #0c1024 0%, #090c1e 45%, #120c26 100%);
-
-  /* Nền ô tick lật thành gần trắng ở dark mode, nên nét dấu tick phải tối lại */
-  --check-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23151a26' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 13l4 4L19 7'/%3E%3C/svg%3E");
-
-  --chart-grid: #2b3345;
-  --chart-accent: #8fb8d9;
-  --chart-accent-fill: rgba(143, 184, 217, 0.26);
-  --chart-label: #9aa5b6;
-
-  --skill-1: #8fb8d9;
-  --skill-2: #a89bea;
-  --skill-3: #4ec97e;
-  --skill-4: #eda54c;
-  --skill-5: #e0799f;
-}
-
-/* ============================================================================
-   TRANG GIỚI THIỆU LUÔN SÁNG.
-
-   Ảnh minh hoạ ở trang chủ là pastel sáng nướng sẵn trong file, không có bản
-   tối, nên trang này cố ý đứng ngoài dark mode. Khai báo lại đúng bộ token
-   sáng ở phạm vi con: `.dark` đặt biến trên :root, phần tử con ghi đè được cho
-   cả cây bên dưới. Không đụng tới lựa chọn theme của người dùng — các trang
-   khác vẫn tối bình thường.
-   ========================================================================= */
-.theme-light {
-  color-scheme: light;
-
-  --color-bg: #e6ebf2;
-  --color-shell: #ffffff;
-  --color-card: #ffffff;
-  --color-soft: #f2f6fa;
-  --color-line: #e7edf4;
-  /* Phải khớp bản trong @theme — xem ghi chú ở đó */
-  --color-line-strong: #c0cede;
-
-  --color-ink: #151a26;
-  --color-muted: #8e99a8;
-  --color-muted-strong: #5f6b7d;
-  --color-on-tone: #151a26;
-
-  --color-accent: #151a26;
-  --color-accent-soft: #eef3f8;
-  --color-accent-fg: #ffffff;
-
-  --color-mint: #c4d5e5;
-  --color-peri: #b2a9e3;
-  --color-sky: #a3c6e2;
-  --color-sand: #7cb0d6;
-
-  /* Trang này phủ kín viewport nên phải tự vẽ lại dải màu sáng, che nền tối của body */
-  --app-gradient: linear-gradient(
-    90deg,
-    #edebec 0%,
-    #f0d0c6 20%,
-    #f8ccd8 40%,
-    #fcd7e7 58%,
-    #f2ddf8 78%,
-    #e9e0fc 100%
-  );
-
-  background-color: var(--color-bg);
-  background-image: var(--app-gradient);
-  background-attachment: fixed;
-  color: var(--color-ink);
-}
-
-/* Khung trắng của trang giới thiệu không mượn bóng đổ của dark mode */
-/* Khung trắng của trang giới thiệu không mượn bóng đổ của dark mode.
-   `border-color` chứ KHÔNG phải `border: none` — xem ghi chú ở .shell-card:
-   bỏ hẳn viền là đổi hộp, và nội dung xê dịch 1px khi đổi giao diện. */
-.theme-light .shell-card {
-  box-shadow: 0 24px 60px rgba(24, 28, 45, 0.06);
-  border-color: transparent;
 }
 
 html,
@@ -576,8 +395,7 @@ body {
 body {
   /*
    * `background-attachment` phải là khai báo RIÊNG, không viết gộp vào
-   * `background:`. Dải màu tối có ba lớp; viết gộp thì `fixed` chỉ dính vào lớp
-   * cuối, hai lớp radial vẫn cuộn theo trang và mép màu bị trượt.
+   * `background:`.
    */
   background-color: var(--color-bg);
   background-image: var(--app-gradient);
@@ -599,22 +417,7 @@ body {
     background: var(--color-shell);
     border-radius: var(--radius-shell);
     box-shadow: 0 24px 60px rgba(24, 28, 45, 0.06);
-    /*
-      Viền TRONG SUỐT, không phải `none`.
-
-      Dark mode đổi bóng đổ thành viền 1px, mà `box-sizing` là `border-box` nên
-      kích thước NGOÀI giữ nguyên còn hộp nội dung co lại — toàn bộ thứ bên trong
-      xê dịch đúng 1px sang phải và 1px xuống dưới mỗi lần đổi giao diện. Đo được,
-      và mắt thường nhìn ra khi bật tắt liên tục.
-
-      Giữ nguyên hộp ở cả hai giao diện, chỉ đổi MÀU viền.
-    */
     border: 1px solid transparent;
-  }
-  /* Bóng đổ đen trên nền tối chỉ làm bẩn mép — đổi sang viền mảnh */
-  .dark .shell-card {
-    box-shadow: none;
-    border-color: var(--color-line);
   }
 
   /**
@@ -629,9 +432,6 @@ body {
    * 1,5px là toàn bộ nội dung bên trong mọi thẻ co lại 0,5px mỗi cạnh — cùng họ
    * với cái bẫy đã ghi ở `.shell-card`. Muốn đậm hơn nữa thì hạ tông
    * `--color-line-strong` trong @theme, đừng thêm px.
-   *
-   * Ở dark mode cặp token này tự đảo đúng chiều: `--color-line-strong` (#3a4356)
-   * SÁNG hơn `--color-line` (#2b3345), nên viền vẫn là thứ nổi lên khỏi nền.
    */
   .card {
     background: var(--color-card);
@@ -800,39 +600,6 @@ body {
     }
   }
 
-  /**
-   * Công tắc sáng/tối — xem components/shell/theme-toggle.tsx.
-   *
-   * Núm trượt ngang; hai icon mặt trời/mặt trăng nằm CHỒNG lên nhau trong cùng
-   * một ô grid (col-start-1 row-start-1) rồi đổi nhau bằng opacity + xoay, chứ
-   * không dựng/gỡ phần tử — dựng lại thì không có gì để nội suy, icon sẽ nháy.
-   *
-   * Đường cong có phần vọt quá 1 (1.4) để núm nảy nhẹ ở cuối, giống công tắc
-   * thật gạt tới đầu rồi dội lại.
-   *
-   * TRANSITION PHẢI GỌI TÊN `translate`, `rotate`, `scale` — KHÔNG phải
-   * `transform`. Tailwind v4 phát ra các thuộc tính biến đổi RỜI (translate:
-   * 24px; rotate: -90deg; scale: 0.5) thay vì gộp vào `transform` như v3. Khai
-   * `transition: transform` ở đây là khai vào một thuộc tính luôn bằng `none`:
-   * không lỗi, không cảnh báo, chỉ là núm nhảy cụp thay vì trượt.
-   */
-  .theme-switch-knob {
-    transition: translate 320ms cubic-bezier(0.34, 1.4, 0.5, 1);
-  }
-  .theme-switch-icon {
-    grid-column-start: 1;
-    grid-row-start: 1;
-    transition:
-      opacity 200ms ease,
-      rotate 320ms cubic-bezier(0.34, 1.4, 0.5, 1),
-      scale 320ms cubic-bezier(0.34, 1.4, 0.5, 1);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .theme-switch-knob,
-    .theme-switch-icon {
-      transition: none;
-    }
-  }
   /*
     Tab chưa chọn: rê chuột chỉ làm đậm chữ. KHÔNG vẽ thêm nền — thanh nav giờ
     đã có nền riêng, thêm một mảng màu nữa bên trong là hai lớp xám chồng nhau
@@ -841,10 +608,6 @@ body {
   .nav-pill:not([data-active='true']):hover {
     color: var(--color-ink);
   }
-  /**
-   * Chữ trên nền accent phải là --color-accent-fg, KHÔNG phải #fff.
-   * Ở dark mode accent lật thành gần trắng, chữ trắng sẽ biến mất.
-   */
   /**
    * Nền do `.nav-pill-indicator` lo, ở đây chỉ còn màu chữ/icon.
    *
@@ -858,8 +621,7 @@ body {
    * trông như biến mất: xám nhạt tương phản kém với cả nền rail sáng lẫn ô đen.
    *
    * KHÔNG dựng bằng cách ẩn/hiện hay đổi opacity: icon không được biến mất rồi
-   * xuất hiện lại. Đây là kiểu chuyển màu giống hệt nút sáng/tối, chỉ khác là
-   * nó bám nhịp ô đen thay vì nhịp riêng.
+   * xuất hiện lại.
    *
    * ĐIỀU KIỆN ĐỂ NÓ CHẠY ĐƯỢC: hàng tab phải có `view-transition-name` (xem
    * `::view-transition-*(nav-rail)`). `::view-transition-new` là bản vẽ SỐNG,
@@ -975,9 +737,7 @@ body {
   /**
    * Nút ghost NẰM TRONG một thẻ pastel phải mượn bảng màu của thẻ đó.
    *
-   * `--color-muted-strong` và `--color-soft` đều lật theo giao diện, còn nền pastel
-   * thì luôn sáng — nên ở dark mode chữ nút xám nhạt nằm trên nền sáng và gần như
-   * biến mất. Ràng theo `.text-on-tone` để quy tắc tự áp cho mọi thẻ pastel đã khai
+   * Ràng theo `.text-on-tone` để quy tắc tự áp cho mọi thẻ pastel đã khai
    * đúng cặp foreground của nó, thay vì phải nhớ sửa từng nút một.
    */
   .text-on-tone .btn-ghost {
@@ -1355,14 +1115,7 @@ body {
    ĐỔI TRANG — vùng nội dung trượt ngang.
 
    Phủ cả đổi tab lẫn bước từ trang giới thiệu vào ứng dụng, bằng MỘT cơ chế:
-   View Transitions API của trình duyệt. Không dùng <ViewTransition> của React —
-   lý do ghi đầy đủ ở components/shell/nav-slide.tsx.
-
-   MỌI rule dưới đây đều khoanh trong `:active-view-transition-type(slide-*)`,
-   và đó là điều bắt buộc chứ không phải cho gọn: trang này còn một view
-   transition khác đã chạy từ trước — nút sáng/tối (xem khối ĐỔI GIAO DIỆN MƯỢT
-   bên dưới). Lần chuyển đó KHÔNG mang type nào, nên rule không khoanh sẽ đè
-   luôn vào nó và làm hỏng cú cross-fade nền vốn đang chạy tốt.
+   View Transitions API của trình duyệt.
 
    Thời lượng cố ý LỆCH NHAU: trang cũ mờ đi nhanh (150ms) để khỏi tranh chỗ,
    trang mới hiện chậm hơn (220ms) và chờ trang cũ đi hẳn rồi mới rõ dần. Riêng
@@ -1545,10 +1298,10 @@ body {
   }
 
   /*
-    CỤM NÚT BÊN PHẢI (chuông, sáng/tối, tài khoản) ĐỨNG YÊN — cùng thủ thuật với
+    CỤM NÚT BÊN PHẢI (chuông, tài khoản) ĐỨNG YÊN — cùng thủ thuật với
     hàng tab: có tên thì thoát khỏi ảnh chụp `root`, `display: none` cho ảnh cũ
     và `animation: none` cho ảnh mới thì nó hiện ngay trạng thái mới ở khung
-    hình đầu. Ba nút này giống hệt nhau ở mọi trang nên "đứng yên" mới đúng.
+    hình đầu. Các nút này giống hệt nhau ở mọi trang nên "đứng yên" mới đúng.
   */
   &::view-transition-group(header-actions) {
     animation: none;
@@ -1560,25 +1313,6 @@ body {
   &::view-transition-new(header-actions) {
     animation: none;
   }
-
-  /*
-    NÚM ĐEN CỦA CÔNG TẮC SÁNG/TỐI: CỐ Ý KHÔNG ĐỤNG TỚI.
-
-    `.theme-switch-knob` mang sẵn `view-transition-name: theme-knob` cho hiệu
-    ứng đổi giao diện, nên khi đổi tab nó cũng tự tách thành một nhóm riêng và
-    chạy theo luật không-khoanh-type ở khối ĐỔI GIAO DIỆN MƯỢT: cross-fade
-    340ms tại chỗ. Hai ảnh giống hệt nhau ở cùng một toạ độ nên mắt không thấy
-    gì — đúng nghĩa "đứng yên", không cần làm gì thêm.
-
-    ĐÃ THỬ đóng băng nó bằng đúng bộ ba như `nav-rail` (`group{animation:none}`
-    + `old{display:none}` + `new{animation:none}`) và KẾT QUẢ LÀ NÚM BIẾN MẤT
-    hẳn trong lúc chuyển trang. Thủ thuật đó chỉ đúng với phần tử tự nó là một
-    nhóm độc lập; núm này nằm LỒNG trong `header-actions` (nhóm đã đóng băng,
-    z-index 80) nên tách nó ra rồi bỏ animation của nhóm là mất chỗ đứng.
-
-    Tóm lại: cụm nút bên ngoài đóng băng, núm bên trong để yên. Đừng "dọn cho
-    nhất quán".
-  */
 
   /*
     Con dấu thương hiệu là MỐC NEO — nó không được nhúc nhích.
@@ -1603,8 +1337,7 @@ body {
 
 /*
   Lớp phủ của view transition ăn hết sự kiện chuột, nên cú bấm nào rơi vào giữa
-  lúc animation chạy sẽ mất trắng. Trả lại cho trang bên dưới. Không khoanh theo
-  type: điều này đúng cho mọi lần chuyển, kể cả lúc đổi sáng/tối.
+  lúc animation chạy sẽ mất trắng. Trả lại cho trang bên dưới.
 */
 ::view-transition {
   pointer-events: none;
@@ -1632,96 +1365,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .tile-flip {
     animation: none;
-  }
-}
-
-/* ============================================================================
-   ĐỔI GIAO DIỆN MƯỢT.
-
-   `body` vẽ nền bằng `background-image: var(--app-gradient)`. Bản sáng là MỘT
-   lớp linear-gradient, bản tối là BA lớp (2 radial + 1 linear, xem khối .dark).
-   CSS chỉ nội suy được giữa hai gradient cùng số lớp cùng kiểu, nên
-   `transition: background-image` ở đây hoàn toàn vô tác dụng — nền sẽ nhảy cụp
-   một cái dù có khai báo transition hay không.
-
-   Cách chạy được là để TRÌNH DUYỆT chụp ảnh cả trang trước và sau rồi cross-fade
-   hai tấm ảnh: View Transitions API, gọi từ components/shell/theme-toggle.tsx.
-   Đã là ảnh chụp thì gradient mấy lớp, ảnh, bóng đổ… đều mượt như nhau.
-
-   `.theme-transition` là đường lui cho trình duyệt chưa hỗ trợ, chỉ tồn tại
-   ~420ms quanh lúc bấm nút: làm mượt màu nền/chữ/viền, riêng dải gradient vẫn
-   nhảy — không có cách nào khác.
-
-   TUYỆT ĐỐI không đặt `transition` vĩnh viễn lên `*`: mọi hover của .nav-pill,
-   .icon-circle, .btn-* sẽ ì theo, và phải tự viết lại nhánh reduced-motion cho
-   từng cái.
-   ========================================================================= */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 420ms;
-  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/*
-  Nhấc núm công tắc ra khỏi ảnh chụp chung để nó TRƯỢT thật trong lúc nền
-  cross-fade, thay vì mờ dần ở chỗ cũ rồi hiện ra ở chỗ mới.
-  `view-transition-name` phải duy nhất trong tài liệu — chỉ có đúng một
-  <ThemeToggle /> (components/shell/app-shell.tsx), đừng render cái thứ hai.
-*/
-.theme-switch-knob {
-  view-transition-name: theme-knob;
-}
-::view-transition-group(theme-knob) {
-  animation-duration: 340ms;
-  animation-timing-function: cubic-bezier(0.34, 1.4, 0.5, 1);
-}
-
-/*
-  Độ đặc hiệu (0,1,1) nên tạm thắng .nav-pill (0,1,0) trong đúng 420ms người
-  dùng đang bấm công tắc. Liệt kê từng thuộc tính chứ không dùng `all`: `all`
-  sẽ nuốt luôn transform/opacity của núm và của .pop-in.
-*/
-html.theme-transition * {
-  transition:
-    background-color 380ms ease,
-    border-color 380ms ease,
-    color 380ms ease,
-    fill 380ms ease,
-    stroke 380ms ease,
-    box-shadow 380ms ease;
-}
-/* Núm và icon giữ nhịp riêng, không bị quy tắc chung ở trên nuốt mất */
-html.theme-transition .theme-switch-knob {
-  transition: translate 320ms cubic-bezier(0.34, 1.4, 0.5, 1);
-}
-html.theme-transition .theme-switch-icon {
-  transition:
-    opacity 200ms ease,
-    rotate 320ms cubic-bezier(0.34, 1.4, 0.5, 1),
-    scale 320ms cubic-bezier(0.34, 1.4, 0.5, 1);
-}
-
-/*
-  Chặn hai lớp: theme-toggle.tsx đã tự bỏ qua startViewTransition khi người dùng
-  bật giảm chuyển động, đây là lớp phòng hờ nếu class được gắn từ đường khác.
-*/
-@media (prefers-reduced-motion: reduce) {
-  html.theme-transition * {
-    transition: none;
-  }
-  /*
-    `*` phủ cả hai hiệu ứng: cross-fade sáng/tối và cú trượt khi đổi trang. Phải
-    kể riêng `old`/`new` chứ không chỉ `group`: tắt animation của group mới chỉ
-    chặn phần DI CHUYỂN, còn keyframe trượt/mờ nằm trên old/new vẫn chạy tiếp.
-
-    Trượt ngang là kiểu chuyển động dễ gây khó chịu nhất với người nhạy cảm
-    chuyển động, vì nó mô phỏng cả khung nhìn dịch chuyển. Tắt hết là quay về
-    hành vi mặc định của trình duyệt: đổi trang tức thì.
-  */
-  ::view-transition-old(*),
-  ::view-transition-new(*),
-  ::view-transition-group(*) {
-    animation: none !important;
   }
 }
 

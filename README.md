@@ -194,12 +194,14 @@ lượng transition**, và chỉnh timing kiểu gì cũng không nhúc nhích.
 ### Ba luật còn lại
 
 **Tên phải DUY NHẤT trong một trang.** Chỉ pill đang mở mới mang `nav-active-pill`; gắn
-cho cả sáu là trình duyệt bỏ qua cả nhóm và không có gì chạy. Cũng vì vậy chỉ được
-render đúng một `<ThemeToggle />` (nó mang `theme-knob`).
+cho cả sáu là trình duyệt bỏ qua cả nhóm và không có gì chạy.
 
-**Mọi rule phải khoanh trong `:active-view-transition-type(slide-*)`.** Trang này còn
-một view transition khác chạy từ trước — nút sáng/tối — và lần chuyển đó **không mang
-type nào**. Rule không khoanh sẽ đè vào nó và làm hỏng cú cross-fade nền.
+**Mọi rule vẫn khoanh trong `:active-view-transition-type(slide-*)`, nhưng lý do gốc đã
+mất.** Việc khoanh sinh ra vì trang từng có một view transition thứ hai — nút sáng/tối —
+và lần chuyển đó không mang type nào, nên rule không khoanh sẽ đè vào nó. Dark mode đã bị
+bỏ khỏi sản phẩm nên hiện chỉ còn đúng một loại transition. Giữ nguyên việc khoanh: nó
+không tốn gì, và thêm một type mới sau này là an toàn ngay. Nhưng đừng dựa vào ghi chú cũ
+để suy ra rằng "còn một transition khác đang chạy" — không còn.
 
 **Thời lượng ô đen và thời lượng đổi màu icon là MỘT cặp biến** — `--nav-pill-travel` /
 `--nav-pill-ease`, và `--nav-pill-ink` tính bằng `calc()` từ cái đầu — chứ không phải hai
@@ -305,24 +307,30 @@ thẻ đã kịp vẽ ra đầy đủ một nhịp rồi mới nhảy về trong
 
 ### Bốn thứ ở header phải ĐỨNG YÊN, và cách làm giống hệt nhau
 
-Con dấu, hàng tab, ô đen đánh dấu tab, và **cụm nút bên phải** (chuông, sáng/tối, tài
-khoản) đều không được trôi theo cú trượt. Cả bốn dùng chung một công thức: đặt
-`view-transition-name` để thoát khỏi ảnh chụp `root`, rồi `display: none` cho ảnh cũ +
-`animation: none` cho ảnh mới.
+Con dấu, hàng tab, ô đen đánh dấu tab, và **cụm nút bên phải** (chuông, tài khoản) đều
+không được trôi theo cú trượt. Cả bốn dùng chung một công thức: đặt `view-transition-name`
+để thoát khỏi ảnh chụp `root`, rồi `display: none` cho ảnh cũ + `animation: none` cho ảnh
+mới.
 
-Cụm nút bên phải mang tên `header-actions`. Ba nút giống hệt nhau ở mọi trang chức năng
-nên không có gì để chuyển tiếp; nằm trong ảnh `root` thì chúng bị cross-fade cùng cả
-trang và mắt đọc ra là chúng cũng đang "đổi trang".
+Cụm nút bên phải mang tên `header-actions`. Chúng giống hệt nhau ở mọi trang chức năng nên
+không có gì để chuyển tiếp; nằm trong ảnh `root` thì chúng bị cross-fade cùng cả trang và
+mắt đọc ra là chúng cũng đang "đổi trang".
 
-⚠️ **Núm đen của công tắc sáng/tối thì KHÔNG được đóng băng — đừng dọn cho nhất quán.**
-`.theme-switch-knob` mang sẵn `view-transition-name: theme-knob`, nên nó tự tách khỏi ảnh
-chụp của `header-actions` và chạy theo luật riêng: cross-fade 340ms tại chỗ, hai ảnh
-giống hệt nhau ở cùng toạ độ nên mắt không thấy gì — đã là "đứng yên" rồi.
+⚠️ **Cụm đó BẮT BUỘC phải kèm `relative z-50`, và đây là hệ quả trực tiếp của việc đặt
+tên.** `view-transition-name` biến phần tử thành một **stacking context**. Menu tài khoản
+bên trong là `absolute z-50`, nhưng từ đó z-index của nó chỉ còn tranh chấp *bên trong*
+cụm; ra ngoài, cả cụm tham gia thứ tự vẽ với `z-index: auto`, mà `<main>` nằm sau trong
+DOM nên các thẻ nội dung phủ lên trên menu. Triệu chứng: menu tài khoản bị thẻ "Giờ luyện
+tập" cắt ngang.
 
-Đã thử áp đúng bộ ba như `nav-rail` cho nó và **núm biến mất hẳn** trong lúc chuyển
-trang. Thủ thuật đó chỉ đúng với phần tử tự nó là một nhóm độc lập; núm này nằm **lồng
-trong** `header-actions` (nhóm đã đóng băng, `z-index: 80`) nên tách ra rồi bỏ animation
-của nhóm là nó mất chỗ đứng.
+Cách chữa là nâng z-index của **chính cụm**, không phải của menu — menu có tăng bao nhiêu
+cũng không thoát được stacking context của cha. Đã kiểm bằng `elementFromPoint` tại điểm
+chồng lấn: có `relative z-50` thì hit trả về menu, bỏ hai class đó thì hit trả về thẻ nội
+dung.
+
+**Bài học tổng quát:** mỗi lần thêm `view-transition-name` cho một phần tử có con
+`absolute` nổi lên trên (menu, tooltip, popover), phải kiểm lại z-index của chính phần tử
+đó. Đây là tác dụng phụ dễ quên nhất của thuộc tính này.
 
 ### Vài chi tiết nhỏ nhưng cố ý
 
@@ -465,8 +473,10 @@ một phần tư. Đó là việc phải làm trước khi phát hành, không p
 
 Cặp kính ở góc trái trên, `public/logo-glasses.svg`, vẽ bằng **CSS mask** chứ không nhúng
 SVG vào JSX: file là bản trace nên riêng dữ liệu path đã 20KB, nhúng inline là 20KB đó
-lặp lại trong HTML của mọi trang. Mask lấy màu từ `currentColor` nên con dấu tự lật theo
-giao diện — file gốc tô cứng `#151a26`, giữ nguyên là hình đen trên nền đen ở dark mode.
+lặp lại trong HTML của mọi trang. Mask lấy màu từ `currentColor` nên con dấu **khớp màu
+với chữ quanh nó** thay vì bị đóng cứng — file gốc tô chết `#151a26`, mask thì không quan
+tâm màu trong file. Đây vốn là cách để nó tự lật theo dark mode; dark mode đã bỏ nhưng
+cách dựng này vẫn đúng và vẫn tiện hơn nhúng inline.
 
 `aspect-ratio` trong `.logo-mark` phải khớp viewBox đã cắt sát nét của file; đổi viewBox
 mà quên đổi con số này thì logo bị bóp hoặc bị cắt.
@@ -499,9 +509,9 @@ của AppShell lên, và hai khung lại lệch — bên trang giới thiệu kh
 ### Trademark "NERDY HUB" — chữ thật, và chỉ có ở trang giới thiệu
 
 Đặt cạnh con dấu trong `(landing)/layout.tsx`. Dựng bằng **text**, không phải ảnh: web đã
-chạy Helvetica Neue nên chữ sắc nét ở mọi độ phân giải, không tốn thêm request, và tự lật
-màu theo giao diện qua `currentColor` y như con dấu. Nhúng ảnh thì phải nuôi hai bản
-sáng/tối mà vẫn mờ trên màn retina.
+chạy Helvetica Neue nên chữ sắc nét ở mọi độ phân giải và mọi cỡ, không tốn thêm một
+request nào, và ăn màu từ `currentColor` y như con dấu. Ảnh bitmap thì mờ trên màn retina
+và phải đổi file mỗi lần đổi cỡ hay đổi màu chữ.
 
 **Không đưa vào `<LogoMark>`.** Trong ứng dụng, header còn hàng nav sáu tab và cụm nút bên
 phải; thêm chữ vào là hàng đó chật và con dấu mất vai trò mốc neo của hiệu ứng chuyển
@@ -793,16 +803,18 @@ bộ nhớ. Triệu chứng là 500 với `Unknown field ... for select statemen
 đọc ra `undefined`, nên `x !== null` lọt và giao diện hiện ra "khoảng  phút… NaN phút".
 Vì vậy hãy kiểm `typeof x === 'number'` chứ đừng kiểm `!== null`.
 
-**Nền pastel đặc luôn cần `text-on-tone`.** `--color-card` và các token `*-soft` tự lật
-theo giao diện, nhưng pastel đặc (`bg-mint`, `bg-lime`, `bg-rose`…) thì sáng ở CẢ HAI
-giao diện — trong khi `--color-ink` lật thành gần trắng. Dùng `text-ink` trên đó là chữ
-sáng trên nền sáng ở dark mode. Cũng vì vậy, đừng bao giờ dùng `bg-white` cho một bề
-mặt: `bg-card` mới là token đúng.
+**Đừng dùng `bg-white` cho một bề mặt — `bg-card` mới là token đúng.** Lý do gốc là dark
+mode (`--color-card` tự lật, `bg-white` thì không) và dark mode đã bỏ; nhưng quy tắc vẫn
+giữ, vì đi qua token là điều kiện để đổi bảng màu ở một chỗ. Cùng tinh thần đó, chữ đặt
+trên pastel đặc (`bg-mint`, `bg-lime`, `bg-rose`…) vẫn dùng `text-on-tone` chứ không phải
+`text-ink`: hai token đó tình cờ trùng giá trị ở bảng màu sáng, nhưng chúng mang hai ý
+nghĩa khác nhau — một là "chữ trên nền pastel", một là "chữ trên bề mặt thường".
 
-**Đừng THÊM hay BỎ viền giữa hai giao diện — chỉ đổi màu nó.** `box-sizing` là
-`border-box`, nên một bên có `border: 1px` còn bên kia `none` sẽ làm toàn bộ nội dung
-bên trong xê dịch đúng 1px khi người dùng bật/tắt dark mode. Dùng
-`border: 1px solid transparent` rồi đổi `border-color`.
+**Đừng THÊM hay BỎ viền theo trạng thái — chỉ đổi màu nó.** `box-sizing` là `border-box`,
+nên một trạng thái có `border: 1px` còn trạng thái kia `none` sẽ làm toàn bộ nội dung bên
+trong xê dịch đúng 1px. Dùng `border: 1px solid transparent` rồi đổi `border-color`. Bẫy
+này phát hiện ra khi bật/tắt dark mode, nhưng nó áp cho mọi cặp trạng thái — hover, active,
+`.dark` hay bất cứ thứ gì thêm sau này.
 
 **Muốn viền thẻ đậm hơn thì đổi MÀU, đừng nới px.** Cùng một lý do `border-box`: tăng
 `.card` lên 1,5px là nội dung bên trong *mọi* thẻ co lại 0,5px mỗi cạnh. `.card` dùng

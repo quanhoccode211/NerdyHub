@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState, useTransition } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import { clearGuestIdentityAction } from '@/app/actions/sign-out'
-import { ThemeToggle } from './theme-toggle'
 import {
   ACTIVE_PILL_VT_NAME,
   BRAND_VT_NAME,
@@ -269,14 +268,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             nên không có gì để chuyển tiếp; nằm trong ảnh chụp `root` thì chúng
             bị cross-fade theo cả trang và đọc ra như cũng đang đổi.
           */}
+          {/*
+            `relative z-50` LÀ HỆ QUẢ BẮT BUỘC của dòng `viewTransitionName` ngay
+            dưới, không phải trang trí.
+
+            `view-transition-name` biến phần tử thành một STACKING CONTEXT. Menu
+            tài khoản bên trong là `absolute z-50`, nhưng z-index của nó từ đó
+            chỉ còn tranh chấp BÊN TRONG cụm này — ra ngoài, cả cụm tham gia thứ
+            tự vẽ với `z-index: auto`, mà `<main>` thì nằm sau trong DOM nên các
+            thẻ nội dung phủ lên trên menu. Triệu chứng đo được: menu bị thẻ
+            "Giờ luyện tập" cắt ngang.
+
+            Nâng z-index của CHÍNH CỤM lên là cách chữa, chứ không phải nâng
+            z-index của menu — menu có tăng lên bao nhiêu cũng không thoát được
+            stacking context của cha.
+
+            `relative` ở đây không đổi bố cục (cụm vẫn nằm trong dòng flex), chỉ
+            để z-index còn tác dụng nếu sau này ai đổi header khỏi flex.
+          */}
           <div
-            className="flex flex-none items-center gap-2"
+            className="relative z-50 flex flex-none items-center gap-2"
             style={{ viewTransitionName: HEADER_ACTIONS_VT_NAME }}
           >
             <button type="button" className="icon-circle" aria-label="Thông báo">
               <BellIcon size={17} />
             </button>
-            <ThemeToggle />
             <AccountMenu open={menuOpen} onOpenChange={setMenuOpen} />
           </div>
         </header>

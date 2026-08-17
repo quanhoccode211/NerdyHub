@@ -81,23 +81,9 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 }
 
-/**
- * Inline script chống nhấp nháy theme.
- *
- * Chạy ĐỒNG BỘ trong <head> trước lần paint đầu tiên của trình duyệt: đọc
- * localStorage("theme"), nếu là "dark" thì thêm class "dark" lên <html>.
- * Nhờ vậy người dùng đã chọn dark mode không bao giờ thấy flash sáng→tối.
- *
- * Xem node_modules/next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md
- */
-const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t==="dark")document.documentElement.classList.add("dark")}catch(e){}})()`
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="vi" className={helvetica.variable} suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-      </head>
+    <html lang="vi" className={helvetica.variable}>
       <body className="font-sans antialiased">
         <Providers>{children}</Providers>
       </body>

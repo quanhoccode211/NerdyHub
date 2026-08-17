@@ -21,7 +21,7 @@ export const DURATIONS: Record<Phase, number> = {
 }
 
 /**
- * Màu của từng pha đọc từ CSS variable (xem globals.css) để đổi theo dark mode.
+ * Màu của từng pha đọc từ CSS variable (xem globals.css).
  * Giá trị nằm ở CSS chứ không phải ở đây — component chỉ cầm tên biến.
  */
 export const PHASE_META: Record<Phase, { label: string; hint: string; ring: string; bg: string }> = {

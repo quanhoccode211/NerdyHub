@@ -9,14 +9,12 @@ import { BRAND_VT_NAME, PAGE_CONTENT_STYLE } from '@/components/shell/nav-slide'
  * KHÔNG dùng AppShell: trang này đứng trước khi vào ứng dụng nên không có rail
  * điều hướng dạng pill, cũng không có nút menu — chỉ tên thương hiệu, phần còn
  * lại dẫn vào ứng dụng qua nút CTA ở cuối hero.
- *
- * `theme-light` khoá trang này ở giao diện sáng, xem globals.css.
  */
 export default function LandingLayout({ children }: { children: React.ReactNode }) {
   return (
     // md trở lên khoá đúng chiều cao màn hình — hero phải xem hết được mà không
     // cuộn. Mobile vẫn min-h-screen vì ở đó cuộn là chuyện bình thường.
-    <div className="theme-light flex min-h-screen justify-center p-[10px] md:h-screen">
+    <div className="flex min-h-screen justify-center p-[10px] md:h-screen">
       {/*
         Lề NGANG và lề TRÊN phải trùng khít components/shell/app-shell.tsx —
         con dấu ở góc là thứ duy nhất có mặt ở cả hai khung, nên khung nào rộng

@@ -45,9 +45,8 @@ export const BRAND_LOGO_SIZE = 48
  * riêng dữ liệu path đã 20KB, nhúng inline là 20KB đó lặp lại trong HTML của
  * MỌI trang. Mask thì trình duyệt tải một lần rồi dùng lại từ cache.
  *
- * Mask lấy màu từ `currentColor` nên con dấu tự lật theo giao diện y như chữ
- * "Nerdy Hub" bên cạnh. File gốc tô cứng `#151a26`; giữ nguyên màu đó thì ở
- * dark mode nó là hình đen nằm trên nền đen.
+ * Mask lấy màu từ `currentColor` nên con dấu khớp màu với chữ "Nerdy Hub"
+ * bên cạnh.
  */
 export function LogoMark({ size = 34, className }: IconProps) {
   return (
@@ -134,23 +133,6 @@ export function BellIcon(p: IconProps) {
     <svg {...S(p)}>
       <path d="M6.5 10a5.5 5.5 0 0 1 11 0c0 3 .8 4.6 1.5 5.5.4.5 0 1.3-.7 1.3H5.7c-.7 0-1.1-.8-.7-1.3.7-.9 1.5-2.5 1.5-5.5Z" />
       <path d="M10.2 20a2.1 2.1 0 0 0 3.6 0" />
-    </svg>
-  )
-}
-
-export function SunIcon(p: IconProps) {
-  return (
-    <svg {...S(p)}>
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4" />
-    </svg>
-  )
-}
-
-export function MoonIcon(p: IconProps) {
-  return (
-    <svg {...S(p)}>
-      <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" />
     </svg>
   )
 }

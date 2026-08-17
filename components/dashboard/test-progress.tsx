@@ -20,9 +20,8 @@ import {
  */
 
 /**
- * Màu nằm ở CSS variable (globals.css) chứ không viết thẳng vào đây — cần bản
- * dịu hơn cho dark mode. Nền pastel vẫn sáng ở cả hai giao diện nên chữ trên
- * thẻ dùng `text-on-tone`, và lớp phủ trắng mờ vẫn đúng.
+ * Màu nằm ở CSS variable (globals.css) chứ không viết thẳng vào đây.
+ * Nền pastel luôn sáng nên chữ trên thẻ dùng `text-on-tone`.
  */
 const TONES = [
   { bg: 'var(--tile-mint)', chip: 'var(--tile-chip)', track: 'var(--tile-track)' },

@@ -184,8 +184,6 @@ export default async function ExamLandingPage({ params, searchParams }: Props) {
                   {paper.level && (
                     <span className="pill bg-purple-soft text-purple">{paper.level.name}</span>
                   )}
-                  {/* Màu chữ nâu cứng chỉ hợp với sắc kem của light mode; ở dark
-                      `--color-cream` là màu xanh nên phải dùng cặp on-tone. */}
                   {paper.year && <span className="pill bg-cream text-on-tone">{paper.year}</span>}
                   {skills.map((s) => (
                     <span key={s} className="pill bg-card text-muted-strong">

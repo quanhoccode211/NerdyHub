@@ -8,7 +8,7 @@ import { ChevronDownIcon, DotsIcon, PlusIcon, TasksIcon } from '../shell/icons'
  * là một viên thuốc màu đặt đúng ngày, kèm % hoàn thành. Đường đứt dọc là hôm nay.
  */
 
-/** Gradient đọc từ CSS variable để có bản dịu hơn ở dark mode — xem globals.css */
+/** Gradient đọc từ CSS variable — xem globals.css */
 const TONE_BG: Record<ScheduleItem['tone'], string> = {
   mint: 'var(--tile-mint)',
   peri: 'var(--tile-peri)',

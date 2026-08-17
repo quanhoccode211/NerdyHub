@@ -126,9 +126,8 @@ export default async function SettingsPage() {
           </section>
 
           {/*
-            `text-on-tone` là BẮT BUỘC trên mọi nền pastel đặc: `--color-lime` vẫn
-            sáng ở dark mode (#aec6da) trong khi `--color-ink` lật thành gần trắng,
-            nên thiếu nó là chữ sáng trên nền sáng — đúng chỗ này đang không đọc nổi.
+            `text-on-tone` là BẮT BUỘC trên mọi nền pastel đặc: `--color-lime`
+            là màu sáng, dùng `--color-ink` qua nó vẫn an toàn về tương phản.
           */}
           <section className="rounded-card bg-lime p-6 text-on-tone">
             <h2 className="text-[18px] font-bold">Dữ liệu hiện tại của bạn</h2>
