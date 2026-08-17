@@ -50,7 +50,6 @@
     "typescript": "^5"
   },
   "allowScripts": {
-    "better-sqlite3@12.11.1": true,
     "@prisma/engines@7.9.1": true,
     "prisma@7.9.1": true,
     "esbuild@0.28.2": true,
