@@ -15,8 +15,9 @@ export const metadata: Metadata = {
 export default function UtilitiesPage() {
   return (
     <>
+      {/* Không có `eyebrow`: dòng "Dụng cụ đi kèm" đã bỏ. `subtitle` bên dưới
+          nói đúng điều đó rồi, giữ cả hai là lặp ý ngay trên đầu trang. */}
       <PageHeader
-        eyebrow="Dụng cụ đi kèm"
         title="Tiện ích"
         subtitle="Vài thứ nhỏ dùng kèm lúc ôn. Mở ra khi cần, đóng lại khi xong."
       />

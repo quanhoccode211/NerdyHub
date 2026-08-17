@@ -112,14 +112,18 @@ export const LANGUAGE_FLAGS: Record<Language, string> = {
  *
  * Bám theo NGÔN NGỮ chứ không theo nước tổ chức, cùng nguyên tắc với
  * `LANGUAGE_FLAGS` — kỳ thi mới thêm vào là tự có dải, không phải khai gì thêm.
+ *
+ * SỐ MÀU KHÔNG CẦN BẰNG NHAU giữa các ngôn ngữ: `languageStripe()` chia đều
+ * dải theo số màu, nên một màu ra dải trơn, hai màu ra hai băng bằng nhau.
+ * VI cố ý chỉ còn MỘT màu — đỏ trơn.
  */
 export const LANGUAGE_STRIPES: Record<Language, string[]> = {
-  EN: ['#012169', '#FFFFFF', '#C8102E'], // Anh — navy / trắng / đỏ
-  KO: ['#0047A0', '#FFFFFF', '#CD2E3A'], // Hàn — xanh / trắng / đỏ
+  EN: ['#C8102E', '#012169'], // Anh — đỏ / xanh navy
+  KO: ['#FFFFFF', '#0047A0'], // Hàn — trắng / xanh
   JA: ['#FFFFFF', '#BC002D'], // Nhật — trắng / đỏ
   ZH: ['#EE1C25', '#FFDE00'], // Trung — đỏ / vàng
   DE: ['#000000', '#DD0000', '#FFCE00'], // Đức — đen / đỏ / vàng
-  VI: ['#DA251D', '#FFCD00'], // Việt Nam — đỏ / vàng sao
+  VI: ['#DA251D'], // Việt Nam — ĐỎ trơn, một màu
 }
 
 /**
