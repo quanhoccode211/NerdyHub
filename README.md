@@ -11,6 +11,12 @@ Bản dựng theo `SPEC.md`. Giao diện lấy theo bản dựng Dribbble "Onlin
 
 ## Chạy thử
 
+**Cần một Postgres trước khi làm gì khác.** Không còn chạy được bằng file trên đĩa: kể
+từ đợt lên Vercel, `provider` trong schema là `postgresql`, mà Prisma **không đọc
+provider từ biến môi trường** — nên không có kiểu "SQLite ở máy dev, Postgres khi chạy
+thật". Tạo một database ở Neon (free, không cần thẻ) rồi chép `.env.example` thành `.env`
+và điền `DATABASE_URL`.
+
 ```bash
 npm install
 ```
@@ -57,11 +63,10 @@ Next chạy trên Node runtime của Vercel nên không cần adapter gì thêm.
 là bắt buộc phải đổi**: SQLite là một file trên đĩa, mà serverless thì mỗi request có
 thể rơi vào một máy khác và đĩa không giữ lại gì.
 
-`provider` của Prisma là **hằng trong schema, không đọc được từ biến môi trường** — nên
-không có kiểu "SQLite ở máy dev, Postgres khi chạy thật". Máy dev cũng phải trỏ vào một
-Postgres thật; dùng nhánh dev riêng cho rẻ.
+Máy dev cũng phải trỏ vào một Postgres thật (xem [Chạy thử](#chạy-thử)); dùng nhánh dev
+riêng cho rẻ.
 
-Bốn bước, theo đúng thứ tự:
+Hai lệnh, theo đúng thứ tự:
 
 ```bash
 npx prisma migrate deploy
@@ -80,10 +85,98 @@ Biến môi trường phải khai trên Vercel: `DATABASE_URL`, `AUTH_SECRET`, `
 
 ⚠️ **`DATABASE_URL` phải có mặt lúc BUILD, không chỉ lúc chạy.** `generateStaticParams`
 của `/de-thi/[examSlug]` và trang đề đọc DB để dựng sẵn đường dẫn; thiếu biến thì build
-đổ chứ không phải chạy xong mới lỗi.
+đổ chứ không phải chạy xong mới lỗi. Triệu chứng chính xác:
+`PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL`, ném ra từ
+`prisma.config.ts` trước cả khi Next khởi động.
 
 ⚠️ **Bộ migration cũ của SQLite nằm ở `prisma/migrations-sqlite-cu/`.** Prisma không đọc
 tới đó. Giữ lại làm dấu vết; xoá được khi nào thấy chắc tay.
+
+### `build` PHẢI gọi `prisma generate` — đây là bẫy chỉ lộ ở máy sạch
+
+```
+"build": "prisma generate && next build"
+```
+
+`lib/generated/` nằm trong `.gitignore` — đúng, vì đó là code sinh ra chứ không phải code
+viết. Nhưng như vậy nghĩa là trên máy build của Vercel thư mục đó **không bao giờ tồn
+tại**, và build chết ngay ở import đầu tiên:
+
+```
+./lib/db.ts
+Module not found: Can't resolve './generated/prisma/client'
+```
+
+Máy dev không bao giờ thấy lỗi này vì thư mục đã nằm sẵn ở đó từ lần `prisma generate`
+trước. Muốn tái hiện: xoá hẳn `lib/generated` rồi chạy `npm run build`.
+
+Đặt trong `build` chứ **không phải `postinstall`**: Vercel cache `node_modules` giữa các
+lần deploy và có thể bỏ qua `postinstall`, còn `build` thì luôn chạy.
+
+### VÙNG CHẠY HÀM phải khớp vùng DATABASE — đây là thứ đắt nhất
+
+Mặc định Vercel chạy hàm ở `iad1` (Washington D.C.). Nếu Neon nằm ở `ap-southeast-1`
+(Singapore) thì **mỗi truy vấn Prisma vượt Thái Bình Dương hai lượt**, và trang Tổng quan
+gọi nhiều truy vấn.
+
+Đọc `X-Vercel-Id` để biết mình đang ở đâu — định dạng là `edge::vùng-chạy-hàm::id`:
+
+```
+X-Vercel-Id: hkg1::iad1::qg7tq-...
+```
+
+Edge ở Hong Kong, nhưng hàm chạy ở Mỹ. Đo được trên đúng cấu hình sai đó:
+
+| trang | TTFB |
+|---|---|
+| `/` | 0,45s |
+| `/de-thi` | 0,65s |
+| `/dashboard` lần đầu (cold start) | **2,27s** |
+| `/dashboard` các lần sau | 0,65 – 0,70s |
+
+Sửa ở **Settings → Functions → Function Region**, đổi sang vùng của database. Không tốn
+tiền, gói Hobby cho chọn một vùng.
+
+**Vì sao chuyện này lại đọc ra thành "animation bị khựng":** `SlideLink` cố ý **không thả
+lớp phủ cho tới khi `usePathname()` đổi** (trần 1200ms — xem [Hiệu ứng chuyển
+trang](#hiệu-ứng-chuyển-trang)). Nên độ trễ server rơi thẳng vào giữa cú trượt. Bản thân
+hiệu ứng vẫn đúng từng mili giây; nó chỉ đang chờ dữ liệu từ nửa vòng trái đất. Ai thấy
+chuyển trang "giật" thì **đo TTFB trước khi đi sửa CSS**.
+
+Phần cold start (~1,6s) là bản chất gói free, và một nửa của nó là **Neon tự ngủ sau 5
+phút** chứ không phải Vercel. Muốn xoá hẳn thì thứ cần nâng cấp là Neon.
+
+### Ba cái bẫy trong giao diện Vercel
+
+**Nút Redeploy dựng lại ĐÚNG COMMIT CŨ, không kéo commit mới nhất.** Đọc dòng `Source` ở
+trang Deployment Details để biết commit nào đang được dựng. Muốn deploy bản mới thì push
+một commit — Vercel tự chạy.
+
+**Biến môi trường khai theo TỪNG environment.** Trong giao diện hiện tại chúng nằm bên
+trong Settings → Environments → bấm vào `Production`, không phải một mục riêng. Khai cho
+Production không làm Preview thấy được; push nhánh khác sẽ gặp lại đúng lỗi thiếu
+`DATABASE_URL` với cảm giác "đã khai rồi mà".
+
+**URL của từng deployment bị Vercel Authentication chặn.** Dạng
+`<project>-<hash>-<user>.vercel.app` trả 302 về `vercel.com/sso-api`, nên người ngoài chỉ
+thấy màn hình đăng nhập Vercel. Link gửi cho người dùng phải là **domain production**
+(`<project>.vercel.app`).
+
+### Đã thử Cloudflare Workers và BỎ — đừng thử lại
+
+Đợt đầu nhắm Cloudflare Workers + D1. Dựng được khá xa: build qua, worker chạy, D1 nạp
+đủ schema lẫn dữ liệu, trang tĩnh trả 200. Chết ở chỗ **Prisma 7 nạp query compiler bằng
+WASM**, mà bundler của Next nội tuyến import đó thành một shim gọi
+`WebAssembly.compileStreaming` — hàm workerd không có. Mọi trang chạm database trả 500.
+
+Đã thử cả Turbopack lẫn `--webpack`: **cùng một lỗi**, nên đây không phải chuyện chọn
+bundler. `@opennextjs/cloudflare` có sẵn plugin đánh dấu `.wasm?module` là external, nhưng
+nó chạy sau khi Next đã biến đổi xong.
+
+Hai thứ khác cũng phải xử lý trên đường đó, ghi lại phòng khi ai quay lại: Workers có
+**trần cứng 25 MiB mỗi asset** (ba file audio vượt), và `better-sqlite3` là native addon
+nên tầng DB phải tách làm hai file theo runtime — chỉ cần bundle *nhìn thấy* nó là đổ, kể
+cả trong nhánh `if` không bao giờ chạy.
 
 ---
 
@@ -748,8 +841,18 @@ reload, chỉ âm lượng được nhớ: đó là autoplay policy của trình
 | Test tự động (Vitest/Playwright) | Chưa có test runner. Thay vào đó là hai script khẳng định bất biến — `check:content-filter` và `check:exam-flow` — cộng với verify thủ công qua trình duyệt. |
 | Ảnh `GDP\|Tây Ban Nha` | Thiếu trong `image-manifest.json` (DuckDuckGo miss vài lần liền). Thẻ tự về layout chữ nên không hỏng gì. Muốn có ảnh: xoá key đó khỏi manifest rồi chạy `npm run make:game-img`. |
 
-Audio trong `public/audio/` là **file tone placeholder** do `scripts/make-placeholder-audio.mjs`
-sinh ra, không phải bản ghi thật — đủ để kiểm chứng hành vi phát một lần / không tua.
+Audio trong `public/audio/` có **hai loại khác nhau**, đừng nhầm:
+
+- Ba file `.wav` của VSTEP / TOPIK / THPT (~0,5MB) là **tone placeholder** do
+  `scripts/make-placeholder-audio.mjs` sinh ra, không phải bản ghi thật — đủ để kiểm
+  chứng hành vi phát một lần / không tua.
+- Các file `goethe-*` là **bản ghi thật**, dài 24–39 phút.
+
+⚠️ **Ba file Goethe lớn nhất đã bị NÉN LẠI còn mono 48 kbps** (173MB → 98MB cả thư mục).
+Việc này làm khi còn nhắm Cloudflare Workers, nơi có trần cứng 25 MiB mỗi asset. **Trần
+đó không áp dụng trên Vercel**, nên bản nén hiện chỉ còn lý do là dung lượng deploy nhẹ
+hơn. Chất lượng nghe kém hơn bản gốc; muốn lấy lại thì lục lịch sử git của
+`public/audio/` — commit chuyển Postgres là chỗ đổi.
 
 Nội dung câu hỏi trong seed là **tự biên soạn theo định dạng** của từng kỳ thi, không sao
 chép đề thi thật.
@@ -827,6 +930,14 @@ kể cả khi câu trả lời là `null`.
 
 ## Những cái bẫy đã mất thời gian, ghi lại để khỏi vấp lại
 
+**`ECONNREFUSED` từ một script `tsx` KHÔNG có nghĩa là Postgres chết — nhiều khả năng là
+thiếu `.env`.** Next tự nạp `.env`, nhưng các script chạy bằng tsx (`db:peek`, `check:*`,
+`purge:users`) import thẳng `lib/db.ts` mà không đi qua Next, nên không ai nạp hộ chúng.
+`DATABASE_URL` rỗng thì adapter quay về localhost và ném lỗi kết nối — đọc ra y hệt như
+database sập. Bản SQLite cũ giấu được chuyện này nhờ fallback `'file:./dev.db'`; Postgres
+không có giá trị mặc định nào hợp lý nên nó lộ ra. `lib/db.ts` giờ tự nạp `.env` khi chưa
+ai nạp, bọc trong `if` để ở Vercel (biến có sẵn, không có file) là no-op.
+
 **Đổi schema Prisma thì phải KHỞI ĐỘNG LẠI `next dev`.** `prisma migrate dev` cập nhật
 DB và sinh lại client trên đĩa, nhưng tiến trình dev đang chạy vẫn giữ module cũ trong
 bộ nhớ. Triệu chứng là 500 với `Unknown field ... for select statement` trong khi
@@ -858,12 +969,13 @@ này phát hiện ra khi bật/tắt dark mode, nhưng nó áp cho mọi cặp t
 | `#d9e2ec` (giá trị cũ) | 1,31 |
 | **`#c0cede` (hiện tại)** | **1,60** |
 
-Token này khai ở **hai** nơi trong bảng màu sáng: `@theme` và `.theme-light` (khối khoá
-sáng riêng cho trang giới thiệu). Sửa một chỗ là trang chủ mang màu viền khác phần còn
-lại của web. Nó còn dùng cho viền hover của `.btn-secondary` và núm thanh cuộn
-`.thin-scroll` — cả hai đậm theo, và đó là hướng đúng cho cả hai. Dark mode không đụng
-tới: ở đó `--color-line-strong` (`#3a4356`) **sáng hơn** `--color-line`, nên viền vẫn là
-thứ nổi lên khỏi nền.
+Token này giờ khai đúng **một** nơi: `@theme`. Trước đây có thêm `.theme-light` — khối
+khoá sáng riêng cho trang giới thiệu, sinh ra khi còn dark mode — và phải sửa cả hai chỗ,
+nếu không trang chủ mang màu viền khác phần còn lại của web. Bỏ dark mode thì khối đó
+không còn lý do tồn tại và đã bị xoá, nên cái bẫy "sửa một chỗ quên chỗ kia" cũng hết.
+
+Token này còn dùng cho viền hover của `.btn-secondary` và núm thanh cuộn `.thin-scroll` —
+cả hai đậm theo, và đó là hướng đúng cho cả hai.
 
 **`position: relative` đặt nhầm chỗ có thể nống bố cục lên gấp ba.** Nhãn tooltip của
 nav (`.nav-tip`) vốn là `absolute`; thêm một dòng `position: relative` để nâng nó lên
