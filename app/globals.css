@@ -635,12 +635,23 @@ body {
    * đường trong khoảng 250ms đầu. Mắt thấy "đã tới" ở 250ms chứ không phải
    * 360ms. Vậy nên phải canh theo 250ms, không phải theo con số khai báo.
    *
-   * 150ms + 80ms = xong ở 230ms, ngay trước lúc ô đen dừng hẳn.
+   * 75ms + 40ms = xong ở 115ms, tức khi ô đen mới đi được khoảng hai phần ba
+   * quãng đường. Icon sáng lên TRƯỚC lúc ô đen phủ tới, không phải sau.
    *
-   * Hai lần trước sai vì canh nhầm mốc: 140ms + 160ms = 300ms (đổi lừ đừ, xong
-   * SAU khi ô đen đã tới, nên "không thấy khác biệt"), rồi 300ms + 90ms = 390ms
-   * (đanh nhưng trễ hẳn một nhịp). Thời gian đổi phải NGẮN để nó đanh, còn
-   * thời điểm phải SỚM để nó khớp — hai chuyện tách rời nhau.
+   * Nghe thì ngược, nhưng đây đúng là cách bản thiết kế tham chiếu làm: trong
+   * video mẫu, chữ ở tab đích đã trắng sẵn từ lúc ô đen mới chớm chạm vào nó.
+   * Sáng sớm thì cùng lắm có một nhịp ngắn icon sáng nằm trên nền xám nhạt —
+   * hơi mờ nhưng vẫn đọc được. Sáng muộn thì ngược lại: icon TỐI nằm trên nền
+   * ĐEN, tức mất hẳn, và đó mới là thứ đập vào mắt.
+   *
+   * Bốn lần chỉnh mới ra, ghi lại cả bốn kẻo có người đi lại đường cũ:
+   *   140 + 160 = 300ms  đổi lừ đừ, xong sau khi ô đen tới -> "không thấy gì"
+   *   300 +  90 = 390ms  đanh nhưng trễ hẳn một nhịp
+   *   150 +  80 = 230ms  vẫn còn chậm
+   *   75  +  40 = 115ms  hiện tại
+   *
+   * Bài học: thời gian đổi quyết định nó có ĐANH không, thời điểm bắt đầu
+   * quyết định nó có KHỚP không — hai chuyện tách rời, đừng chỉnh gộp.
    *
    * Đổi 360ms hoặc đổi đường cong ở trên thì phải tính lại con số ở đây.
    *
@@ -651,7 +662,7 @@ body {
   .nav-pill[data-active='true'] {
     border-color: transparent;
     color: var(--color-accent-fg);
-    transition: color 80ms ease-out 150ms;
+    transition: color 40ms ease-out 75ms;
   }
 
   .pill {
