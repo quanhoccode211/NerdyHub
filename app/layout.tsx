@@ -1,54 +1,66 @@
 import type { Metadata } from 'next'
-import { Google_Sans_Flex, Roboto_Mono } from 'next/font/google'
+import localFont from 'next/font/local'
 import { Providers } from '@/components/providers'
 import './globals.css'
 
 /**
- * Roboto Mono — font chữ chạy của toàn bộ giao diện.
+ * HELVETICA NEUE (bản việt hoá) — font DUY NHẤT của cả web.
  *
- * RÀNG BUỘC KHÔNG ĐƯỢC BỎ QUA: font phải có subset 'vietnamese'.
+ * Trước đây có hai font: Roboto Mono cho giao diện và Google Sans Flex cho chữ
+ * chạy. Cả hai đã bị thay, nên cái tách đôi `<p>/<li>` trong globals.css cũng
+ * không còn — xem khối MỘT FONT DUY NHẤT ở đó.
+ *
+ * RÀNG BUỘC KHÔNG ĐƯỢC BỎ QUA, giữ nguyên từ bản cũ: font phải phủ tiếng Việt.
  * Nguyên âm tiếng Việt mang hai dấu chồng nhau (mũ/móc + thanh điệu) nằm ở khối
  * Latin Extended Additional U+1EA0–U+1EF9. Font chỉ phủ tới Latin Extended-A sẽ
  * hiển thị đúng "ê" nhưng để "ế", "ệ", "ộ", "ợ", "ữ" rơi sang font dự phòng —
  * lệch nét, lệch chiều cao, sai độ đậm ngay giữa một từ.
- * Đã kiểm chứng: Roboto Mono có subset 'vietnamese' (unicode-range U+1EA0-1EF9).
  *
- * Lưu ý khi chỉnh layout sau này: đây là font ĐỀU CHIỀU RỘNG. Mọi ký tự chiếm
- * đúng một ô như nhau nên cùng một câu sẽ rộng hơn font tỉ lệ khoảng 10–15%.
- * Chỗ nào canh theo bề rộng chữ (bảng, pill, nút hẹp) thì đo lại.
+ * ĐÃ ĐO TỪNG FILE trước khi chép vào đây (đọc thẳng bảng cmap): cả ba đều phủ
+ * 90/90 ký tự U+1EA0–1EF9, 12/12 `ă đ ơ ư ĩ ũ` và 32/32 phần Latin-1. Bộ
+ * "Helvetica" thường (không phải Neue) gửi kèm trước đó có ba file Light /
+ * Compressed / Rounded chỉ 227 glyph và 0/90 dấu tiếng Việt — KHÔNG dùng được,
+ * và đó là lý do phải đo chứ không tin vào tên file.
+ *
+ * BA CÂN NẶNG, KHÔNG PHẢI BỐN. Bộ này có 100/300/400/500/700/900 nhưng giao
+ * diện chỉ cần 400 (chữ chạy), 500 (nhãn) và 700 (tiêu đề). Nấc 600 của
+ * Tailwind (`font-semibold`) được ánh xạ sang 700 ngay trong @theme thay vì để
+ * trình duyệt tự lùi — xem THANG ĐỘ ĐẬM trong globals.css.
+ *
+ * KHÔNG nạp Italic: toàn bộ codebase không dùng `italic` chỗ nào, mà mỗi file
+ * nghiêng tốn thêm ~215KB. Nếu sau này có `<em>` thì trình duyệt tự nghiêng giả.
+ *
+ * `declarations` ép cả ba file dùng CHUNG một hộp dòng. Đo được: `hhea` của
+ * Regular là 952/-213/28 còn Medium và Bold là 975/-217/29 — lệch 2,3%. Không
+ * ép thì một chữ `<strong>` nằm giữa đoạn văn sẽ nống riêng dòng đó cao lên,
+ * và cả đoạn có một dòng thưa hơn những dòng khác. Số lấy theo Regular.
+ *
+ * `adjustFontFallback: 'Arial'` vì Arial là font tương thích metric của
+ * Helvetica — xem mục adjustFontFallback trong
+ * node_modules/next/dist/docs/01-app/03-api-reference/02-components/font.md.
+ *
+ * GIẤY PHÉP — ĐỌC TRƯỚC KHI PHÁT HÀNH: Helvetica Neue là font thương mại của
+ * Monotype/Linotype. Ba file trong app/fonts/ là bản việt hoá lưu hành tự do,
+ * KHÔNG kèm giấy phép webfont. Chạy nội bộ thì được, đưa sản phẩm ra ngoài thì
+ * phải mua giấy phép hoặc thay bằng font có giấy phép mở (Inter, Be Vietnam
+ * Pro, Archivo… đều phủ đủ tiếng Việt). Cùng loại ràng buộc với ảnh hotlink của
+ * tầng game — xem README.
  */
-const robotoMono = Roboto_Mono({
-  subsets: ['latin', 'vietnamese'],
-  weight: ['300', '400', '500', '600', '700'],
+const helvetica = localFont({
+  src: [
+    { path: './fonts/HelveticaNeue.otf', weight: '400', style: 'normal' },
+    { path: './fonts/HelveticaNeue-Medium.otf', weight: '500', style: 'normal' },
+    { path: './fonts/HelveticaNeue-Bold.otf', weight: '700', style: 'normal' },
+  ],
   variable: '--font-app',
   display: 'swap',
-})
-
-/**
- * Google Sans Flex — font của CHỮ CHẠY: mọi <p> và <li>, xem @layer base trong
- * app/globals.css. Tiêu đề, nav, nút, số liệu vẫn là Roboto Mono.
- *
- * Cùng ràng buộc như Roboto Mono: phải có subset 'vietnamese'. Đã kiểm chứng
- * trong node_modules/next/dist/compiled/@next/font/dist/google/font-data.json —
- * font này khai báo đủ latin, latin-ext và vietnamese (U+1EA0–U+1EF9), nên
- * "ế", "ệ", "ộ", "ợ", "ữ" không rơi sang font dự phòng.
- *
- * Đây là font TỈ LỆ, ngược với Roboto Mono: cùng một câu hẹp hơn khoảng 15%, và
- * đơn vị `ch` (bề rộng chữ "0") KHÔNG còn bằng bề rộng trung bình một ký tự.
- * Mọi chỗ chặn dòng bằng `max-w-[..ch]` phải đo lại chứ không quy đổi thẳng.
- *
- * Font biến thiên (wght 1–1000) nên KHÔNG truyền `weight` — xem mục `weight`
- * trong node_modules/next/dist/docs/01-app/03-api-reference/02-components/font.md:
- * tham số này chỉ bắt buộc với font không biến thiên.
- *
- * Tên biến là `--font-prose-src` chứ không phải `--font-prose`: cái sau là token
- * Tailwind trong @theme (sinh ra utility `font-prose`), đặt trùng thì next/font
- * ghi đè mất phần font dự phòng.
- */
-const googleSansFlex = Google_Sans_Flex({
-  subsets: ['latin', 'vietnamese'],
-  variable: '--font-prose-src',
-  display: 'swap',
+  fallback: ['Arial', 'Helvetica Neue', 'Helvetica', 'sans-serif'],
+  adjustFontFallback: 'Arial',
+  declarations: [
+    { prop: 'ascent-override', value: '95.2%' },
+    { prop: 'descent-override', value: '21.3%' },
+    { prop: 'line-gap-override', value: '2.8%' },
+  ],
 })
 
 const SITE_NAME = 'Nerdy Hub'
@@ -82,11 +94,7 @@ const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t==
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="vi"
-      className={`${robotoMono.variable} ${googleSansFlex.variable}`}
-      suppressHydrationWarning
-    >
+    <html lang="vi" className={helvetica.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>

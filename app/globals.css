@@ -21,7 +21,19 @@
   --color-card: #ffffff;
   --color-soft: #f2f6fa;
   --color-line: #e7edf4;
-  --color-line-strong: #d9e2ec;
+  /*
+    #c0cede chứ không phải #d9e2ec: đây là màu viền của mọi `.card`, mà thẻ nằm
+    trên nền TRẮNG của `.shell-card` — tương phản của #d9e2ec với trắng chỉ 1,31
+    nên đường ranh gần như không đọc được và các widget trông như trôi nổi.
+    #c0cede cho 1,58. Đo bằng công thức tương phản WCAG trên trang thật.
+
+    Token này còn dùng cho viền hover của `.btn-secondary` và núm thanh cuộn
+    `.thin-scroll` — cả hai đậm theo, và đó là hướng đúng cho cả hai.
+
+    Sửa ở đây thì sửa luôn bản trong `.theme-light` bên dưới, không thì trang
+    giới thiệu (khoá sáng riêng) mang màu viền khác phần còn lại của web.
+  */
+  --color-line-strong: #c0cede;
 
   /* Chữ */
   --color-ink: #151a26;
@@ -97,41 +109,226 @@
   --radius-pill: 999px;
 
   /**
-   * Quãng bay của ô đen đánh dấu tab, và cũng là quãng đổi màu của icon.
+   * Quãng bay của ô đen đánh dấu tab, và quãng đổi màu của icon — MỘT CẶP.
    *
-   * Là BIẾN chứ không phải hai con số gõ ở hai chỗ, vì chúng bắt buộc phải bằng
-   * nhau: icon phải đổi xong đúng lúc ô đen tới nơi. Trước đây hai chỗ khai
-   * riêng và đã lệch nhau qua bốn vòng chỉnh tay.
+   * Vẫn là một cặp biến chứ không phải hai con số gõ ở hai chỗ, nhưng hai con
+   * số KHÔNG bằng nhau, và đây là chỗ dễ sửa sai nhất:
    *
-   * Dùng chung cả đường cong: cùng thời lượng mà khác easing thì hai thứ vẫn
-   * đi lệch nhịp ở quãng giữa.
+   * Mốc đúng cho icon không phải lúc ô đen DỪNG, mà lúc ô đen PHỦ tới icon.
+   * Ô đen rộng đúng bằng một pill, nên khi nó bay từ pill này sang pill kia,
+   * mép trước của nó chạm tâm icon đích ở quãng `1 - W/(2D)` của đường đi —
+   * với hai tab liền nhau (D ≈ W) là ngay giữa đường, tức ~50%. Cho icon
+   * trắng hẳn ở 100% nghĩa là suốt nửa sau của chuyển động, icon mới trắng
+   * một nửa (~#afb5c0) trong khi nền dưới nó đã là đen đặc: người dùng đọc ra
+   * là "icon sáng chậm hơn ô đen", đúng như báo cáo.
+   *
+   * Nên icon phải XONG ở mốc 50% quãng bay. Nhưng "xong ở 50%" không có nghĩa
+   * là "chạy suốt từ 0 tới 50%", và đó là điểm thứ hai:
+   *
+   * QUÃNG XÁM NHẠT LÀ THỨ PHẢI CẮT NGẮN, KHÔNG PHẢI TỔNG THỜI LƯỢNG.
+   * Mọi phép nội suy xám đậm -> trắng đều đi qua xám nhạt (~#afb5c0) ở giữa, mà
+   * xám nhạt thì tương phản kém với CẢ HAI nền nó nằm trên: nền rail sáng
+   * (`--color-soft`) lúc ô đen chưa tới, và nền đen đặc lúc ô đen vừa phủ lên.
+   * Icon không hề bị ẩn — chỉ có một thẻ <svg>, opacity luôn 1 — nhưng ở quãng
+   * đó nó nhạt gần bằng nền, nên mắt đọc ra là "icon biến mất rồi hiện lại
+   * thành cái trắng". Rút tổng thời lượng chỉ DỜI quãng xám đi chứ không xoá.
+   *
+   * Nên chia làm ba phần, mỗi phần 1/4 quãng bay:
+   *   • `--nav-pill-ink-hold` (90ms) — GIỮ nguyên màu tối, chờ ô đen bay tới.
+   *   • `--nav-pill-ink` (90ms)      — quãng đổi màu, tức quãng xám nhạt.
+   *   • đích ở 180ms = 50% quãng bay, đúng lúc mép ô đen chạm tâm icon.
+   *
+   * `--nav-pill-ink-ease` DỐC Ở GIỮA (0.7, 0, 0.3, 1) chứ không dùng chung
+   * `--nav-pill-ease`: đường cong này nán lại ở hai đầu (tối, rồi trắng) và
+   * lao qua khoảng giữa, nên quãng xám thật sự nhìn thấy còn ngắn hơn 90ms.
+   * Đây là chỗ DUY NHẤT được phép lệch easing với ô đen, vì icon ở đây không
+   * còn "đi song song" với ô đen nữa mà là một cú lật đúng lúc nó tới.
+   *
+   * Đánh đổi đã cân nhắc: nhảy xa (tab đầu sang tab cuối) thì icon trắng xong
+   * trước lúc ô đen tới, và trắng trên nền `--color-soft` là gần như vô hình
+   * trong một nhịp ngắn. Chọn vậy vì nhảy một-hai tab là chuyện thường xuyên,
+   * còn nhảy hết rail là ngoại lệ — và "mờ đi một nhịp trên nền sáng" vẫn nhẹ
+   * hơn "đen trên đen" ở giữa chính cú chuyển động mắt đang nhìn.
    */
   --nav-pill-travel: 360ms;
   --nav-pill-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --nav-pill-ink: calc(var(--nav-pill-travel) / 4);
+  --nav-pill-ink-hold: calc(var(--nav-pill-travel) / 4);
+  --nav-pill-ink-ease: cubic-bezier(0.7, 0, 0.3, 1);
 
-  --font-sans: var(--font-app), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-prose: var(--font-prose-src), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /**
+   * CHIỀU CAO HÀNG CON DẤU — mốc để hai khung khớp nhau theo chiều DỌC.
+   *
+   * Con dấu cặp kính có mặt ở cả AppShell lẫn trang giới thiệu, và nó là MỐC
+   * NEO đứng yên giữa lúc mọi thứ khác trượt (xem nav-slide.tsx). Bên AppShell,
+   * chiều cao hàng đó do hàng nav quyết định; bên trang giới thiệu không có nav
+   * nào cả nên phải khai tay. Trước đây khai `min-h-11` (44px) kèm ghi chú
+   * "đúng bằng hàng pill" — đúng ở thời điểm viết, rồi hàng nav nở gấp rưỡi
+   * (icon 22 -> 28) mà con số kia nằm im. Đo được: con dấu bên landing cao hơn
+   * bên trong ứng dụng 14px, tức nó GIẬT một cái ngay giữa hiệu ứng chuyển.
+   *
+   * Nên chiều cao này giờ được TÍNH RA từ chính các số dựng nên hàng nav, chứ
+   * không phải một con số thứ hai gõ tay ở chỗ khác:
+   *
+   *     icon + 2*đệm dọc pill + 2*viền pill + 2*đệm rail
+   *      28  +      30        +      2      +     12      = 72px
+   *
+   * Còn đúng MỘT chỗ trùng lặp không khử được bằng CSS: `--nav-icon-size` phải
+   * khớp `<Icon size={28} />` trong app-shell.tsx, vì cỡ icon nằm trong TSX.
+   */
+  /**
+   * NHỊP CỦA HIỆU ỨNG NẢY — dùng cho cả ba chặng: trang giới thiệu hiện ra,
+   * trang giới thiệu rời đi, và các khối của ứng dụng hiện ra.
+   *
+   * `--pop-out-*` NHANH HƠN hẳn: lúc vào người dùng đang đọc trang lần đầu,
+   * lúc ra họ đã bấm nút và đang chờ. Đường cong lúc ra cũng bỏ phần nảy quá 1
+   * (0.4, 0, 1, 1 thay vì 0.22, 1.35, 0.36, 1) — nảy khi biến mất đọc ra như
+   * element bị giật ngược chứ không phải rút đi.
+   *
+   * ĐỔI `--pop-out-dur` HAY `--pop-out-step` THÌ SỬA LUÔN `POP_OUT_MS` trong
+   * components/shell/nav-slide.tsx: JS phải chờ đủ hết dãy rồi mới điều hướng.
+   * Tổng = --pop-last * --pop-out-step + --pop-out-dur.
+   */
+  /**
+   * TRADEMARK "NERDY HUB" trượt ra / thụt lại — xem .brand-wordmark bên dưới.
+   *
+   * Chậm gấp đôi bản đầu (420/260ms) theo yêu cầu: đây là chuyển động DUY NHẤT
+   * của phần khung, và khung thì nên đi thong thả hơn nội dung để không tranh
+   * chỗ với dãy thẻ đang nảy lên.
+   *
+   * `--wordmark-stagger`: "HUB" đi sau "NERDY" đúng nửa giây, ở CẢ HAI chiều.
+   * Nó nhân với `--wordmark-lag` (chỉ số dòng: 0, 1) nên thêm dòng thứ ba là
+   * tự có nhịp, không phải khai thêm độ trễ nào.
+   *
+   * Đường cong là ease-out/ease-in BẬC BA, không phải bậc năm như bản đầu
+   * (0.22,1,0.36,1 / 0.55,0,1,0.45): bậc năm phanh gấp gần cuối và vọt nhanh ở
+   * đầu, ở quãng đường ngắn 71px thì mắt đọc ra là giật chứ không phải nhanh.
+   *
+   * `--wordmark-stagger` là độ trễ của dòng "HUB" so với "NERDY", áp cho CẢ HAI
+   * chiều. Từng là 500ms; hạ xuống 200ms theo yêu cầu — và đây cũng chính là
+   * con số ăn thời gian nhất của cả cú rời trang, nên hạ nó là rút ngắn được
+   * `POP_OUT_MS` tương ứng (910ms -> 610ms).
+   *
+   * ĐỔI BẤT KỲ SỐ NÀO Ở ĐÂY THÌ SỬA LUÔN `POP_OUT_MS` trong
+   * components/shell/nav-slide.tsx: JS phải chờ chữ thụt hết vào sau con dấu
+   * rồi mới điều hướng. Tổng chiều ra = delay + stagger + dur = 610ms.
+   */
+  --wordmark-in-dur: 560ms;
+  --wordmark-out-dur: 350ms;
+  --wordmark-out-delay: 60ms;
+  --wordmark-stagger: 200ms;
+  --wordmark-ease-in: cubic-bezier(0.33, 1, 0.68, 1);
+  --wordmark-ease-out: cubic-bezier(0.32, 0, 0.67, 0);
+
+  --pop-dur: 0.52s;
+  --pop-ease: cubic-bezier(0.22, 1.35, 0.36, 1);
+  --pop-step: 88ms;
+  --pop-out-dur: 0.22s;
+  --pop-out-ease: cubic-bezier(0.4, 0, 1, 1);
+  --pop-out-step: 32ms;
+  --pop-enter-step: 55ms;
+
+  --nav-icon-size: 28px;
+  --nav-pill-pad-y: 0.9375rem;
+  --nav-pill-border: 1px;
+  --nav-rail-pad: 0.375rem;
+  --brand-row-height: calc(
+    var(--nav-icon-size) + 2 * var(--nav-pill-pad-y) + 2 * var(--nav-pill-border) + 2 *
+      var(--nav-rail-pad)
+  );
+
+  /**
+   * KHÔNG nối thêm font dự phòng ở đây.
+   *
+   * `--font-app` do next/font sinh ra đã là CẢ MỘT DANH SÁCH: face thật, face
+   * "…Fallback" (bản Arial đã chỉnh `size-adjust` để không giật layout khi font
+   * thật về), rồi tới Arial / Helvetica Neue / Helvetica / sans-serif khai ở
+   * `fallback` trong app/layout.tsx. Nối thêm là danh sách lặp lại y hệt lần
+   * hai — đã đo `getComputedStyle(body).fontFamily` và thấy đúng như vậy.
+   *
+   * NGOẠI LỆ DUY NHẤT là 'Flag Emoji', và nó phải đứng ĐẦU. Font này bị
+   * `unicode-range` khoá chặt vào khối regional indicator (xem @font-face ở
+   * khối CỜ QUỐC GIA bên dưới), nên với mọi ký tự không phải cờ trình duyệt bỏ
+   * qua nó và đi tiếp tới Helvetica Neue — và cũng nhờ vậy file font chỉ được
+   * tải khi trang thật sự có lá cờ. Đặt SAU `--font-app` là vô nghĩa: font
+   * chính khớp trước dù không có glyph cờ, và cờ lại rơi về font hệ thống.
+   */
+  --font-sans: 'Flag Emoji', var(--font-app);
+
+  /**
+   * THANG ĐỘ ĐẬM — ánh xạ 4 nấc của Tailwind vào 3 file có thật.
+   *
+   * app/fonts/ chỉ có Regular 400, Medium 500 và Bold 700. Không khai ở đây thì
+   * trình duyệt vẫn tự lùi về file gần nhất, nhưng LẶNG LẼ và theo hai chiều
+   * khác nhau: nấc 300 lùi XUỐNG 400, nấc 600 nhảy LÊN 700. Khai thẳng ra để
+   * đọc code là biết cái gì render bằng file nào.
+   *
+   * `semibold` = 700, tức trùng `bold`. Đây là nấc DUY NHẤT bị gộp, vì Helvetica
+   * Neue vốn không có Semibold — thang của nó là UltraLight/Light/Roman/Medium/
+   * Bold. Chọn 700 chứ không phải 500 để giữ đúng tương quan cũ: `font-semibold`
+   * đang dùng cho tiêu đề nhỏ và nút chính, vốn nặng hơn nhãn giao diện. Muốn
+   * thử hướng ngược lại (tiêu đề nhỏ nhẹ đi, kiểu Neue cổ điển) thì đổi đúng
+   * dòng này thành 500, không phải đi sửa 54 chỗ trong TSX.
+   *
+   * `light` = 400: bộ có file Light 300 thật nhưng không chỗ nào dùng, nạp thêm
+   * là tốn ~87KB cho số không.
+   */
+  --font-weight-light: 400;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 700;
+  --font-weight-bold: 700;
+
+  /**
+   * LETTER-SPACING chỉnh riêng cho Helvetica Neue.
+   *
+   * Helvetica được vẽ cho chữ chì xếp sát, nên trên màn hình nó LỎNG ở cỡ lớn
+   * và BÍ ở cỡ nhỏ. Mặc định của Tailwind (wide = 0.025em) là canh cho font
+   * khác; giữ nguyên thì nhãn HOA — chỗ cần giãn nhất, vì chữ hoa Helvetica
+   * không có phần nhô lên nhô xuống để mắt bám — đọc ra như một khối liền.
+   *
+   * Cỡ lớn được siết ở @layer base bên dưới, theo từng cấp tiêu đề.
+   */
+  --tracking-tighter: -0.03em;
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.06em;
+  --tracking-wider: 0.09em;
+  --tracking-widest: 0.14em;
 }
 
 /* ============================================================================
-   CHỮ CHẠY DÙNG FONT TỈ LỆ.
+   MỘT FONT DUY NHẤT, VÀ CỠ LỚN PHẢI ĐƯỢC SIẾT LẠI.
 
-   Roboto Mono là font đều chiều rộng: đẹp cho số liệu, nhãn, nav và tiêu đề
-   ngắn, nhưng đọc một đoạn văn dài thì mỏi mắt vì chữ nào cũng chiếm đúng một ô.
-   Nên tách đôi: <p> và <li> chạy Google Sans Flex, phần còn lại giữ Roboto Mono.
+   Bản trước chạy hai font: Roboto Mono cho giao diện, Google Sans Flex cho
+   <p>/<li>. Lý do tách là Roboto Mono ĐỀU CHIỀU RỘNG, đọc đoạn văn dài thì mỏi
+   mắt. Helvetica Neue là font tỉ lệ nên lý do đó không còn, và cả web dùng
+   chung một font — token `--font-prose` cùng rule `p, li` đã bỏ hẳn.
 
-   Đặt ở tầng ELEMENT chứ không đi gắn class vào từng chỗ, vì hai lý do:
-     • có những đoạn văn đến từ database (mô tả kỳ thi ở trang /de-thi), không
-       có chỗ nào trong TSX để gắn class;
-     • gắn tay vào mấy chục file thì lần sau thêm đoạn văn mới sẽ quên.
+   Còn lại đúng một việc phải làm tay: SIẾT CHỮ Ở CỠ LỚN.
 
-   Chỗ nào <p>/<li> thực chất là NHÃN hoặc SỐ LIỆU chứ không phải câu văn thì
-   gắn `font-sans` để kéo về Roboto Mono.
+   Helvetica được vẽ cho chữ chì xếp sát nhau. Ở cỡ tiêu đề, khoảng cách mặc
+   định của nó đọc ra rời rạc — các chữ cái không dính thành một từ. Càng lớn
+   càng phải siết, nên chia theo cấp tiêu đề chứ không đặt một con số chung.
+
+   Đặt ở tầng ELEMENT để phủ cả tiêu đề đến từ database. Chỗ nào cần khác thì
+   `tracking-*` trong TSX vẫn thắng, vì utility nằm ở layer cao hơn base.
+
+   CHỮ CHẠY GIỮ NGUYÊN 0: ở 14–17px Helvetica Neue đã vừa, siết thêm là dấu
+   tiếng Việt (mũ + thanh điệu chồng nhau) bắt đầu chạm nhau giữa hai chữ.
    ========================================================================= */
 @layer base {
-  p,
-  li {
-    font-family: var(--font-prose);
+  h1 {
+    letter-spacing: -0.022em;
+  }
+  h2 {
+    letter-spacing: -0.018em;
+  }
+  h3 {
+    letter-spacing: -0.012em;
+  }
+  h4 {
+    letter-spacing: -0.006em;
   }
 }
 
@@ -331,7 +528,8 @@
   --color-card: #ffffff;
   --color-soft: #f2f6fa;
   --color-line: #e7edf4;
-  --color-line-strong: #d9e2ec;
+  /* Phải khớp bản trong @theme — xem ghi chú ở đó */
+  --color-line-strong: #c0cede;
 
   --color-ink: #151a26;
   --color-muted: #8e99a8;
@@ -422,10 +620,25 @@ body {
     border-color: var(--color-line);
   }
 
-  /* Thẻ nội dung: trắng, viền mảnh — không dùng bóng đổ nặng */
+  /**
+   * Thẻ nội dung: trắng, viền mảnh — không dùng bóng đổ nặng.
+   *
+   * Viền dùng `--color-line-strong` (#c0cede) chứ KHÔNG phải `--color-line`
+   * (#e7edf4): thẻ nằm trên nền trắng của `.shell-card`, mà #e7edf4 trên trắng
+   * chỉ cho tương phản 1,18 — quá nhỏ để mắt bắt được đường ranh, các widget ở
+   * Tổng quan đọc ra như trôi nổi không có khung. Giờ là 1,58.
+   *
+   * Đổi MÀU chứ không nới bề dày: `box-sizing` là `border-box` nên tăng lên
+   * 1,5px là toàn bộ nội dung bên trong mọi thẻ co lại 0,5px mỗi cạnh — cùng họ
+   * với cái bẫy đã ghi ở `.shell-card`. Muốn đậm hơn nữa thì hạ tông
+   * `--color-line-strong` trong @theme, đừng thêm px.
+   *
+   * Ở dark mode cặp token này tự đảo đúng chiều: `--color-line-strong` (#3a4356)
+   * SÁNG hơn `--color-line` (#2b3345), nên viền vẫn là thứ nổi lên khỏi nền.
+   */
   .card {
     background: var(--color-card);
-    border: 1px solid var(--color-line);
+    border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-card);
   }
 
@@ -452,7 +665,8 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 0.15rem;
-    padding: 0.375rem;
+    /* Biến, không phải số: `--brand-row-height` tính chiều cao hàng từ nó */
+    padding: var(--nav-rail-pad);
     border-radius: var(--radius-pill);
     background: var(--color-soft);
   }
@@ -474,7 +688,8 @@ body {
       viền, chứ không phải chọn đại một số cho đẹp mắt: icon vừa được nống từ 22
       lên 28, mà pill thì phải giữ nguyên cỡ đã chốt.
     */
-    padding: 0.9375rem 1.4rem;
+    /* Đệm dọc là BIẾN: `--brand-row-height` tính chiều cao hàng nav từ nó */
+    padding: var(--nav-pill-pad-y) 1.4rem;
     font-size: 0.9375rem;
     font-weight: 500;
     color: var(--color-muted-strong);
@@ -483,7 +698,7 @@ body {
       hay bớt viền sẽ làm nội dung bên trong xê dịch 1px — cùng cái bẫy đã ghi
       ở .shell-card.
     */
-    border: 1px solid transparent;
+    border: var(--nav-pill-border) solid transparent;
     background: transparent;
     white-space: nowrap;
     transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
@@ -636,8 +851,14 @@ body {
   /**
    * Nền do `.nav-pill-indicator` lo, ở đây chỉ còn màu chữ/icon.
    *
-   * Icon ĐỔI MÀU TẠI CHỖ, tối sang sáng, đi song song với ô đen và về đích
-   * cùng lúc — cùng thời lượng, cùng đường cong, KHÔNG delay.
+   * Icon ĐỔI MÀU TẠI CHỖ, tối sang sáng, nhưng KHÔNG đi song song với ô đen:
+   * nó nằm im màu tối hết `--nav-pill-ink-hold` (1/4 quãng bay) chờ ô đen tới,
+   * rồi lật trong `--nav-pill-ink` (1/4 nữa) bằng đường cong dốc ở giữa. Mốc
+   * phải bám là lúc ô đen PHỦ tới icon — ~50% quãng bay với hai tab liền nhau —
+   * chứ không phải lúc ô đen dừng. Lý do đầy đủ ở chỗ khai biến.
+   *
+   * Chia làm hold + lật là để cắt ngắn QUÃNG XÁM NHẠT ở giữa, thứ làm icon
+   * trông như biến mất: xám nhạt tương phản kém với cả nền rail sáng lẫn ô đen.
    *
    * KHÔNG dựng bằng cách ẩn/hiện hay đổi opacity: icon không được biến mất rồi
    * xuất hiện lại. Đây là kiểu chuyển màu giống hệt nút sáng/tối, chỉ khác là
@@ -649,19 +870,17 @@ body {
    * không được vẽ ra lấy một khung hình, và đó chính là lý do bốn vòng chỉnh
    * delay trước (300 → 390 → 230 → 115ms) đều không đổi được gì.
    *
-   * Chiều ngược lại: pill vừa mất active rơi về `.nav-pill` (0.16s) nên tối
-   * lại nhanh hơn — nó cần nhường chỗ chứ không cần đi cùng ô đen.
-   *
-   * Đổi 360ms hoặc đổi đường cong ở trên thì phải tính lại con số ở đây.
-   *
    * Chiều ngược lại không hoãn: pill vừa mất active rơi về `.nav-pill` (0.16s,
    * không delay) nên tối lại NGAY khi ô đen rời đi, nếu không nó là icon sáng
    * nằm trên nền sáng.
+   *
+   * Đổi `--nav-pill-travel` thì mọi con số ở đây tự theo (calc). Đừng gõ số rời
+   * vào đây — đó đúng là chuyện đã làm hai thứ lệch nhau ở các vòng trước.
    */
   .nav-pill[data-active='true'] {
     border-color: transparent;
     color: var(--color-accent-fg);
-    transition: color var(--nav-pill-travel) var(--nav-pill-ease);
+    transition: color var(--nav-pill-ink) var(--nav-pill-ink-ease) var(--nav-pill-ink-hold);
   }
 
   .pill {
@@ -706,7 +925,8 @@ body {
     gap: 0.55rem;
     background: var(--color-accent);
     color: var(--color-accent-fg);
-    font-weight: 600;
+    /* 700, không phải 600: app/fonts/ không có Semibold — xem THANG ĐỘ ĐẬM */
+    font-weight: 700;
     border-radius: var(--radius-pill);
     padding: 0.8rem 1.5rem;
     font-size: 0.9625rem;
@@ -726,7 +946,8 @@ body {
     gap: 0.55rem;
     background: var(--color-soft);
     color: var(--color-ink);
-    font-weight: 600;
+    /* 700, không phải 600: app/fonts/ không có Semibold — xem THANG ĐỘ ĐẬM */
+    font-weight: 700;
     border-radius: var(--radius-pill);
     padding: 0.8rem 1.5rem;
     font-size: 0.9625rem;
@@ -857,14 +1078,272 @@ body {
   }
 }
 
+/**
+ * THỨ TỰ HIỆN RA đọc từ `--pop-i`, không phải từ `animationDelay` gõ tay.
+ *
+ * Trước đây mỗi element tự khai `style={{ animationDelay: '360ms' }}`. Đủ dùng
+ * khi chỉ có một chiều, nhưng chiều NGƯỢC lại (rời trang) cần đúng dãy số đó
+ * lộn ngược — mà một con số gõ cứng thì không lộn được. Đổi sang chỉ số thứ tự
+ * thì cả hai chiều tính ra từ cùng một nguồn.
+ *
+ * `--pop-i` không khai thì bằng 0, nên `.pop-in` trơ trọi (tầng game) chạy y
+ * như cũ. `animation-delay` phải đứng SAU shorthand `animation`, vì shorthand
+ * reset delay về 0.
+ */
 .pop-in {
-  animation: pop-in 0.52s cubic-bezier(0.22, 1.35, 0.36, 1) backwards;
+  animation: var(--pop-dur) var(--pop-ease) backwards pop-in;
+  animation-delay: calc(var(--pop-i, 0) * var(--pop-step));
+}
+
+/* ============================================================================
+   CỜ QUỐC GIA — tự host, vì font emoji của Windows KHÔNG có glyph cờ.
+
+   Cờ trong emoji là hai "regional indicator" ghép lại (🇬 + 🇧 = 🇬🇧). Segoe UI
+   Emoji của Windows cố ý không chứa glyph ghép đó, nên không có font nào vẽ
+   được và trình duyệt in ra hai chữ cái rời: "GB", "KR", "VN". Đây là chuyện
+   của HỆ ĐIỀU HÀNH chứ không phải của trình duyệt — Chrome và Edge trên Windows
+   đều vậy, còn Firefox thì ra cờ vì nó tự đóng gói font emoji riêng. Trên macOS
+   / iOS / Android thì trình duyệt nào cũng ra cờ.
+
+   Cách duy nhất để mọi máy giống nhau là ĐỪNG phụ thuộc font hệ thống.
+
+   `unicode-range` là phần quan trọng nhất, không phải cho gọn: nó giới hạn font
+   này ở đúng khối regional indicator. Nhờ vậy (1) trình duyệt CHỈ tải file khi
+   trang thật sự có ký tự cờ, và (2) toàn bộ chữ còn lại vẫn là Helvetica Neue —
+   thiếu dòng này là font cờ tranh mất cả chữ thường ở những glyph nó có.
+
+   THIẾU FILE THÌ KHÔNG HỎNG GÌ: trình duyệt bỏ qua @font-face không tải được và
+   rơi về font kế tiếp, tức đúng hành vi hiện nay (chữ "GB"/"KR"). Không có màn
+   hình trắng, không có lỗi bố cục — chỉ một dòng 404 trong console.
+   ========================================================================= */
+@font-face {
+  font-family: 'Flag Emoji';
+  src: url('/fonts/TwemojiCountryFlags.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+1F1E6-1F1FF;
+}
+
+/* ============================================================================
+   TRADEMARK "NERDY HUB" — trượt ra từ SAU con dấu, và thụt lại vào sau nó.
+
+   Chỉ có ở trang giới thiệu (app/(landing)/layout.tsx).
+
+   Cơ chế là một KHUNG CẮT đứng yên + phần chữ trượt bên trong, không phải
+   `opacity` hay `scale`. Muốn chữ "chui ra từ sau con dấu" thì phải có một mép
+   mà bên trái nó không vẽ gì cả — `overflow: hidden` dựng đúng cái mép đó, và
+   đặt nó sát mép phải con dấu. Làm bằng opacity thì chữ hiện ra tại chỗ, mắt
+   đọc là "mờ dần vào" chứ không phải "trượt ra từ sau".
+
+   `padding-left` nằm ở KHUNG chứ không phải `gap` của thẻ <a> cha: overflow cắt
+   ở mép hộp padding, nên để padding ở đây thì mép cắt vẫn nằm sát con dấu còn
+   chữ thì có đủ khoảng thở khi đứng yên. Dùng `gap` ở cha thì mép cắt bị đẩy
+   sang phải 12px và chữ hiện ra từ giữa khoảng trống.
+
+   `padding-block` + `margin-block` âm: overflow cắt cả chiều DỌC, mà `leading`
+   0.9 làm hộp dòng thấp hơn nét chữ. Không chừa 4px trên dưới thì đỉnh chữ hoa
+   bị xén. Margin âm bù lại đúng chỗ đó nên bố cục không đổi một px nào.
+   ========================================================================= */
+.brand-wordmark {
+  display: inline-block;
+  overflow: hidden;
+  padding-left: 12px;
+  padding-block: 4px;
+  margin-block: -4px;
+
+  /*
+    MÉP CẮT MỀM. `overflow: hidden` cắt cụt một nhát, nên chữ "nảy" ra khỏi mép
+    thay vì hiện dần — đó chính là chỗ đọc ra thô nhất. Mask cho 10px đầu chuyển
+    từ trong suốt sang đặc, chữ đi qua vùng đó là mờ dần hiện ra.
+
+    10px chứ không rộng hơn: lúc đứng yên chữ bắt đầu ở 12px (padding-left), nên
+    vùng mờ kết thúc TRƯỚC khi chạm nét chữ. Nới quá 12px là chữ "N" bị mờ vĩnh
+    viễn một góc.
+  */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 10px);
+  mask-image: linear-gradient(90deg, transparent 0, #000 10px);
+}
+
+@keyframes brand-wordmark-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/*
+  `-100%` là 100% BỀ RỘNG CHÍNH NÓ (~71px), đủ để lùi hẳn vào trong vùng con
+  dấu. Không dùng số px cố định: đổi cỡ chữ hay đổi tên thương hiệu là con số đó
+  sai ngay, và chữ sẽ ló ra một đoạn ở khung hình đầu.
+
+  `backwards` để nó nằm sẵn ở vị trí lùi trong lúc chờ delay, nếu không nó hiện
+  đủ ở chỗ cuối rồi mới nhảy về sau con dấu để trượt ra.
+*/
+/*
+  TỪNG DÒNG tự trượt lấy, không phải cả khối chữ trượt một lần.
+
+  "HUB" đi sau "NERDY" nửa giây, nên hai dòng bắt buộc phải là hai animation
+  riêng. `--wordmark-lag` là CHỈ SỐ DÒNG (0, 1) chứ không phải mili giây — cùng
+  lý do với `--pop-i` ở hiệu ứng nảy: chiều ra cần đúng độ trễ đó và một con số
+  gõ cứng thì không tái dùng được cho cả hai chiều.
+*/
+.brand-wordmark-line {
+  display: block;
+  --wordmark-lag: 0;
+  animation: var(--wordmark-in-dur) var(--wordmark-ease-in)
+    calc(90ms + var(--wordmark-lag) * var(--wordmark-stagger)) backwards brand-wordmark-in;
+}
+.brand-wordmark-line:nth-child(2) {
+  --wordmark-lag: 1;
+}
+
+@keyframes brand-wordmark-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+/*
+  Chiều ra phải là KEYFRAME KHÁC TÊN, không phải `brand-wordmark-in` +
+  `reverse` — animation chỉ khởi động lại khi `animation-name` đổi, còn lại
+  trình duyệt coi là vẫn animation cũ đã chạy xong và vẽ thẳng khung cuối. Đây
+  đúng là lỗi đã làm hiệu ứng thoát của trang giới thiệu không chạy.
+
+  RÀNG BUỘC VỚI JS: dòng đi sau cùng ("HUB") xong ở
+  `--wordmark-out-delay` + `--wordmark-stagger` + `--wordmark-out-dur`
+  = 60 + 200 + 350 = 610ms, và con số đó phải NHỎ HƠN `POP_OUT_MS` trong
+  components/shell/nav-slide.tsx (630ms). Chữ phải thụt hết vào sau con dấu
+  TRƯỚC khi trang đổi, vì bên ứng dụng không có trademark nào để nối tiếp — hụt
+  là nó bị cắt ngang lúc đang trượt dở.
+
+  Đây là chặng DÀI NHẤT trong cả cú rời trang (phần nội dung xong ở 412ms), nên
+  chính nó quyết định `POP_OUT_MS`. Chỉnh chậm/nhanh ở đây thì sửa luôn số bên đó.
+*/
+:root.pop-leaving .brand-wordmark-line {
+  animation: var(--wordmark-out-dur) var(--wordmark-ease-out)
+    calc(var(--wordmark-out-delay) + var(--wordmark-lag) * var(--wordmark-stagger)) forwards
+    brand-wordmark-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-wordmark-line,
+  :root.pop-leaving .brand-wordmark-line {
+    animation: none;
+  }
+}
+
+/**
+ * KEYFRAME RIÊNG CHO CHIỀU RA — KHÔNG dùng `pop-in` với `direction: reverse`.
+ *
+ * Đây là chỗ đã làm hiệu ứng thoát KHÔNG CHẠY, và triệu chứng rất dễ đọc nhầm:
+ * cả trang biến mất tức thì, không có một khung hình chuyển động nào.
+ *
+ * Lý do: animation chỉ khởi động lại khi `animation-name` ĐỔI. Đổi mỗi duration,
+ * direction hay fill thì trình duyệt coi là vẫn animation cũ và chỉ cập nhật
+ * tham số cho nó. Mà animation `pop-in` ấy đã chạy xong từ lúc tải trang, thời
+ * điểm hiện tại nằm quá xa khoảng hoạt động — nó đang ở "after phase". Gắn thêm
+ * `reverse` + `forwards` vào một animation đã ở after phase thì trình duyệt vẽ
+ * ngay khung CUỐI của chiều ngược, tức khung `from` của pop-in: opacity 0.
+ * Element tắt phụt, không chạy gì cả.
+ *
+ * Tên khác thì thành một animation MỚI, bắt đầu lại từ 0. Vì vậy viết hẳn
+ * keyframe ngược ra đây thay vì tái dùng `pop-in`.
+ */
+@keyframes pop-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(14px) scale(0.92);
+  }
+}
+
+/**
+ * RỜI TRANG GIỚI THIỆU: lần lượt rút đi, theo thứ tự NGƯỢC lúc hiện ra.
+ *
+ * `--pop-last - --pop-i` lộn chiều thứ tự: thứ hiện ra sau cùng là thứ biến mất
+ * đầu tiên. Thiếu vế này thì mọi thứ vẫn biến mất nhưng theo đúng thứ tự lúc
+ * vào, và mắt đọc ra là một hiệu ứng khác chứ không phải hiệu ứng cũ quay ngược.
+ *
+ * `forwards` chứ không phải `both`: trong lúc CHỜ tới lượt, element phải còn
+ * nguyên trên màn hình. `both` sẽ fill ngược và giấu nó ngay từ đầu — cả trang
+ * biến mất cùng lúc, mất sạch phần lần lượt.
+ *
+ * Ra NHANH HƠN vào (0.22s so với 0.52s, bước 32ms so với 88ms): lúc vào, người
+ * dùng đang đọc trang lần đầu; lúc ra, họ đã bấm nút và đang chờ.
+ *
+ * PHẢI CHẠY TRƯỚC KHI ĐIỀU HƯỚNG, không lồng vào view transition được: trong
+ * lúc transition chạy, trang cũ chỉ là một ẢNH CHỤP TĨNH nên không có element
+ * nào để cho biến mất lần lượt. Xem ENTER_APP trong components/shell/nav-slide.tsx.
+ */
+:root.pop-leaving .pop-in {
+  animation: var(--pop-out-dur) var(--pop-out-ease) forwards pop-out;
+  animation-delay: calc((var(--pop-last, 0) - var(--pop-i, 0)) * var(--pop-out-step));
+}
+
+/**
+ * VÀO ỨNG DỤNG: các khối của trang đích hiện ra lần lượt.
+ *
+ * Class do AppShell gắn lên <main>, và CHỈ khi vừa bước từ trang giới thiệu
+ * sang — gỡ ra ngay sau khi chạy xong. Không có nó thì mọi lần đổi tab giữa các
+ * trang chức năng cũng nảy một loạt thẻ, tức là đổi luôn hiệu ứng trượt vốn
+ * đang đúng.
+ *
+ * Chỉ số ghép từ HAI cấp: `--pop-row` trên con trực tiếp của <main>, `--pop-col`
+ * trên các thẻ trong mỗi hàng lưới. Biến CSS có kế thừa, nên thẻ con đọc được
+ * `--pop-row` của hàng chứa nó mà không phải khai lại.
+ *
+ * Nhắm vào TỪNG THẺ chứ không phải cả hàng, và không nhắm cả hai: hàng mờ dần
+ * trong khi thẻ bên trong cũng mờ dần là hai lớp opacity chồng nhau, thẻ sẽ
+ * hiện ra nhạt hơn hẳn ở quãng giữa. Mọi khối dashboard đều có gốc là
+ * `<section class="card">` hoặc `<header>` nên nhắm bằng CSS là đủ, không phải
+ * sửa component nào.
+ */
+.enter-stagger > * {
+  --pop-row: 0;
+}
+.enter-stagger > *:nth-child(2) {
+  --pop-row: 1;
+}
+.enter-stagger > *:nth-child(3) {
+  --pop-row: 2;
+}
+.enter-stagger > *:nth-child(4) {
+  --pop-row: 3;
+}
+.enter-stagger > * > * {
+  --pop-col: 0;
+}
+.enter-stagger > * > *:nth-child(2) {
+  --pop-col: 1;
+}
+.enter-stagger > * > *:nth-child(3) {
+  --pop-col: 2;
+}
+
+.enter-stagger > header,
+.enter-stagger > div > * {
+  animation: var(--pop-dur) var(--pop-ease) backwards pop-in;
+  animation-delay: calc((var(--pop-row, 0) * 2 + var(--pop-col, 0)) * var(--pop-enter-step));
 }
 
 /* Tôn trọng cài đặt giảm chuyển động của hệ điều hành */
 @media (prefers-reduced-motion: reduce) {
-  .pop-in {
+  .pop-in,
+  :root.pop-leaving .pop-in,
+  .enter-stagger > header,
+  .enter-stagger > div > * {
     animation: none;
+    /* `pop-out` có `forwards`; tắt animation mà quên dòng này thì ở chế độ giảm
+       chuyển động element vẫn nằm nguyên chứ không biến mất — nhưng ta điều
+       hướng ngay lập tức nên nó không kịp thấy. Để opacity mặc định là đúng. */
+    opacity: 1;
   }
 }
 
@@ -901,6 +1380,32 @@ body {
   }
   to {
     opacity: 1;
+  }
+}
+
+/*
+  Icon của tab vừa chọn: tối -> sáng. Cùng cặp biến với ô đen.
+
+  Vì sao phải là ANIMATION chứ không chỉ `transition` ở .nav-pill: transition chỉ
+  chạy khi phần tử CÓ SẴN một giá trị cũ để đi từ đó. Mà rail bị dựng lại từ đầu
+  mỗi khi đi qua ranh giới route group — `/de-thi` nằm ở `(marketing)`, năm tab
+  còn lại ở `(app)`, nên mọi lần vào hay ra khỏi Kho đề đều cho ra sáu thẻ pill
+  HOÀN TOÀN MỚI (đã đo: đánh dấu từng node rồi bấm, mọi node đều là node mới).
+  Phần tử mới toanh thì không có "màu cũ", transition không chạy lấy một khung
+  hình và icon bật trắng ngay ở khung đầu — trắng trên nền rail sáng, tức là mất
+  hút cho tới lúc ô đen bay tới.
+
+  Animation thì chạy được trên cả phần tử vừa được chèn, nên nó phủ CẢ HAI
+  trường hợp bằng đúng một nhịp. Transition ở `.nav-pill[data-active='true']`
+  vẫn giữ, cho trình duyệt không hỗ trợ View Transitions (không có type nào thì
+  rule dưới không khớp, và transition là đường lui).
+*/
+@keyframes nav-icon-ink {
+  from {
+    color: var(--color-muted-strong);
+  }
+  to {
+    color: var(--color-accent-fg);
   }
 }
 
@@ -971,7 +1476,11 @@ body {
     chụp của nội dung che mất một đoạn giữa đường.
   */
   &::view-transition-group(nav-active-pill) {
-    /* Cùng biến với transition màu icon ở .nav-pill — hai thứ phải về đích cùng lúc */
+    /*
+      Cùng cặp biến với transition màu icon ở .nav-pill. Icon chạy nửa thời
+      lượng này (`--nav-pill-ink`) vì nó phải trắng xong lúc ô đen PHỦ tới,
+      không phải lúc ô đen dừng — xem chỗ khai biến.
+    */
     animation-duration: var(--nav-pill-travel);
     animation-timing-function: var(--nav-pill-ease);
     z-index: 90;
@@ -989,6 +1498,20 @@ body {
   }
   &::view-transition-new(nav-active-pill) {
     animation: none;
+  }
+
+  /*
+    ICON CỦA TAB VỪA CHỌN SÁNG LÊN theo nhịp `--nav-pill-ink` (nửa quãng bay của
+    ô đen). Dùng animation chứ không chỉ dựa vào `transition` ở .nav-pill, vì
+    rail bị dựng lại khi đi qua ranh giới route group và transition không chạy
+    được trên phần tử vừa chèn — xem @keyframes nav-icon-ink.
+
+    `both` để giữ màu cuối trong quãng còn lại của transition; hết fill thì icon
+    rơi về màu tối một khung hình ngay trước lúc lớp phủ đóng.
+  */
+  & .nav-pill[data-active='true'] {
+    animation: var(--nav-pill-ink) var(--nav-pill-ink-ease) var(--nav-pill-ink-hold) both
+      nav-icon-ink;
   }
 
   /*
@@ -1016,6 +1539,42 @@ body {
   &::view-transition-new(nav-rail) {
     animation: none;
   }
+
+  /*
+    CỤM NÚT BÊN PHẢI (chuông, sáng/tối, tài khoản) ĐỨNG YÊN — cùng thủ thuật với
+    hàng tab: có tên thì thoát khỏi ảnh chụp `root`, `display: none` cho ảnh cũ
+    và `animation: none` cho ảnh mới thì nó hiện ngay trạng thái mới ở khung
+    hình đầu. Ba nút này giống hệt nhau ở mọi trang nên "đứng yên" mới đúng.
+  */
+  &::view-transition-group(header-actions) {
+    animation: none;
+    z-index: 80;
+  }
+  &::view-transition-old(header-actions) {
+    display: none;
+  }
+  &::view-transition-new(header-actions) {
+    animation: none;
+  }
+
+  /*
+    NÚM ĐEN CỦA CÔNG TẮC SÁNG/TỐI: CỐ Ý KHÔNG ĐỤNG TỚI.
+
+    `.theme-switch-knob` mang sẵn `view-transition-name: theme-knob` cho hiệu
+    ứng đổi giao diện, nên khi đổi tab nó cũng tự tách thành một nhóm riêng và
+    chạy theo luật không-khoanh-type ở khối ĐỔI GIAO DIỆN MƯỢT: cross-fade
+    340ms tại chỗ. Hai ảnh giống hệt nhau ở cùng một toạ độ nên mắt không thấy
+    gì — đúng nghĩa "đứng yên", không cần làm gì thêm.
+
+    ĐÃ THỬ đóng băng nó bằng đúng bộ ba như `nav-rail` (`group{animation:none}`
+    + `old{display:none}` + `new{animation:none}`) và KẾT QUẢ LÀ NÚM BIẾN MẤT
+    hẳn trong lúc chuyển trang. Thủ thuật đó chỉ đúng với phần tử tự nó là một
+    nhóm độc lập; núm này nằm LỒNG trong `header-actions` (nhóm đã đóng băng,
+    z-index 80) nên tách nó ra rồi bỏ animation của nhóm là mất chỗ đứng.
+
+    Tóm lại: cụm nút bên ngoài đóng băng, núm bên trong để yên. Đừng "dọn cho
+    nhất quán".
+  */
 
   /*
     Con dấu thương hiệu là MỐC NEO — nó không được nhúc nhích.
@@ -1171,7 +1730,8 @@ html.theme-transition .theme-switch-icon {
   margin-bottom: 0;
 }
 .passage-body h3 {
-  font-weight: 600;
+  /* 700, không phải 600: app/fonts/ không có Semibold — xem THANG ĐỘ ĐẬM */
+  font-weight: 700;
   margin-bottom: 0.6rem;
 }
 
