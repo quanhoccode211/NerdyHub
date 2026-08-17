@@ -623,19 +623,26 @@ body {
   /**
    * Nền do `.nav-pill-indicator` lo, ở đây chỉ còn màu chữ/icon.
    *
-   * Icon phải LẬT SANG SÁNG ĐÚNG KHOẢNH KHẮC ô đen chạm đích, và lật gọn.
+   * Icon phải sáng XONG vào lúc ô đen đứng yên, và lật gọn trong một nhịp.
    *
-   * Ô đen bay mất 360ms (`::view-transition-group(nav-active-pill)`). Hoãn 300ms
-   * rồi đổi trong 90ms nghĩa là màu bắt đầu đổi khi ô đen gần chạm và xong ngay
-   * sau đó — mắt đọc ra MỘT sự kiện: ô đen ập tới và icon bật sáng theo.
+   * Con số chốt bằng cách đếm khung hình từ video người dùng quay (25fps, mỗi
+   * khung 40ms): ô đen ổn định ở khung 62, icon mãi khung 64 mới sáng — trễ
+   * 80ms SAU khi ô đen đã đứng yên, và suốt ~200ms trước đó ô đen là một khối
+   * đen trống trơn vì icon bên dưới vẫn còn màu tối.
    *
-   * Đã đi qua ba lần chỉnh sai hướng (200 → 170 → 140ms) trước khi hiểu ra vấn
-   * đề. Hoãn ít thì màu đổi TỪ TỪ và XONG TRƯỚC khi ô đen tới — ở 140ms thì
-   * 140 + 160 = 300ms, sớm hơn đích 60ms — nên lúc ô đen tới nơi chẳng còn gì
-   * xảy ra nữa, và cảm giác là "không có sự khác biệt khi ô đen tới". Muốn nó
-   * đanh thì phải hoãn LÂU hơn chứ không phải ít hơn, và rút NGẮN thời gian đổi.
+   * Mấu chốt: ô đen khai `animation-duration: 360ms`, nhưng đường cong
+   * `cubic-bezier(0.4, 0, 0.2, 1)` giảm tốc rất sớm — nó đi hết ~95% quãng
+   * đường trong khoảng 250ms đầu. Mắt thấy "đã tới" ở 250ms chứ không phải
+   * 360ms. Vậy nên phải canh theo 250ms, không phải theo con số khai báo.
    *
-   * Đổi 360ms ở trên thì phải đổi luôn 300ms ở đây — hai con số này đi với nhau.
+   * 150ms + 80ms = xong ở 230ms, ngay trước lúc ô đen dừng hẳn.
+   *
+   * Hai lần trước sai vì canh nhầm mốc: 140ms + 160ms = 300ms (đổi lừ đừ, xong
+   * SAU khi ô đen đã tới, nên "không thấy khác biệt"), rồi 300ms + 90ms = 390ms
+   * (đanh nhưng trễ hẳn một nhịp). Thời gian đổi phải NGẮN để nó đanh, còn
+   * thời điểm phải SỚM để nó khớp — hai chuyện tách rời nhau.
+   *
+   * Đổi 360ms hoặc đổi đường cong ở trên thì phải tính lại con số ở đây.
    *
    * Chiều ngược lại không hoãn: pill vừa mất active rơi về `.nav-pill` (0.16s,
    * không delay) nên tối lại NGAY khi ô đen rời đi, nếu không nó là icon sáng
@@ -644,7 +651,7 @@ body {
   .nav-pill[data-active='true'] {
     border-color: transparent;
     color: var(--color-accent-fg);
-    transition: color 90ms ease-out 300ms;
+    transition: color 80ms ease-out 150ms;
   }
 
   .pill {
