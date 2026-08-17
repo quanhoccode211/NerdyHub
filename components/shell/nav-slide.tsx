@@ -57,6 +57,17 @@ export const BRAND_VT_NAME = 'brand-logo'
 export const NAV_RAIL_VT_NAME = 'nav-rail'
 
 /**
+ * Cụm nút bên phải header (chuông, nút sáng/tối, tài khoản) — cũng KHÔNG được
+ * đóng băng, cùng lý do với hàng tab.
+ *
+ * Ba nút này giống hệt nhau ở mọi trang chức năng, nên đúng ra chúng phải đứng
+ * yên như con dấu. Không đặt tên thì chúng rơi vào ảnh chụp `root` và bị
+ * cross-fade cùng cả trang: mắt đọc ra là chúng cũng "chuyển trang" theo, dù
+ * nội dung không đổi một pixel nào.
+ */
+export const HEADER_ACTIONS_VT_NAME = 'header-actions'
+
+/**
  * Ô đen đánh dấu tab đang mở.
  *
  * Chỉ gắn cho ĐÚNG MỘT pill — cái đang active. Nhờ vậy pill cũ và pill mới mang
@@ -72,6 +83,64 @@ export const ACTIVE_PILL_VT_NAME = 'nav-active-pill'
 /** Hướng trượt, đọc trong CSS bằng `:active-view-transition-type()`. */
 export const SLIDE_FORWARD = 'slide-forward'
 export const SLIDE_BACK = 'slide-back'
+
+/**
+ * BƯỚC TỪ TRANG GIỚI THIỆU VÀO ỨNG DỤNG — KHÔNG phải một kiểu trượt.
+ *
+ * Ba kiểu kia đi qua View Transitions API. Kiểu này thì không, và đó là điểm
+ * chính: yêu cầu là các element của trang giới thiệu biến mất LẦN LƯỢT, mà
+ * trong lúc view transition chạy, trang cũ chỉ còn là một ẢNH CHỤP TĨNH —
+ * không có element riêng lẻ nào để mà cho biến mất lần lượt (xem cạm bẫy
+ * "cái gì không có tên thì bị đóng băng" ở README).
+ *
+ * Nên chặng này chia làm ba, chạy trên DOM THẬT:
+ *   1. Gắn `.pop-leaving` lên <html> -> CSS chạy ngược hiệu ứng nảy, theo thứ
+ *      tự ngược (xem globals.css).
+ *   2. Chờ đủ dãy rồi mới `router.push` — không có view transition nào cả, vì
+ *      trang cũ lúc này đã trống, trượt thêm một nhịp là thừa.
+ *   3. AppShell thấy cờ `enteringApp` thì gắn `.enter-stagger` lên <main> để
+ *      các khối của trang đích nảy lên lần lượt, rồi tự gỡ.
+ *
+ * Hiệu ứng giữa các trang chức năng KHÔNG đụng tới: chúng vẫn đi đường
+ * SLIDE_FORWARD / SLIDE_BACK như cũ.
+ */
+export const ENTER_APP = 'enter-app'
+
+/**
+ * Chờ CHẶNG DÀI NHẤT của cú rời trang, không phải chặng đầu tiên xong.
+ *
+ * Hai thứ chạy song song khi thoát trang giới thiệu, cả hai khai trong
+ * globals.css:
+ *   • nội dung nảy ngược: `--pop-last` (6) * `--pop-out-step` (32ms)
+ *     + `--pop-out-dur` (220ms) = 412ms
+ *   • trademark thụt vào sau con dấu, dòng "HUB" đi sau cùng:
+ *     `--wordmark-out-delay` (60ms) + `--wordmark-stagger` (200ms)
+ *     + `--wordmark-out-dur` (350ms) = 610ms  <- vẫn dài hơn, chính nó quyết định
+ *
+ * 630ms là 610 cộng một nhịp dư. Đặt ngắn hơn là điều hướng lúc chữ còn đang
+ * trượt dở, và nó bị cắt ngang giữa chừng vì bên ứng dụng không có trademark
+ * nào để nối tiếp. Đổi bất kỳ biến nào ở trên thì tính lại con số này.
+ */
+const POP_OUT_MS = 630
+
+/**
+ * Cờ một lần: "vừa bước từ trang giới thiệu vào".
+ *
+ * Là biến cấp module chứ không phải sessionStorage, vì nó chỉ cần sống qua ĐÚNG
+ * một lần điều hướng phía client — mà điều hướng phía client thì không nạp lại
+ * JS, nên biến còn nguyên. sessionStorage thì sống qua cả F5 và sẽ bắn hiệu ứng
+ * vào một lần tải trang chẳng liên quan gì.
+ */
+let enteringApp = false
+
+/** AppShell đọc lúc render, rồi gọi `clearEnteringApp()` trong effect. */
+export function isEnteringApp() {
+  return enteringApp
+}
+
+export function clearEnteringApp() {
+  enteringApp = false
+}
 
 /**
  * Trần chờ trang đích commit. Hết hạn thì đóng transition lại cho chắc.
@@ -116,6 +185,32 @@ function useSlideNavigation(): StartSlide {
 
   return useCallback(
     (href, type) => {
+      /*
+        VÀO ỨNG DỤNG: chạy hiệu ứng thoát trên DOM thật rồi mới đi, không dùng
+        view transition. Lý do đầy đủ ở chỗ khai ENTER_APP.
+      */
+      if (type === ENTER_APP) {
+        enteringApp = true
+
+        /*
+          Giảm chuyển động: bỏ luôn phần chờ. Giữ `setTimeout` mà tắt animation
+          thì người dùng chỉ nhận được 420ms màn hình đứng im không lý do.
+        */
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          router.push(href)
+          return
+        }
+
+        document.documentElement.classList.add('pop-leaving')
+        /*
+          Class được gỡ ở AppShell lúc trang đích mount, KHÔNG phải ở đây: gỡ
+          sớm là những element chưa tới lượt bật lại đầy đủ trong đúng khung
+          hình cuối trước khi trang đổi.
+        */
+        window.setTimeout(() => router.push(href), POP_OUT_MS)
+        return
+      }
+
       /*
         Dạng object có `types` chỉ có ở Chromium 125+ trở lên. Trình duyệt không
         hỗ trợ thì điều hướng thẳng — mất hiệu ứng chứ không hỏng gì.
