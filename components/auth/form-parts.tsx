@@ -1,7 +1,7 @@
 'use client'
 
 import { useFormStatus } from 'react-dom'
-import { CONSENT_PURPOSES, type ConsentPurpose } from '@/lib/enums'
+import { CONSENT_FORM_PURPOSES } from '@/lib/enums'
 import { LockIcon, WarningIcon } from '../shell/icons'
 
 export function Field({
@@ -78,30 +78,30 @@ export function SubmitButton({
   )
 }
 
-const CONSENT_LABELS: Record<ConsentPurpose, { title: string; body: string; required: boolean }> = {
+/*
+  CHỈ chứa các mục đích được hỏi bằng ô tích trên form này — xem
+  `CONSENT_FORM_PURPOSES` trong lib/enums.ts.
+
+  Ba mục còn lại KHÔNG biến mất, chỉ đổi chỗ hỏi:
+    • ANALYTICS và LEADERBOARD_PUBLIC nằm trong Điều khoản sử dụng, mà điều
+      khoản là bắt buộc mới tạo được tài khoản.
+    • CALENDAR_ACCESS hỏi đúng lúc bấm kết nối ở /lich-on.
+
+  Cả ba vẫn bật/tắt được ở trang Cài đặt, nên quyền rút lại từng mục theo NĐ 13
+  không mất đi đâu cả.
+*/
+const CONSENT_LABELS: Record<
+  (typeof CONSENT_FORM_PURPOSES)[number],
+  { title: string; body: string; required: boolean }
+> = {
   SERVICE_ESSENTIAL: {
     title: 'Vận hành dịch vụ',
     body: 'Lưu bài làm, chấm điểm, khôi phục phiên thi.',
     required: true,
   },
-  ANALYTICS: {
-    title: 'Phân tích sử dụng',
-    body: 'Thống kê ẩn danh để cải thiện chất lượng đề.',
-    required: false,
-  },
   MARKETING_EMAIL: {
     title: 'Email tiếp thị',
     body: 'Thông báo đề mới và tính năng mới.',
-    required: false,
-  },
-  LEADERBOARD_PUBLIC: {
-    title: 'Hiện tên trên bảng xếp hạng',
-    body: 'Cho phép hiển thị tên bạn khi so sánh thành tích.',
-    required: false,
-  },
-  CALENDAR_ACCESS: {
-    title: 'Kết nối Google Calendar',
-    body: 'Tạo lịch ôn riêng trong tài khoản Google của bạn.',
     required: false,
   },
 }
@@ -116,12 +116,12 @@ export function ConsentChecklist() {
     <fieldset className="rounded-card bg-soft p-5">
       <legend className="px-1 text-[15px] font-semibold">Sự đồng ý xử lý dữ liệu</legend>
       <p className="mt-1 mb-4 text-[13.5px] leading-relaxed text-muted">
-        Theo Nghị định 13/2023/NĐ-CP, bạn đồng ý riêng cho từng mục đích. Các mục không bắt buộc
-        đang tắt — bật cái nào tuỳ bạn.
+        Theo Nghị định 13/2023/NĐ-CP, bạn đồng ý riêng cho từng mục đích. Các mục đích khác được
+        mô tả trong Điều khoản sử dụng bên dưới, và bạn bật/tắt được tất cả trong phần Cài đặt.
       </p>
 
       <div className="flex flex-col gap-2.5">
-        {CONSENT_PURPOSES.map((purpose) => {
+        {CONSENT_FORM_PURPOSES.map((purpose) => {
           const meta = CONSENT_LABELS[purpose]
           return (
             <label

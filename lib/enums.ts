@@ -178,6 +178,36 @@ export const CONSENT_PURPOSES = [
 ] as const
 export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number]
 
+/**
+ * MỖI MỤC ĐÍCH ĐƯỢC HỎI Ở ĐÂU — ba nhóm rời nhau, hợp lại đúng bằng
+ * `CONSENT_PURPOSES`.
+ *
+ * Trang Cài đặt vẫn liệt kê CẢ NĂM và bật/tắt được từng cái. Phân nhóm dưới đây
+ * chỉ nói *lần đầu* mỗi mục đích được hỏi ở đâu, không phải nơi duy nhất người
+ * dùng kiểm soát nó — quyền rút lại từng mục vẫn nguyên vẹn theo NĐ 13.
+ */
+
+/** Hiện thành ô tích riêng trên form đăng ký. */
+export const CONSENT_FORM_PURPOSES = ['SERVICE_ESSENTIAL', 'MARKETING_EMAIL'] as const
+
+/**
+ * Nằm trong nội dung Điều khoản sử dụng — bấm đồng ý điều khoản là đồng ý luôn.
+ *
+ * Chỉ gộp được vì Điều khoản là BẮT BUỘC ở cả hai luồng tạo tài khoản (đăng ký
+ * bằng mật khẩu và hoàn tất hồ sơ sau khi đăng nhập Google), nên không có đường
+ * nào tạo được tài khoản mà chưa đọc tới phần mô tả hai mục này.
+ */
+export const CONSENT_TERMS_PURPOSES = ['ANALYTICS', 'LEADERBOARD_PUBLIC'] as const
+
+/*
+  CALENDAR_ACCESS KHÔNG nằm trong nhóm nào ở trên, và đó là chủ ý.
+
+  Nó được hỏi ĐÚNG LÚC dùng: `/api/calendar/callback` ghi granted=true ngay sau
+  khi người dùng bấm qua màn hình cấp quyền của Google, và `disconnectCalendar`
+  ghi lại false. Ghi sẵn granted=true lúc đăng ký là lưu một sự đồng ý cho việc
+  chưa hề xảy ra — bản ghi consent phải phản ánh đúng thực tế xử lý dữ liệu.
+*/
+
 export const REMINDER_TYPES = [
   'STUDY_SESSION',
   'EXAM_COUNTDOWN',

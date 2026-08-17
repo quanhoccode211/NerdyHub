@@ -11,11 +11,46 @@ import { isMinor, isPlausibleBirthDate } from '@/lib/auth/age'
 import { recordConsents } from '@/lib/auth/consent'
 import { guardianConsentEmail, sendEmail } from '@/lib/email'
 import { TERMS_VERSION } from '@/lib/legal/terms'
-import { CONSENT_PURPOSES, type ConsentPurpose } from '@/lib/enums'
+import {
+  CONSENT_FORM_PURPOSES,
+  CONSENT_TERMS_PURPOSES,
+  type ConsentPurpose,
+} from '@/lib/enums'
 
 export type FormState = { error?: string; fieldErrors?: Record<string, string> } | null
 
 const GUARDIAN_TOKEN_DAYS = 7
+
+/**
+ * Đọc lựa chọn đồng ý từ form đăng ký / hoàn tất hồ sơ.
+ *
+ * Hai nguồn, và chúng khác nhau về bản chất:
+ *
+ *   • `CONSENT_FORM_PURPOSES` — người dùng tự tích. Không tích thì false.
+ *   • `CONSENT_TERMS_PURPOSES` — nằm trong nội dung Điều khoản sử dụng, nên
+ *     được đặt true. CHỈ đúng vì cả hai luồng gọi hàm này đều đã chặn cứng
+ *     `termsAccepted !== 'yes'` trước đó — không có đường nào tới đây mà chưa
+ *     đồng ý điều khoản. Ai bỏ chốt chặn kia thì phải sửa luôn chỗ này, nếu
+ *     không hệ thống sẽ ghi nhận một sự đồng ý chưa từng được đưa ra.
+ *
+ * CALENDAR_ACCESS không nằm trong cả hai: nó được ghi lúc người dùng bấm kết
+ * nối và cấp quyền ở màn hình Google. Bỏ trống ở đây thì `recordConsents` ghi
+ * false, đúng thực tế tại thời điểm tạo tài khoản.
+ *
+ * Trẻ dưới 16 chưa có xác nhận giám hộ vẫn được `recordConsents` ép
+ * LEADERBOARD_PUBLIC và MARKETING_EMAIL về false — chốt đó nằm ở tầng dưới nên
+ * việc gộp vào điều khoản không lách qua được.
+ */
+function consentsFromForm(formData: FormData): Partial<Record<ConsentPurpose, boolean>> {
+  const granted: Partial<Record<ConsentPurpose, boolean>> = {}
+  for (const purpose of CONSENT_FORM_PURPOSES) {
+    granted[purpose] = formData.get(`consent_${purpose}`) === 'on'
+  }
+  for (const purpose of CONSENT_TERMS_PURPOSES) {
+    granted[purpose] = true
+  }
+  return granted
+}
 
 const registerSchema = z
   .object({
@@ -102,12 +137,7 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
     },
   })
 
-  // Consent tách bạch từng mục đích, các mục không bắt buộc mặc định TẮT
-  const granted: Partial<Record<ConsentPurpose, boolean>> = {}
-  for (const purpose of CONSENT_PURPOSES) {
-    granted[purpose] = formData.get(`consent_${purpose}`) === 'on'
-  }
-  await recordConsents(user.id, granted)
+  await recordConsents(user.id, consentsFromForm(formData))
 
   if (minor && guardianEmail) {
     await issueGuardianConsent(user.id, name, guardianEmail)
@@ -219,11 +249,7 @@ export async function completeProfileAction(
     },
   })
 
-  const granted: Partial<Record<ConsentPurpose, boolean>> = {}
-  for (const purpose of CONSENT_PURPOSES) {
-    granted[purpose] = formData.get(`consent_${purpose}`) === 'on'
-  }
-  await recordConsents(user.id, granted)
+  await recordConsents(user.id, consentsFromForm(formData))
 
   if (minor && parsed.data.guardianEmail) {
     await issueGuardianConsent(user.id, user.name ?? 'Người dùng', parsed.data.guardianEmail)
