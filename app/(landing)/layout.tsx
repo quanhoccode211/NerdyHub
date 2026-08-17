@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { BRAND_LOGO_SIZE, LogoMark } from '@/components/shell/icons'
-import { BRAND_VT_NAME } from '@/components/shell/nav-slide'
+import { BRAND_VT_NAME, PAGE_CONTENT_STYLE } from '@/components/shell/nav-slide'
 
 /**
  * Khung riêng cho trang giới thiệu.
@@ -52,7 +52,12 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
         {/* min-h-0: cụm minh hoạ bên trong co giãn bằng flex-1, mà flex item mặc
             định là `min-height: auto` — thiếu min-h-0 ở BẤT KỲ mắt xích nào trên
             chuỗi thì cả chuỗi không chịu co và trang tràn khỏi h-screen. */}
-        <main className="flex min-h-0 flex-1 flex-col">{children}</main>
+        {/* Cùng `view-transition-name` với <main> của AppShell: trình duyệt ghép
+            cặp theo TÊN nên hero bên này và nội dung bên kia nối được vào nhau,
+            dù hai khung là hai layout chẳng dính dáng gì tới nhau về mặt React. */}
+        <main className="flex min-h-0 flex-1 flex-col" style={PAGE_CONTENT_STYLE}>
+          {children}
+        </main>
       </div>
     </div>
   )

@@ -6,7 +6,14 @@ import { useEffect, useState, useTransition } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import { clearGuestIdentityAction } from '@/app/actions/sign-out'
 import { ThemeToggle } from './theme-toggle'
-import { ACTIVE_PILL_VT_NAME, BRAND_VT_NAME, TAB_BACK, TAB_FORWARD, TabSlide } from './nav-slide'
+import {
+  ACTIVE_PILL_VT_NAME,
+  BRAND_VT_NAME,
+  PAGE_CONTENT_STYLE,
+  SLIDE_BACK,
+  SLIDE_FORWARD,
+  SlideLink,
+} from './nav-slide'
 import {
   BellIcon,
   BookIcon,
@@ -99,7 +106,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {NAV.map(({ href, label, Icon }, i) => {
               const active = pathname === href || pathname.startsWith(`${href}/`)
               return (
-                <Link
+                <SlideLink
                   key={href}
                   href={href}
                   data-active={active}
@@ -118,7 +125,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     trượt tới — đúng hướng, vì từ đó bấm tab nào cũng là rời một
                     nhánh con để về mặt bằng chính.
                   */
-                  transitionTypes={[i > activeIndex ? TAB_FORWARD : TAB_BACK]}
+                  type={i > activeIndex ? SLIDE_FORWARD : SLIDE_BACK}
                   /* Chỉ pill đang mở mới mang tên — xem ACTIVE_PILL_VT_NAME. */
                   style={active ? { viewTransitionName: ACTIVE_PILL_VT_NAME } : undefined}
                 >
@@ -127,7 +134,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="nav-tip" aria-hidden="true">
                     {label}
                   </span>
-                </Link>
+                </SlideLink>
               )
             })}
           </nav>
@@ -147,8 +154,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           phải đều đứng nguyên — chúng là cái khung để mắt bám vào, khung mà trôi
           theo thì hiệu ứng đọc ra như bị đẩy cả cửa sổ.
         */}
-        <main className="mt-6 md:mt-7">
-          <TabSlide routeKey={pathname}>{children}</TabSlide>
+        <main className="mt-6 md:mt-7" style={PAGE_CONTENT_STYLE}>
+          {children}
         </main>
       </div>
     </div>

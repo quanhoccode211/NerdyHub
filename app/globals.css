@@ -712,14 +712,20 @@ body {
 }
 
 /* ============================================================================
-   VÀO ỨNG DỤNG — cả khung trượt sang trái.
+   ĐỔI TRANG — vùng nội dung trượt ngang.
 
-   Chỉ chạy khi điều hướng mang transition type `nav-forward`, hiện chỉ có nút
-   "Vào học thôi" ở cuối hero gắn. Dựng bằng <ViewTransition> của React, xem
-   components/shell/nav-slide.tsx.
+   Phủ cả đổi tab lẫn bước từ trang giới thiệu vào ứng dụng, bằng MỘT cơ chế:
+   View Transitions API của trình duyệt. Không dùng <ViewTransition> của React —
+   lý do ghi đầy đủ ở components/shell/nav-slide.tsx.
 
-   Thời lượng cố ý LỆCH NHAU: khung cũ mờ đi nhanh (150ms) để khỏi tranh chỗ,
-   khung mới hiện chậm hơn (220ms) và chờ khung cũ đi hẳn rồi mới rõ dần. Riêng
+   MỌI rule dưới đây đều khoanh trong `:active-view-transition-type(slide-*)`,
+   và đó là điều bắt buộc chứ không phải cho gọn: trang này còn một view
+   transition khác đã chạy từ trước — nút sáng/tối (xem khối ĐỔI GIAO DIỆN MƯỢT
+   bên dưới). Lần chuyển đó KHÔNG mang type nào, nên rule không khoanh sẽ đè
+   luôn vào nó và làm hỏng cú cross-fade nền vốn đang chạy tốt.
+
+   Thời lượng cố ý LỆCH NHAU: trang cũ mờ đi nhanh (150ms) để khỏi tranh chỗ,
+   trang mới hiện chậm hơn (220ms) và chờ trang cũ đi hẳn rồi mới rõ dần. Riêng
    phần DI CHUYỂN thì cả hai cùng 420ms nên mắt đọc ra một cú trượt liền mạch
    chứ không phải hai animation rời.
    ========================================================================= */
@@ -741,31 +747,31 @@ body {
   }
 }
 
-::view-transition-old(.nav-forward) {
-  /* `reverse` lật keyframe lại, nên khung cũ chạy TỪ 0 RA -88px: lùi sang trái */
+/* --- Đi tới: nội dung cũ lùi sang trái, nội dung mới trôi vào từ phải --- */
+:root:active-view-transition-type(slide-forward)::view-transition-old(page-content) {
+  /* `reverse` lật keyframe, nên trang cũ chạy TỪ 0 RA -88px: lùi sang trái */
   --nav-slide-offset: -88px;
   animation:
     150ms ease-in both nav-slide-fade reverse,
     420ms cubic-bezier(0.4, 0, 0.2, 1) both nav-slide reverse;
 }
 
-::view-transition-new(.nav-forward) {
-  /* Khung mới trôi vào từ bên phải */
+:root:active-view-transition-type(slide-forward)::view-transition-new(page-content) {
   --nav-slide-offset: 88px;
   animation:
     220ms ease-out 150ms both nav-slide-fade,
     420ms cubic-bezier(0.4, 0, 0.2, 1) both nav-slide;
 }
 
-/* Chiều ngược lại — quay về một tab nằm bên trái trên rail */
-::view-transition-old(.nav-back) {
+/* --- Quay lại: đúng chiều ngược lại --- */
+:root:active-view-transition-type(slide-back)::view-transition-old(page-content) {
   --nav-slide-offset: 88px;
   animation:
     150ms ease-in both nav-slide-fade reverse,
     420ms cubic-bezier(0.4, 0, 0.2, 1) both nav-slide reverse;
 }
 
-::view-transition-new(.nav-back) {
+:root:active-view-transition-type(slide-back)::view-transition-new(page-content) {
   --nav-slide-offset: -88px;
   animation:
     220ms ease-out 150ms both nav-slide-fade,
@@ -773,66 +779,87 @@ body {
 }
 
 /*
-  Ô ĐEN đánh dấu tab đang mở — trượt từ pill cũ sang pill mới.
-
-  Không có keyframe nào ở đây, và đó là ý chính: hai pill ở hai đầu lần chuyển
-  mang cùng `view-transition-name`, nên trình duyệt tự dựng animation chạy từ
-  hình chữ nhật cũ sang hình chữ nhật mới. Ta chỉ chỉnh nhịp.
-
-  Nhanh hơn phần nội dung (280ms so với 420ms): ô đen là thứ trả lời câu "tôi
-  vừa bấm cái nào", nên nó phải tới đích trước khi mắt kịp đi tìm.
-
-  `z-index` để nó chạy phía trên vùng nội dung đang trượt, nếu không nó bị ảnh
-  chụp của nội dung che mất một đoạn giữa đường.
+  Nội dung mỗi trang cao thấp khác nhau, và mặc định trình duyệt NẮN ảnh chụp cũ
+  cho vừa khung mới — chữ bị kéo giãn méo mó ngay giữa hiệu ứng. Giữ nguyên tỉ
+  lệ gốc của từng ảnh và canh mép trên, chỗ thiếu để trống, mắt không kịp thấy
+  vì hai ảnh đều đang mờ dần.
 */
-::view-transition-group(nav-active-pill) {
-  animation-duration: 280ms;
-  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 90;
-}
+:root:is(
+  :active-view-transition-type(slide-forward),
+  :active-view-transition-type(slide-back)
+) {
+  &::view-transition-group(page-content) {
+    animation-duration: 420ms;
+  }
+  &::view-transition-old(page-content),
+  &::view-transition-new(page-content) {
+    height: auto;
+    object-fit: none;
+    object-position: top left;
+  }
 
-/*
-  Con dấu thương hiệu là MỐC NEO — nó không được nhúc nhích.
+  /*
+    Ô ĐEN đánh dấu tab đang mở — trượt từ pill cũ sang pill mới.
 
-  Không có mốc đứng yên thì cả màn hình trượt cùng lúc, và người dùng mất điểm
-  tựa để hiểu rằng NỘI DUNG vừa đổi chứ không phải cả cửa sổ bị đẩy đi.
+    Không có keyframe nào ở đây, và đó là ý chính: hai pill ở hai đầu lần chuyển
+    mang cùng `view-transition-name`, nên trình duyệt tự dựng animation chạy từ
+    hình chữ nhật cũ sang hình chữ nhật mới. Ta chỉ chỉnh nhịp.
 
-  `display: none` cho ảnh cũ: hai con dấu chồng nhau trong lúc chuyển sẽ loé
-  lên một nhịp vì chúng nằm đúng cùng chỗ. `z-index` để nó nổi trên phần trượt.
-*/
-::view-transition-group(brand-logo) {
-  animation: none;
-  z-index: 100;
-}
+    360ms là đo từ video tham chiếu user gửi: ô đen ở đó đi hết một nhịp trong
+    khoảng 4 khung hình ở 10fps. Vẫn nhanh hơn phần nội dung (420ms) — ô đen là
+    thứ trả lời câu "tôi vừa bấm cái nào", nên nó phải tới đích trước khi mắt
+    kịp đi tìm.
 
-::view-transition-old(brand-logo) {
-  display: none;
-}
+    `z-index` để nó chạy phía trên vùng nội dung đang trượt, nếu không nó bị ảnh
+    chụp của nội dung che mất một đoạn giữa đường.
+  */
+  &::view-transition-group(nav-active-pill) {
+    animation-duration: 360ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 90;
+  }
 
-::view-transition-new(brand-logo) {
-  animation: none;
+  /*
+    Nhãn bên trong ô đen đổi nhanh hơn cái hộp. Ở video tham chiếu, ô đen đi tới
+    đâu là chữ ở đó đã trắng sẵn — nghĩa là ảnh mới hiện gần hết ngay từ đầu
+    hành trình, chứ không mờ dần suốt cả quãng. Ép cặp ảnh đổi xong trong 120ms
+    đầu để bắt đúng cảm giác đó.
+  */
+  &::view-transition-old(nav-active-pill) {
+    animation: 120ms ease-out both nav-slide-fade reverse;
+  }
+  &::view-transition-new(nav-active-pill) {
+    animation: 120ms ease-out both nav-slide-fade;
+  }
+
+  /*
+    Con dấu thương hiệu là MỐC NEO — nó không được nhúc nhích.
+
+    Không có mốc đứng yên thì cả màn hình trượt cùng lúc, và người dùng mất điểm
+    tựa để hiểu rằng NỘI DUNG vừa đổi chứ không phải cả cửa sổ bị đẩy đi.
+
+    `display: none` cho ảnh cũ: hai con dấu chồng nhau trong lúc chuyển sẽ loé
+    lên một nhịp vì chúng nằm đúng cùng chỗ. `z-index` để nó nổi trên phần trượt.
+  */
+  &::view-transition-group(brand-logo) {
+    animation: none;
+    z-index: 100;
+  }
+  &::view-transition-old(brand-logo) {
+    display: none;
+  }
+  &::view-transition-new(brand-logo) {
+    animation: none;
+  }
 }
 
 /*
   Lớp phủ của view transition ăn hết sự kiện chuột, nên cú bấm nào rơi vào giữa
-  lúc animation chạy sẽ mất trắng. Trả lại cho trang bên dưới.
+  lúc animation chạy sẽ mất trắng. Trả lại cho trang bên dưới. Không khoanh theo
+  type: điều này đúng cho mọi lần chuyển, kể cả lúc đổi sáng/tối.
 */
 ::view-transition {
   pointer-events: none;
-}
-
-/*
-  Trượt ngang là kiểu chuyển động dễ gây khó chịu nhất với người nhạy cảm
-  chuyển động — nó mô phỏng cả khung nhìn dịch chuyển. Tắt thời lượng là quay
-  về hành vi mặc định của trình duyệt: đổi trang tức thì.
-*/
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(*),
-  ::view-transition-new(*),
-  ::view-transition-group(*) {
-    animation-duration: 0s !important;
-    animation-delay: 0s !important;
-  }
 }
 
 /* ============================================================================
@@ -934,10 +961,19 @@ html.theme-transition .theme-switch-icon {
   html.theme-transition * {
     transition: none;
   }
-  ::view-transition-old(root),
-  ::view-transition-new(root),
+  /*
+    `*` phủ cả hai hiệu ứng: cross-fade sáng/tối và cú trượt khi đổi trang. Phải
+    kể riêng `old`/`new` chứ không chỉ `group`: tắt animation của group mới chỉ
+    chặn phần DI CHUYỂN, còn keyframe trượt/mờ nằm trên old/new vẫn chạy tiếp.
+
+    Trượt ngang là kiểu chuyển động dễ gây khó chịu nhất với người nhạy cảm
+    chuyển động, vì nó mô phỏng cả khung nhìn dịch chuyển. Tắt hết là quay về
+    hành vi mặc định của trình duyệt: đổi trang tức thì.
+  */
+  ::view-transition-old(*),
+  ::view-transition-new(*),
   ::view-transition-group(*) {
-    animation: none;
+    animation: none !important;
   }
 }
 
