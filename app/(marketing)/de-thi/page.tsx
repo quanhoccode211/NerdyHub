@@ -4,12 +4,13 @@ import { PageHeader } from '@/components/shell/app-shell'
 import { SaveRecordHint } from '@/components/catalog/save-record-hint'
 import { ChevronRightIcon } from '@/components/shell/icons'
 import { getExamsWithCounts } from '@/lib/queries'
-import { cardTone, formatNumber } from '@/lib/format'
+import { formatNumber } from '@/lib/format'
 import {
   EXAM_CATEGORIES,
   EXAM_CATEGORY_LABELS,
   LANGUAGE_FLAGS,
   LANGUAGE_LABELS,
+  languageStripe,
   type ExamCategory,
   type Language,
 } from '@/lib/enums'
@@ -62,42 +63,58 @@ export default async function ExamCatalogPage() {
             </h2>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {group.map((exam, i) => {
-                const tone = cardTone(i)
-                return (
-                  <Link
-                    key={exam.id}
-                    href={`/de-thi/${exam.slug}`}
-                    className={`${tone.bg} group rounded-card p-7 text-on-tone transition-transform hover:-translate-y-1`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="text-xl font-semibold">
-                          {exam.name}{' '}
-                          <span aria-hidden="true">{LANGUAGE_FLAGS[exam.language as Language]}</span>
-                        </h3>
-                        <p className="mt-1 truncate text-[14px] text-on-tone/55">{exam.fullName}</p>
-                      </div>
-                      <span className="flex-none rounded-[14px] bg-on-tone/10 px-3 py-1.5 text-[13.5px] font-semibold">
-                        {LANGUAGE_LABELS[exam.language as Language]}
-                      </span>
-                    </div>
+              {group.map((exam) => (
+                /*
+                  Thẻ TRẮNG + một dải màu dọc bên trái, thay cho bản nền pastel
+                  đặc trước đây.
 
-                    <p className="mt-4 line-clamp-3 text-[15px] leading-relaxed text-on-tone/65">
-                      {exam.description}
-                    </p>
+                  Nền pastel đổi màu theo THỨ TỰ thẻ trong danh sách (`cardTone(i)`),
+                  nên cùng một kỳ thi lại mang màu khác nhau tuỳ nó đứng thứ mấy —
+                  màu không nói lên điều gì và người dùng không nhớ được. Dải màu
+                  thì bám theo NGÔN NGỮ, nên VSTEP ở đâu cũng là dải Anh.
 
-                    <div className="mt-5 flex items-center justify-between border-t border-on-tone/10 pt-4">
-                      <span className="text-[15px] font-medium">
-                        {exam.paperCount} đề · {formatNumber(exam.attemptTotal)} lượt
-                      </span>
-                      <span className="flex items-center gap-1 text-[15px] font-semibold opacity-70 transition-opacity group-hover:opacity-100">
-                        Xem <ChevronRightIcon size={15} />
-                      </span>
+                  `overflow-hidden` để dải màu bị cắt theo góc bo của thẻ; thiếu
+                  nó thì dải chạy thẳng ra ngoài và đâm thủng hai góc trái.
+                */
+                <Link
+                  key={exam.id}
+                  href={`/de-thi/${exam.slug}`}
+                  className="card group relative overflow-hidden py-7 pr-7 pl-8 transition-transform hover:-translate-y-1"
+                >
+                  {/* Dải màu tượng trưng — xem languageStripe() trong lib/enums.ts */}
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-y-0 left-0 w-[6px]"
+                    style={{ backgroundImage: languageStripe(exam.language as Language) }}
+                  />
+
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="text-xl font-semibold">
+                        {exam.name}{' '}
+                        <span aria-hidden="true">{LANGUAGE_FLAGS[exam.language as Language]}</span>
+                      </h3>
+                      <p className="mt-1 truncate text-[14px] text-muted">{exam.fullName}</p>
                     </div>
-                  </Link>
-                )
-              })}
+                    <span className="pill flex-none bg-soft text-[13.5px] text-muted-strong">
+                      {LANGUAGE_LABELS[exam.language as Language]}
+                    </span>
+                  </div>
+
+                  <p className="mt-4 line-clamp-3 text-[15px] leading-relaxed text-muted-strong">
+                    {exam.description}
+                  </p>
+
+                  <div className="mt-5 flex items-center justify-between border-t border-line pt-4">
+                    <span className="text-[15px] font-medium">
+                      {exam.paperCount} đề · {formatNumber(exam.attemptTotal)} lượt
+                    </span>
+                    <span className="flex items-center gap-1 text-[15px] font-semibold text-muted-strong transition-colors group-hover:text-ink">
+                      Xem <ChevronRightIcon size={15} />
+                    </span>
+                  </div>
+                </Link>
+              ))}
             </div>
           </section>
         )

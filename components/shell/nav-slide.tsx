@@ -141,10 +141,21 @@ export function SlideLink({
   children: React.ReactNode
 } & Omit<React.ComponentProps<typeof Link>, 'href' | 'onClick'>) {
   const slide = useSlideNavigation()
+  const router = useRouter()
 
   return (
     <Link
       href={href}
+      /*
+        Nạp trước ngay khi con trỏ chạm vào, đừng đợi tới lúc bấm.
+        Rê chuột tới rồi bấm mất vài trăm mili giây — vừa đủ để route kịp về,
+        và cú bấm thành ra không phải chờ gì.
+
+        LƯU Ý KHI ĐO: `next dev` TẮT prefetch, nên ở môi trường dev dòng này
+        không đổi được gì cả. Chỉ thấy tác dụng ở bản build production.
+      */
+      onPointerEnter={() => router.prefetch(href)}
+      onFocus={() => router.prefetch(href)}
       onClick={(e) => {
         /* Nhường cho trình duyệt: mở tab mới, cửa sổ mới, tải về, chuột giữa */
         if (

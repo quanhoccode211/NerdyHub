@@ -147,7 +147,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         style={{ viewTransitionName: ACTIVE_PILL_VT_NAME }}
                       />
                     ) : null}
-                    <Icon size={22} />
+                    {/* 28 chứ không 22: pill đã to gấp rưỡi, icon cũ trông lọt thỏm
+                        giữa khoảng trống. Đổi số này thì sửa luôn padding của
+                        .nav-pill để giữ nguyên kích thước pill — xem globals.css. */}
+                    <Icon size={28} />
                     {/* Hiện sau khi rê chuột và giữ 2 giây — xem .nav-tip */}
                     <span className="nav-tip" aria-hidden="true">
                       {label}

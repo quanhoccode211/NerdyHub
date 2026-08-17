@@ -456,7 +456,12 @@ body {
       nữa: rộng hơn thì hàng tab kéo gần hết bề ngang header và ô đen phải bay
       một quãng xa mỗi lần đổi tab, chuyển động dài ra mà không nói thêm gì.
     */
-    padding: 1.125rem 1.6rem;
+    /*
+      Tính NGƯỢC từ kích thước pill mong muốn (75x60) trừ đi icon 28px và 2px
+      viền, chứ không phải chọn đại một số cho đẹp mắt: icon vừa được nống từ 22
+      lên 28, mà pill thì phải giữ nguyên cỡ đã chốt.
+    */
+    padding: 0.9375rem 1.4rem;
     font-size: 0.9375rem;
     font-weight: 500;
     color: var(--color-muted-strong);

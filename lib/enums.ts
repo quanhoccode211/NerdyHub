@@ -99,6 +99,43 @@ export const LANGUAGE_FLAGS: Record<Language, string> = {
   VI: '🇻🇳',
 }
 
+/**
+ * Dải màu dọc bên trái mỗi thẻ kỳ thi — xem app/(marketing)/de-thi/page.tsx.
+ *
+ * Là MÀU TƯỢNG TRƯNG, KHÔNG phải lá cờ thu nhỏ. Cờ thật có tỉ lệ, ngôi sao,
+ * huy hiệu; nhét vào một dải rộng 6px thì thành một vệt bẩn không đọc ra gì,
+ * mà lại còn dễ vẽ sai quốc kỳ của người ta. Chỉ lấy hai tới ba màu đặc trưng
+ * nhất rồi xếp thành băng cứng.
+ *
+ * Mã màu lấy đúng bảng màu chính thức của từng quốc kỳ, để dải màu không bị
+ * đọc thành "đỏ với vàng chung chung".
+ *
+ * Bám theo NGÔN NGỮ chứ không theo nước tổ chức, cùng nguyên tắc với
+ * `LANGUAGE_FLAGS` — kỳ thi mới thêm vào là tự có dải, không phải khai gì thêm.
+ */
+export const LANGUAGE_STRIPES: Record<Language, string[]> = {
+  EN: ['#012169', '#FFFFFF', '#C8102E'], // Anh — navy / trắng / đỏ
+  KO: ['#0047A0', '#FFFFFF', '#CD2E3A'], // Hàn — xanh / trắng / đỏ
+  JA: ['#FFFFFF', '#BC002D'], // Nhật — trắng / đỏ
+  ZH: ['#EE1C25', '#FFDE00'], // Trung — đỏ / vàng
+  DE: ['#000000', '#DD0000', '#FFCE00'], // Đức — đen / đỏ / vàng
+  VI: ['#DA251D', '#FFCD00'], // Việt Nam — đỏ / vàng sao
+}
+
+/**
+ * Dựng `linear-gradient` với các mốc màu TRÙNG NHAU ở mỗi ranh giới, để ra băng
+ * cứng chứ không phải chuyển màu mềm: `#a 0 33.3%, #b 33.3% 66.6%, …`.
+ *
+ * Gradient mềm sẽ trộn đỏ với vàng thành cam ở giữa — một màu không có trên lá
+ * cờ nào trong danh sách.
+ */
+export function languageStripe(language: Language): string {
+  const colors = LANGUAGE_STRIPES[language]
+  const step = 100 / colors.length
+  const stops = colors.map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`)
+  return `linear-gradient(180deg, ${stops.join(', ')})`
+}
+
 export const EXAM_CATEGORIES = ['LANGUAGE_CERT', 'NATIONAL_EXAM', 'APTITUDE'] as const
 export type ExamCategory = (typeof EXAM_CATEGORIES)[number]
 
