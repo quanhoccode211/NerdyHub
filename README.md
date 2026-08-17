@@ -201,9 +201,107 @@ render đúng một `<ThemeToggle />` (nó mang `theme-knob`).
 một view transition khác chạy từ trước — nút sáng/tối — và lần chuyển đó **không mang
 type nào**. Rule không khoanh sẽ đè vào nó và làm hỏng cú cross-fade nền.
 
-**Thời lượng ô đen và thời lượng đổi màu icon là MỘT cặp biến**, `--nav-pill-travel` /
-`--nav-pill-ease`, không phải hai con số gõ ở hai chỗ. Icon phải đổi xong đúng lúc ô đen
-tới nơi; hai chỗ khai riêng thì chúng lệch nhau, và đó đúng là chuyện đã xảy ra.
+**Thời lượng ô đen và thời lượng đổi màu icon là MỘT cặp biến** — `--nav-pill-travel` /
+`--nav-pill-ease`, và `--nav-pill-ink` tính bằng `calc()` từ cái đầu — chứ không phải hai
+con số gõ ở hai chỗ.
+
+Nhưng hai con số **không bằng nhau**, và đây là chỗ dễ sửa sai nhất: mốc của icon là lúc
+ô đen **phủ tới** nó, không phải lúc ô đen dừng. Ô đen rộng đúng bằng một pill, nên mép
+trước của nó chạm tâm icon đích ở quãng `1 − W/(2D)` của đường đi — với hai tab liền nhau
+là ngay giữa đường. Cho icon trắng hẳn ở mốc 100% nghĩa là suốt nửa sau của chuyển động
+icon mới trắng một nửa (≈`#afb5c0`) trong khi nền dưới nó đã đen đặc: đọc ra đúng là
+"icon sáng chậm hơn ô đen".
+
+**Thứ phải cắt ngắn là QUÃNG XÁM NHẠT, không phải tổng thời lượng.** Mọi phép nội suy xám
+đậm → trắng đều đi qua xám nhạt ở giữa, mà xám nhạt tương phản kém với *cả hai* nền nó
+nằm trên: nền rail sáng lúc ô đen chưa tới, và nền đen đặc lúc ô đen vừa phủ lên. Icon
+không hề bị ẩn — mỗi pill chỉ có **một** thẻ `<svg>`, `opacity` luôn `1`, ô đen là `<span>`
+rỗng ruột nằm *sau* icon — nhưng ở quãng đó nó nhạt gần bằng nền, nên đọc ra là "icon biến
+mất rồi hiện lại thành cái trắng". Rút tổng thời lượng chỉ **dời** quãng xám chứ không xoá.
+
+Nên chia làm ba phần, mỗi phần ¼ quãng bay của ô đen:
+
+| | |
+|---|---|
+| `--nav-pill-ink-hold` | 90ms — **giữ** nguyên màu tối, chờ ô đen bay tới |
+| `--nav-pill-ink` | 90ms — quãng đổi màu, tức quãng xám nhạt |
+| đích | 180ms = 50% quãng bay, đúng lúc mép ô đen chạm tâm icon |
+
+`--nav-pill-ink-ease` là `cubic-bezier(0.7, 0, 0.3, 1)` — **dốc ở giữa**, nán lại ở hai
+đầu (tối, rồi trắng) và lao qua khoảng giữa. Đây là chỗ **duy nhất** được phép lệch easing
+với ô đen, vì icon không còn "đi song song" với nó mà là một cú lật đúng lúc nó tới. Tính
+ra, khoảng icon nằm trong vùng xám 25–75% chỉ còn ~16ms (một khung hình ở 60fps), so với
+~40ms khi cho nó chạy suốt 180ms bằng đường cong chung.
+
+Đánh đổi có chủ ý: nhảy từ tab đầu sang tab cuối thì icon trắng xong trước lúc ô đen tới,
+và trắng trên nền rail sáng thì mờ đi một nhịp. Nhảy một hai tab là chuyện thường xuyên,
+nhảy hết rail là ngoại lệ — và "mờ một nhịp trên nền sáng" nhẹ hơn "đen trên đen" ngay
+giữa cú chuyển động mắt đang nhìn.
+
+**Đổi màu icon phải là `animation`, không thể chỉ là `transition`.** Transition chỉ chạy
+khi phần tử có sẵn một giá trị cũ để đi từ đó, mà rail bị **dựng lại từ đầu** mỗi lần đi
+qua ranh giới route group: `/de-thi` nằm ở `(marketing)`, năm tab còn lại ở `(app)`, nên
+mọi lần vào hay ra khỏi Kho đề đều cho ra sáu thẻ pill hoàn toàn mới (đo bằng cách đánh
+dấu từng DOM node rồi bấm — trong `(app)` node giữ nguyên, qua `(marketing)` thì mới hết).
+Phần tử mới toanh thì icon bật trắng ngay khung hình đầu, trắng trên nền rail sáng, tức
+mất hút cho tới lúc ô đen bay tới. `@keyframes nav-icon-ink` phủ cả hai trường hợp bằng
+một nhịp; transition ở `.nav-pill[data-active='true']` giữ lại làm đường lui cho trình
+duyệt không hỗ trợ View Transitions.
+
+`animation-fill-mode` phải là **`both`**, không phải `forwards`: phần `backwards` mới là
+thứ giữ màu tối trong 90ms `hold`. Thiếu nó thì ở trường hợp rail vừa dựng lại, màu tĩnh
+của phần tử là trắng, và icon sẽ trắng ngay từ đầu quãng chờ — đúng cái bệnh vừa chữa.
+
+### Bước từ trang giới thiệu vào ứng dụng KHÔNG trượt
+
+Đổi tab thì trượt. Còn `ENTER_APP` — chặng từ trang giới thiệu vào Tổng quan — chạy bằng
+cơ chế khác hẳn: các element của trang giới thiệu **rút đi lần lượt**, rồi các khối của
+trang đích **nảy lên lần lượt**.
+
+**Lý do không lồng được vào view transition:** trong lúc transition chạy, trang cũ chỉ là
+một **ảnh chụp tĩnh** — không có element riêng lẻ nào để mà cho biến mất lần lượt. Đây
+đúng là cạm bẫy "cái gì không có tên thì bị đóng băng" ở trên, nhìn từ một hướng khác.
+Nên hiệu ứng thoát phải chạy **trước** khi điều hướng, trên DOM thật, và chặng này không
+gọi `startViewTransition` lấy một lần.
+
+Ba nhịp:
+
+1. Bấm nút → gắn `.pop-leaving` lên `<html>`. CSS chạy `pop-in` với `reverse`, và thứ tự
+   cũng lộn: `--pop-last − --pop-i`. Thứ hiện ra sau cùng là thứ biến mất đầu tiên.
+2. Chờ hết dãy (`POP_OUT_MS` = 630ms) rồi `router.push`. Không trượt: trang cũ lúc này
+   đã trống, trượt thêm một nhịp là thừa.
+3. AppShell thấy cờ `enteringApp` thì gắn `.enter-stagger` lên `<main>`, các thẻ nảy lên
+   theo chỉ số ghép từ hai cấp (`--pop-row` của hàng, `--pop-col` của thẻ), rồi **tự gỡ
+   sau 900ms**.
+
+**Ba chỗ dễ làm hỏng:**
+
+- **Chiều ra phải là KEYFRAME KHÁC TÊN (`pop-out`), không phải `pop-in` +
+  `direction: reverse`.** Đây là lỗi đã làm hiệu ứng thoát không chạy một khung hình nào —
+  cả trang tắt phụt. Animation chỉ khởi động lại khi `animation-name` **đổi**; đổi mỗi
+  duration/direction/fill thì trình duyệt coi là vẫn animation cũ và chỉ cập nhật tham số.
+  Mà `pop-in` đã chạy xong từ lúc tải trang nên nó đang ở *after phase*; gắn thêm
+  `reverse` + `forwards` vào đó là trình duyệt vẽ ngay khung cuối của chiều ngược, tức
+  khung `from` của `pop-in`: `opacity: 0`. **Triệu chứng để nhận ra lần sau: hiệu ứng
+  không chạy mà nhảy thẳng tới trạng thái cuối, và chỉnh timing kiểu gì cũng không đổi.**
+- **`--pop-i` là CHỈ SỐ, không phải mili giây.** Trước đây mỗi element gõ
+  `animationDelay: '360ms'`. Đủ dùng cho một chiều, nhưng chiều ngược cần đúng dãy đó lộn
+  lại — mà một con số gõ cứng thì không lộn được. Thêm/bớt element có `--pop-i` thì phải
+  sửa `--pop-last` trên thẻ bọc của `(landing)/page.tsx`.
+- **Chiều ra dùng `forwards`, KHÔNG dùng `both`.** Trong lúc chờ tới lượt, element phải
+  còn nguyên trên màn hình; `both` fill ngược và giấu nó ngay từ đầu, thành ra cả trang
+  biến mất cùng lúc — mất sạch phần lần lượt.
+- **`.enter-stagger` BẮT BUỘC phải tự gỡ.** AppShell không unmount khi đổi tab giữa các
+  trang chức năng, nên class còn lại là mọi lần đổi tab sau đó cũng nảy một loạt thẻ,
+  tức đổi luôn hiệu ứng trượt vốn phải giữ nguyên. Cùng lý do, `.enter-stagger` chỉ nhắm
+  **từng thẻ** (`> header`, `> div > *`) chứ không nhắm cả hàng: hàng mờ dần trong khi
+  thẻ bên trong cũng mờ dần là hai lớp opacity chồng nhau.
+
+Cờ `enteringApp` là **biến cấp module**, không phải `sessionStorage`: nó chỉ cần sống qua
+đúng một lần điều hướng phía client, mà lần đó không nạp lại JS nên biến còn nguyên.
+`sessionStorage` thì sống qua cả F5 và sẽ bắn hiệu ứng vào một lần tải trang chẳng liên
+quan. AppShell đọc cờ **lúc render** chứ không phải trong effect — chờ tới effect thì các
+thẻ đã kịp vẽ ra đầy đủ một nhịp rồi mới nhảy về trong suốt, thành một cú nháy.
 
 ### Vài chi tiết nhỏ nhưng cố ý
 
@@ -212,6 +310,17 @@ tới nơi; hai chỗ khai riêng thì chúng lệch nhau, và đó đúng là c
 - **Hướng trượt đọc từ thứ tự tab trên rail**, không phải từ lịch sử duyệt. Các tab là
   mục ngang hàng; cho cái nào cũng trượt cùng một chiều thì chuyển động hoặc vô nghĩa,
   hoặc nói sai — mắt đọc "đi tiếp" trong khi người dùng vừa quay lại chỗ cũ.
+- **Tab đang mở KHÔNG phải link — nó là `<span>`.** Bấm lại chính tab đang đứng sẽ chạy
+  lại nguyên bộ hiệu ứng: ô đen bay từ pill đó về đúng pill đó, icon đổi màu một vòng,
+  nội dung trượt ra rồi trượt vào cùng một trang — một chuyển động không nói lên điều gì,
+  và người dùng đọc ra là giao diện bị nháy. Bỏ hẳn thẻ `<a>` chứ không chỉ chặn
+  `onClick`: chặn `onClick` vẫn còn chuột giữa, Ctrl+click, Enter khi focus bằng bàn phím
+  và menu chuột phải. `aria-current="page"` là cách chuẩn để báo "bạn đang ở đây" mà
+  không cần link.
+- **Hàng tab không cuộn ngang.** Từng có `overflow-x-auto` + `no-scrollbar` phòng màn hình
+  hẹp; bỏ rồi. Sáu icon là mốc điều hướng luôn phải thấy hết, mà thanh cuộn thì giấu bớt
+  tab đi và không để lại dấu hiệu nào cho biết còn tab ở ngoài rìa. `min-w-0` cũng bỏ
+  theo — chính nó cho phép hàng tab co nhỏ hơn nội dung, tức là điều kiện sinh ra cuộn.
 - **Ảnh chụp vùng nội dung giữ tỉ lệ gốc** (`object-fit: none`). Mặc định trình duyệt
   nắn ảnh cũ cho vừa khung mới, và chữ bị kéo giãn méo mó giữa hiệu ứng.
 - `SlideLink` vẫn là `<a href>` thật: chuột giữa, Ctrl+click và bộ thu thập của công cụ
@@ -220,6 +329,98 @@ tới nơi; hai chỗ khai riêng thì chúng lệch nhau, và đó đúng là c
   bỏ lớp phủ nằm đè vĩnh viễn.
 - `next dev` **tắt prefetch**, nên đo tốc độ chuyển tab ở môi trường dev luôn ra chậm
   hơn thực tế. Đo trên bản build production.
+
+---
+
+## Chữ
+
+Cả web chạy **một font duy nhất: Helvetica Neue bản việt hoá**, tự host qua `next/font/local`
+từ `app/fonts/`. Bản trước chạy hai font (Roboto Mono cho giao diện + Google Sans Flex cho
+`<p>`/`<li>`); lý do tách là Roboto Mono đều chiều rộng, đọc đoạn dài mỏi mắt — Helvetica
+Neue là font tỉ lệ nên lý do đó không còn, và token `--font-prose` cùng rule `p, li` đã bỏ.
+
+**Đo cmap trước khi tin vào tên file.** Ràng buộc cũ giữ nguyên: font phải phủ
+U+1EA0–U+1EF9, chỗ chứa nguyên âm hai dấu chồng nhau (`ế ệ ộ ợ ữ`). Ba file đang dùng đều
+phủ **90/90**. Đợt trước có một bộ "Helvetica" gửi kèm ba file Light / Compressed / Rounded
+chỉ 227 glyph và **0/90** dấu tiếng Việt — tên file không nói gì cả, phải đọc bảng cmap.
+
+### Thang độ đậm: 4 nấc Tailwind ↔ 3 file
+
+| Tailwind | `@theme` khai | File |
+|---|---|---|
+| `font-normal` | 400 | `HelveticaNeue.otf` |
+| `font-medium` | 500 | `HelveticaNeue-Medium.otf` |
+| `font-semibold` | **700** | `HelveticaNeue-Bold.otf` |
+| `font-bold` | 700 | `HelveticaNeue-Bold.otf` |
+
+`semibold` **gộp vào** `bold` vì Helvetica Neue vốn không có Semibold — thang của nó là
+UltraLight / Light / Roman / Medium / Bold. Đây là nấc duy nhất bị gộp, và nó được **khai
+thẳng trong `@theme`** chứ không để trình duyệt tự lùi: không khai thì nó vẫn lùi, nhưng
+lặng lẽ và theo hai chiều khác nhau — nấc 300 lùi *xuống* 400, nấc 600 nhảy *lên* 700. Ba
+rule CSS thô từng gõ `font-weight: 600` (`.btn-primary`, `.btn-secondary`, `.passage-body h3`)
+đã sửa thành 700 vì `@theme` không với tới chúng.
+
+Muốn thử hướng ngược lại — tiêu đề nhỏ và nút chính nhẹ đi, kiểu Neue cổ điển — thì đổi
+`--font-weight-semibold` thành `500`, một dòng, không phải sửa 54 chỗ trong TSX.
+
+### Siết chữ ở cỡ lớn
+
+Helvetica được vẽ cho chữ chì xếp sát, nên trên màn hình nó **lỏng ở cỡ lớn và bí ở cỡ
+nhỏ**. `@layer base` siết theo từng cấp tiêu đề (h1 −0.022em → h4 −0.006em), và
+`--tracking-wide` được nâng từ 0.025em lên **0.06em** cho nhãn HOA — chữ hoa Helvetica
+không có phần nhô lên nhô xuống để mắt bám, để nguyên mặc định thì cả nhãn đọc ra như một
+khối liền. **Chữ chạy giữ nguyên 0**: ở 14–17px siết thêm là dấu tiếng Việt bắt đầu chạm
+nhau giữa hai chữ.
+
+### Ba chi tiết đã đo, đừng đoán lại
+
+- **Chữ số vẫn tabular**: 556/1000 ở cả ba cân nặng, và giống nhau giữa các cân nặng — nên
+  đồng hồ phòng thi, `tabular-nums` và bảng số liệu không nhảy cột, kể cả khi số đổi sang đậm.
+- **`declarations` ép chung một hộp dòng.** `hhea` của Regular là 952/−213/28 còn Medium và
+  Bold là 975/−217/29, lệch 2,3%. Không ép thì một chữ `<strong>` giữa đoạn văn nống riêng
+  dòng đó cao lên, và cả đoạn có một dòng thưa hơn những dòng khác.
+- **Đừng nối thêm font dự phòng vào `--font-sans`.** `--font-app` do next/font sinh ra đã là
+  cả một danh sách (face thật → face `Fallback` dựng từ `local(Arial)` có `size-adjust` →
+  Arial → sans-serif). Nối thêm là lặp lại y hệt lần hai.
+
+### Cờ quốc gia phải TỰ HOST, không dựa vào font hệ thống
+
+Cờ trong emoji là hai *regional indicator* ghép lại (🇬 + 🇧 = 🇬🇧). **Segoe UI Emoji của
+Windows cố ý không chứa glyph cờ**, nên không font nào vẽ được và trình duyệt in ra hai
+chữ cái rời: `GB`, `KR`, `VN`.
+
+Đây là chuyện của **hệ điều hành**, không phải trình duyệt:
+
+| | Chrome | Edge | Firefox |
+|---|---|---|---|
+| Windows | GB, KR | GB, KR | 🇬🇧 🇰🇷 — Firefox tự đóng gói font emoji riêng |
+| macOS / iOS / Android | 🇬🇧 🇰🇷 | 🇬🇧 🇰🇷 | 🇬🇧 🇰🇷 |
+
+Vì vậy `@font-face` **'Flag Emoji'** trỏ tới `public/fonts/TwemojiCountryFlags.woff2`, và
+tên này đứng **đầu** `--font-sans`.
+
+- **`unicode-range: U+1F1E6-1F1FF` là phần quan trọng nhất**, không phải cho gọn: nó khoá
+  font vào đúng khối regional indicator, nhờ đó trình duyệt (1) chỉ tải file khi trang
+  thật sự có ký tự cờ, và (2) mọi chữ còn lại vẫn là Helvetica Neue. Thiếu dòng này là
+  font cờ tranh mất những glyph khác mà nó có.
+- **Phải đứng ĐẦU stack.** Đặt sau `--font-app` là vô nghĩa: font chính "khớp" trước dù
+  không có glyph cờ, và cờ lại rơi về font hệ thống.
+- **Thiếu file thì không hỏng gì** — trình duyệt bỏ qua `@font-face` không tải được và rơi
+  về font kế tiếp, tức đúng hành vi cũ. Chỉ có một dòng 404 trong console.
+
+⚠️ Twemoji là tài sản của Twitter/X, giấy phép **CC-BY 4.0** — được dùng cả trong sản phẩm
+thương mại nhưng **bắt buộc ghi công**. Khác hẳn tình trạng của Helvetica Neue bên trên
+(không có giấy phép nào cả). Thêm file thì thêm luôn dòng credit.
+
+**Giấy phép — đọc trước khi phát hành.** Helvetica Neue là font thương mại của
+Monotype/Linotype; ba file trong `app/fonts/` là bản việt hoá lưu hành tự do, **không kèm
+giấy phép webfont**. Chạy nội bộ thì được; đưa sản phẩm ra ngoài phải mua giấy phép hoặc
+thay bằng font có giấy phép mở phủ đủ tiếng Việt (Inter, Be Vietnam Pro, Archivo). Cùng
+loại ràng buộc với ảnh hotlink của tầng game.
+
+Cũng vì tự host: `.otf` không nén, ba file cộng lại **487KB**. Máy dev không có
+Python/fontTools nên chưa subset và convert sang `.woff2` được — làm được thì còn khoảng
+một phần tư. Đó là việc phải làm trước khi phát hành, không phải tối ưu cho vui.
 
 ---
 
@@ -235,13 +436,150 @@ mà quên đổi con số này thì logo bị bóp hoặc bị cắt.
 
 **Lề trái và lề trên của `(landing)/layout.tsx` phải trùng khít `app-shell.tsx`.** Con
 dấu là mốc neo đứng yên giữa lúc mọi thứ khác trượt, nên lệch vài px là nó giật một cái
-ngay giữa hiệu ứng. Cỡ con dấu là hằng số dùng chung `BRAND_LOGO_SIZE`, đừng gõ số rời.
+ngay giữa hiệu ứng. Cỡ con dấu là hằng số dùng chung `BRAND_LOGO_SIZE` (48px chiều cao —
+bề ngang tự ra 1,5 lần theo `aspect-ratio`), đừng gõ số rời.
+
+**Lề NGANG khớp nhau là đủ dễ; lề DỌC mới là chỗ đã trượt.** Bên AppShell, chiều cao hàng
+chứa con dấu do hàng nav quyết định; bên trang giới thiệu không có nav nào nên phải khai
+tay. Chỗ đó từng gõ `min-h-11` (44px) kèm ghi chú "đúng bằng hàng pill" — đúng lúc viết,
+rồi hàng nav nở gấp rưỡi (icon 22 → 28) mà con số kia nằm im. **Đo được: con dấu lệch
+14px giữa hai khung** (`top` 33 so với 47), tức mốc neo giật một cái ngay giữa hiệu ứng.
+
+Giờ chiều cao đó **tính ra** từ chính các số dựng nên hàng nav, và cả hai khung cùng đọc
+một biến `--brand-row-height`:
+
+```
+icon + 2*đệm dọc pill + 2*viền pill + 2*đệm rail  =  28 + 30 + 2 + 12  =  72px
+```
+
+`.nav-pill` và `.nav-rail` lấy đệm từ chính các biến đó, nên đổi cỡ pill là chiều cao hàng
+tự theo. Còn đúng **một** chỗ trùng lặp không khử được bằng CSS: `--nav-icon-size` phải
+khớp `<Icon size={28} />` trong `app-shell.tsx`, vì cỡ icon nằm trong TSX.
+
+Trần trên của `BRAND_LOGO_SIZE` là 72px: con dấu cao hơn hàng nav thì nó tự nống header
+của AppShell lên, và hai khung lại lệch — bên trang giới thiệu không có gì để nống theo.
+
+### Trademark "NERDY HUB" — chữ thật, và chỉ có ở trang giới thiệu
+
+Đặt cạnh con dấu trong `(landing)/layout.tsx`. Dựng bằng **text**, không phải ảnh: web đã
+chạy Helvetica Neue nên chữ sắc nét ở mọi độ phân giải, không tốn thêm request, và tự lật
+màu theo giao diện qua `currentColor` y như con dấu. Nhúng ảnh thì phải nuôi hai bản
+sáng/tối mà vẫn mờ trên màn retina.
+
+**Không đưa vào `<LogoMark>`.** Trong ứng dụng, header còn hàng nav sáu tab và cụm nút bên
+phải; thêm chữ vào là hàng đó chật và con dấu mất vai trò mốc neo của hiệu ứng chuyển
+trang. Đã kiểm: `/dashboard`, `/de-thi`, `/thong-ke` đều không có chuỗi này trong HTML.
+
+**Trượt ra từ SAU con dấu** — cơ chế là một khung cắt đứng yên, chữ trượt bên trong:
+
+- `overflow: hidden` trên `.brand-wordmark` dựng cái mép mà bên trái nó không vẽ gì. Khung
+  đặt **sát mép phải con dấu** (đo được: lệch 0px), nên chữ chui ra đúng từ sau con dấu.
+- `padding-left: 12px` nằm ở **khung**, không phải `gap` của thẻ `<a>` cha: overflow cắt ở
+  mép hộp padding, để `gap` thì mép cắt bị đẩy sang phải 12px và chữ hiện ra từ giữa
+  khoảng trống.
+- `padding-block: 4px` + `margin-block: -4px`: overflow cắt cả chiều dọc, mà `leading: 0.9`
+  làm hộp dòng thấp hơn nét chữ — không chừa chỗ thì đỉnh chữ hoa bị xén. Margin âm bù lại
+  nên bố cục không đổi một px nào.
+- `translateX(-100%)` chứ không phải số px: `-100%` là bề rộng chính nó, đổi cỡ chữ hay
+  đổi tên thương hiệu vẫn đúng.
+- **Mask gradient 10px ở mép trái** làm mềm chỗ cắt. Thiếu nó thì chữ "nảy" ra khỏi một
+  mép cứng — đó là chỗ đọc ra thô nhất. 10px chứ không rộng hơn: chữ lúc nghỉ bắt đầu ở
+  12px nên vùng mờ kết thúc trước khi chạm nét.
+
+**"HUB" đi sau "NERDY" nửa giây, ở cả hai chiều.** Vì vậy animation đặt trên **từng dòng**
+chứ không phải khối chữ chung; `--wordmark-lag` là **chỉ số dòng** (0, 1) nhân với
+`--wordmark-stagger`, nên thêm dòng thứ ba là tự có nhịp.
+
+| | NERDY | HUB |
+|---|---|---|
+| vào (560ms) | bắt đầu 90ms, xong 650ms | bắt đầu 290ms, xong **850ms** |
+| ra (350ms) | bắt đầu 60ms, xong 410ms | bắt đầu 260ms, xong **610ms** |
+
+⚠️ **Chính dòng "HUB" quyết định `POP_OUT_MS`** (630ms trong `nav-slide.tsx`), chứ không
+phải hiệu ứng nảy của nội dung (xong ở 412ms). Chữ phải thụt hết vào sau con dấu *trước*
+khi trang đổi, vì bên ứng dụng không có trademark nào để nối tiếp. Hệ quả phải biết: cú
+bấm "Vào học thôi" chờ **0,63 giây** rồi mới điều hướng, cộng thêm ~750ms dãy thẻ nảy lên
+bên dashboard.
+
+`--wordmark-stagger` (200ms) là chỗ đáng cắt nhất nếu cần nhanh hơn nữa — nó từng là 500ms
+và một mình chiếm quá nửa thời gian chờ. Cắt xong nhớ **tính lại `POP_OUT_MS`** — hai chỗ
+này là một cặp.
+
+### Nút đăng nhập ở góc phải trang giới thiệu
+
+`components/landing/landing-auth.tsx`, đặt trong `(landing)/layout.tsx` đối xứng với con
+dấu (đo được: lề phải 17px, đúng bằng lề trái của con dấu).
+
+**Phải là client component.** Gọi `auth()` ở layout là đọc cookie, mà đọc cookie thì Next
+chuyển cả route sang render động — trang giới thiệu đang ISR (`revalidate = 3600`) sẽ mất
+SSG/ISR cùng phần SEO đi kèm. Chỉ mỗi cái nút cần biết người dùng là ai nên nó tự hỏi
+`useSession()`. Đây là cùng một quyết định đã ghi ở `components/providers.tsx`, không phải
+ngoại lệ mới.
+
+Hệ quả bắt buộc phải xử lý: lần render đầu **chưa** có session, nên trạng thái `loading`
+trả về một khối giữ chỗ **đo đúng cỡ nút thật** (108,7 × 39,8px → `h-10 w-[109px]`, lệch
+0,3px). Ước lượng cho gần đúng thì lúc session về cả cụm nhích một cái. Đổi padding hay cỡ
+chữ của nút thì phải đo lại con số này.
+
+**Nút này và nút "Đăng nhập" trong AppShell phải giống hệt nhau**, vì cùng một hành động:
+cả hai là `btn-secondary px-4 py-2 text-[14.5px]` (nền sáng, chữ tối), 108,7×39,8px, lề
+phải 29px tính từ mép thẻ trắng. Trước đây bên AppShell dùng `btn-primary` (nền đen) —
+cùng một việc mà hai màu thì người dùng đọc ra là hai thứ khác nhau. Chênh lệch còn kéo
+theo kích thước: `btn-secondary` có viền 1px nên cao hơn 2px, và vì nút canh giữa theo
+hàng header nên mép trên lệch 1px giữa hai trang.
+
+Người đã đăng nhập thấy tên mình thay vì chữ "Đăng nhập", và bấm vào là đi bằng
+`ENTER_APP` — cùng hiệu ứng với nút CTA cuối hero, để hai lối vào ứng dụng không phải một
+cái có hiệu ứng một cái không. Nút nằm ở **layout** nên không mang `--pop-i`: nó đứng yên
+cùng con dấu trong lúc phần nội dung nảy lên rồi rút đi.
 
 ---
 
 ## Tiện ích (`/tien-ich`)
 
 Ba mục cho phút giải lao: **Pomodoro** (có tiếng mưa), **More or Less**, **Wordle từ vựng**.
+
+### Ô Tiện ích ở Tổng quan chỉ là LỐI TẮT
+
+Ba dòng dẫn sang Pomodoro / More or Less / Wordle, mỗi dòng đúng **một** dòng mô tả
+(`truncate` là chốt chặn — hai dòng là ô cao thêm 18px mỗi mục).
+
+Đã thử nhúng hẳn đồng hồ Pomodoro chạy được vào đây rồi bỏ: ô này nằm cạnh Lịch và Việc
+hôm nay trong một hàng ba cột, mà một tiện ích chạy thật thì luôn cần thêm nút, thêm
+trạng thái, thêm chiều cao — nó nống cả hàng lưới lên và biến ô "giới thiệu có gì" thành
+ô "làm việc". Pomodoro có màn hình riêng yên tĩnh của nó. Thêm tiện ích mới thì thêm vào
+`ITEMS`; quá bốn dòng thì rút bớt chứ đừng cho ô cao thêm.
+
+Vì không còn tính năng nào chạy ở đây nên nó là **server component** — không kéo theo JS
+nào xuống trình duyệt.
+
+### Lịch tháng: ngày lễ được TÍNH RA, không kê bảng
+
+Widget Lịch ở Tổng quan đánh dấu ngày nghỉ lễ Việt Nam (`lib/holidays.ts`). Hai ngày quan
+trọng nhất là ngày **âm lịch** — Tết Nguyên đán (mùng 1 tháng Giêng) và Giỗ Tổ Hùng Vương
+(mùng 10 tháng Ba) — nên chúng rơi vào ngày dương khác nhau mỗi năm. Một bảng gõ tay sẽ
+đúng vài năm rồi âm thầm sai, mà sai theo hướng tệ nhất: lịch vẫn hiện bình thường, chỉ là
+đánh dấu nhầm ngày.
+
+Phần âm lịch quy đổi bằng thuật toán thiên văn (kiểu Hồ Ngọc Đức): tìm ngày Sóc và kinh độ
+Mặt Trời để dựng tháng âm rồi đổi ngược ra ngày dương. **Múi giờ đóng cứng UTC+7** chứ
+không đọc từ máy người dùng — có năm thời điểm Sóc rơi sát nửa đêm, tính bằng múi giờ khác
+là Tết lệch hẳn một ngày.
+
+Đã đối chiếu Tết 2020–2028 (khớp cả 9), Giỗ Tổ 2024 (18/4) và 2025 (7/4). Riêng 2030 thuật
+toán cho 2/2 trong khi con số đối chiếu là 3/2 — mốc xa nhất và không tự xác minh được, ghi
+lại đây để ai cần thì kiểm.
+
+Ba lớp đánh dấu, ưu tiên: **hôm nay > ngày lễ > có luyện đề**. Ngày lễ để trên ngày luyện
+đề vì hai thứ trả lời hai câu khác nhau: "hôm đó mình có học không" thì người dùng tự nhớ,
+còn "hôm đó có được nghỉ không" thì phải tra.
+
+Ô ngày cố ý **không** dùng `aspect-square`: ô vuông theo bề rộng cột làm cả khối cao gần
+300px và nống hẳn hàng lưới ba cột. Chiều cao cố định `h-9` giữ lịch đọc được mà thấp hơn.
+
+Hai nút đổi tháng dùng **functional update** (`setCursor(c => …)`), không đọc `cursor` từ
+closure: React gộp setState trong cùng một nhịp, nên bấm nhanh nhiều lần thì mọi lần đều
+tính từ cùng một `cursor` cũ. Đo được: bấm 6 lần chỉ lùi 1 tháng.
 
 **Cả khu này là client component thuần.** `localStorage` + Web Audio, không truy vấn DB,
 không đi qua `content-filter`, không có route API nào. Đây là ranh giới cố ý chứ không
@@ -360,6 +698,15 @@ Dải là **màu tượng trưng, không phải cờ thu nhỏ**: cờ thật c�
 nhét vào 6px thì thành vệt bẩn, mà lại dễ vẽ sai quốc kỳ của người ta. Các mốc màu trong
 gradient **trùng nhau ở mỗi ranh giới** để ra băng cứng; gradient mềm sẽ trộn đỏ với vàng
 thành cam, một màu không có trên lá cờ nào trong danh sách.
+
+**Số màu không cần bằng nhau giữa các ngôn ngữ.** `languageStripe()` chia đều dải theo số
+màu, nên một màu ra dải trơn, hai màu ra hai băng bằng nhau. Hiện tại: Việt **đỏ trơn**,
+Anh **đỏ / navy**, Hàn **trắng / xanh**, Đức **đen / đỏ / vàng**.
+
+⚠️ Màu trắng trong dải nằm trên **thẻ nền trắng** nên gần như không nhìn thấy — dải Hàn
+đọc ra là một vệt xanh chỉ cao nửa thẻ, dải Nhật cũng vậy. Đó là hệ quả của việc chọn màu,
+không phải lỗi dựng. Muốn thấy phần trắng thì phải cho dải một viền mảnh hoặc đổi trắng
+thành trắng ngà.
 
 Nhập đề vẫn qua `prisma/seed-data.ts` (F8 Admin CMS chưa có). Có đúng một trường dễ
 quên nên nó được đặt là **bắt buộc** để TypeScript nhắc thay bạn:
