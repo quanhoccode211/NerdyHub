@@ -441,6 +441,31 @@ body {
     transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
   }
 
+  /**
+   * Ô ĐEN đánh dấu tab đang mở, tách hẳn thành một phần tử NỀN riêng nằm sau icon.
+   *
+   * Trước đây chính cái pill mang `view-transition-name`, nghĩa là icon nằm
+   * TRONG ảnh chụp: lúc ô đen bay, trình duyệt cross-fade ảnh cũ sang ảnh mới
+   * nên có hai icon chồng mờ lên nhau giữa đường — nhìn ra là icon bị loạn.
+   *
+   * Giờ chỉ hình chữ nhật đen mang tên. Nó bay một mình, icon đứng yên tại chỗ
+   * và chỉ đổi màu. Không còn gì để nhân đôi.
+   */
+  .nav-pill-indicator {
+    position: absolute;
+    /* -1px để phủ trọn cả đường viền 1px của pill, không hở một vòng sáng */
+    inset: -1px;
+    border-radius: var(--radius-pill);
+    background: var(--color-accent);
+  }
+
+  /* Icon và nhãn phải nổi TRÊN ô đen, nếu không chúng bị nó che mất */
+  .nav-pill > svg,
+  .nav-pill > .nav-tip {
+    position: relative;
+    z-index: 1;
+  }
+
   /* Nhãn tên chức năng — nổi bên dưới icon */
   .nav-tip {
     position: absolute;
@@ -458,11 +483,34 @@ body {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.14s ease, transform 0.14s ease;
+    /* Ẩn thì ẩn NGAY — độ trễ chỉ dành cho lúc hiện ra, xem dưới */
+    transition-delay: 0s;
   }
-  .nav-pill:hover .nav-tip,
+  /**
+   * Phải RÊ CHUỘT VÀ GIỮ 2 GIÂY nhãn mới hiện.
+   *
+   * Trước đây nhãn bật lên gần như tức thì, nên mỗi cú bấm chuyển tab đều kèm
+   * một bảng tên nhảy ra ngay dưới ngón tay — người dùng đã biết mình bấm gì
+   * rồi, nó chỉ che mất phần nội dung vừa đổi.
+   *
+   * `transition-delay` chứ không phải animation: rời chuột trước 2 giây là
+   * trình duyệt huỷ luôn, không cần hẹn giờ bằng JS và không có trạng thái nào
+   * để dọn.
+   */
+  .nav-pill:hover .nav-tip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    transition-delay: 2s;
+  }
+  /*
+    Bàn phím thì hiện ngay, KHÔNG chờ: `:focus-visible` chỉ xuất hiện khi người
+    dùng tab tới: họ không rê chuột được để mà giữ, và đang cần biết mình đang
+    đứng ở đâu.
+  */
   .nav-pill:focus-visible .nav-tip {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
+    transition-delay: 0s;
   }
   @media (prefers-reduced-motion: reduce) {
     .nav-tip {
@@ -511,10 +559,21 @@ body {
    * Chữ trên nền accent phải là --color-accent-fg, KHÔNG phải #fff.
    * Ở dark mode accent lật thành gần trắng, chữ trắng sẽ biến mất.
    */
+  /**
+   * Nền do `.nav-pill-indicator` lo, ở đây chỉ còn màu chữ/icon.
+   *
+   * `transition-delay` trên MÀU là mấu chốt để icon không loạn: ô đen mất 360ms
+   * để bay tới, mà icon thì đổi sang màu sáng ngay khi bấm — trong quãng đó nó
+   * là icon sáng nằm trên nền sáng, tức gần như biến mất rồi hiện lại. Hoãn
+   * 200ms để nó đổi màu đúng lúc ô đen vừa tới nơi.
+   *
+   * Chiều ngược lại không hoãn (`.nav-pill` để 0s): pill vừa mất active phải
+   * tối lại NGAY khi ô đen rời đi, nếu không nó cũng sáng trên nền sáng.
+   */
   .nav-pill[data-active='true'] {
-    background: var(--color-accent);
-    border-color: var(--color-accent);
+    border-color: transparent;
     color: var(--color-accent-fg);
+    transition-delay: 200ms;
   }
 
   .pill {

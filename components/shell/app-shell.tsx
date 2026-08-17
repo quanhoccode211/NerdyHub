@@ -126,11 +126,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     nhánh con để về mặt bằng chính.
                   */
                   type={i > activeIndex ? SLIDE_FORWARD : SLIDE_BACK}
-                  /* Chỉ pill đang mở mới mang tên — xem ACTIVE_PILL_VT_NAME. */
-                  style={active ? { viewTransitionName: ACTIVE_PILL_VT_NAME } : undefined}
                 >
+                  {/*
+                    Ô đen là một phần tử NỀN riêng, không phải cái pill này.
+
+                    Chỉ nó mang `view-transition-name`, nên chỉ nó bay khi đổi
+                    tab — icon nằm ngoài ảnh chụp và đứng yên tại chỗ. Gắn tên
+                    lên cả pill (bản trước) là icon lọt vào ảnh, và giữa đường
+                    có hai icon chồng mờ lên nhau.
+
+                    Chỉ dựng cho pill đang mở: tên view-transition phải DUY NHẤT
+                    trong một trang, có hai cái là trình duyệt bỏ qua cả nhóm.
+                  */}
+                  {active ? (
+                    <span
+                      className="nav-pill-indicator"
+                      aria-hidden="true"
+                      style={{ viewTransitionName: ACTIVE_PILL_VT_NAME }}
+                    />
+                  ) : null}
                   <Icon size={22} />
-                  {/* Hiện khi rê chuột hoặc khi focus bằng bàn phím */}
+                  {/* Hiện sau khi rê chuột và giữ 2 giây — xem .nav-tip */}
                   <span className="nav-tip" aria-hidden="true">
                     {label}
                   </span>
