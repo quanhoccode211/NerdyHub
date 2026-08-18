@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { CardHeader } from '../shell/app-shell'
+import { useLocale } from '../i18n/locale-provider'
 import { PlusIcon, TasksIcon, XIcon } from '../shell/icons'
 
 /**
@@ -58,6 +59,7 @@ function save(state: Persisted) {
 }
 
 export function DailyTasks() {
+  const { t } = useLocale()
   const [tasks, setTasks] = useState<Task[]>([])
   const [draft, setDraft] = useState('')
   const [hydrated, setHydrated] = useState(false)
@@ -138,10 +140,9 @@ export function DailyTasks() {
         <>
           {tasks.length === 0 ? (
             <div className="panel flex flex-1 flex-col items-center justify-center px-6 py-8 text-center">
-              <p className="text-[15px] font-medium">Hôm nay bạn muốn làm gì?</p>
+              <p className="text-[15px] font-medium">{t('tasks.prompt')}</p>
               <p className="mt-1.5 max-w-[300px] text-[14px] leading-relaxed text-muted">
-                Ghi ra vài việc nhỏ và cụ thể — kiểu &ldquo;làm 1 đề Nghe VSTEP&rdquo; — rồi
-                tick khi xong.
+                {t('tasks.hint')}
               </p>
             </div>
           ) : (
@@ -192,7 +193,7 @@ export function DailyTasks() {
               maxLength={MAX_LEN}
               disabled={full}
               placeholder={full ? `Đủ ${MAX_TASKS} việc rồi` : 'Thêm một việc…'}
-              aria-label="Thêm việc cho hôm nay"
+              aria-label={t('tasks.addToday')}
               className="min-w-0 flex-1 rounded-pill bg-soft px-4 py-2 text-[14.5px] outline-none placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-60"
             />
             <button

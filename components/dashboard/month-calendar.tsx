@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { CardHeader } from '../shell/app-shell'
+import { useLocale } from '../i18n/locale-provider'
 import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, DotsIcon } from '../shell/icons'
 import { vietnamHolidays } from '@/lib/holidays'
 
@@ -27,6 +28,7 @@ const MONTHS = [
 ]
 
 export function MonthCalendar({ activeDates }: { activeDates: string[] }) {
+  const { t } = useLocale()
   const today = useMemo(() => new Date(), [])
   const [cursor, setCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
 
@@ -62,7 +64,7 @@ export function MonthCalendar({ activeDates }: { activeDates: string[] }) {
     <section className="card p-5 md:p-6">
       <CardHeader
         icon={<CalendarIcon size={17} />}
-        title="Lịch"
+        title={t('calendar.title')}
         meta={
           <span className="pill bg-soft text-[13px] text-muted-strong">
             {MONTHS[cursor.getMonth()]}
@@ -80,7 +82,7 @@ export function MonthCalendar({ activeDates }: { activeDates: string[] }) {
               type="button"
               onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))}
               className="icon-circle"
-              aria-label="Tháng trước"
+              aria-label={t('calendar.prevMonth')}
             >
               <ChevronLeftIcon size={16} />
             </button>
@@ -88,11 +90,11 @@ export function MonthCalendar({ activeDates }: { activeDates: string[] }) {
               type="button"
               onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1))}
               className="icon-circle"
-              aria-label="Tháng sau"
+              aria-label={t('calendar.nextMonth')}
             >
               <ChevronRightIcon size={16} />
             </button>
-            <button type="button" className="icon-circle" aria-label="Tuỳ chọn khác">
+            <button type="button" className="icon-circle" aria-label={t('widget.moreOptions')}>
               <DotsIcon size={16} />
             </button>
           </>

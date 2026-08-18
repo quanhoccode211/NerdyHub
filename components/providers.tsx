@@ -1,6 +1,7 @@
 'use client'
 
 import { SessionProvider } from 'next-auth/react'
+import { LocaleProvider } from './i18n/locale-provider'
 
 /**
  * Session được phân giải ở CLIENT, không phải trong layout server.
@@ -11,5 +12,17 @@ import { SessionProvider } from 'next-auth/react'
  * session phía client và giữ nội dung trang tĩnh.
  */
 export function Providers({ children }: { children: React.ReactNode }) {
-  return <SessionProvider>{children}</SessionProvider>
+  /*
+    `LocaleProvider` nằm TRONG `SessionProvider`, không phải ngoài: nó không cần
+    biết người dùng là ai, nhưng các component đọc cả hai thì nằm gọn trong một
+    cây là đủ. Thứ tự ngược lại cũng chạy — chỉ là không có lý do gì để đảo.
+
+    Cả hai cùng phân giải ở client, cùng một lý do: giữ trang công khai ở dạng
+    tĩnh. Xem ghi chú trong từng file.
+  */
+  return (
+    <SessionProvider>
+      <LocaleProvider>{children}</LocaleProvider>
+    </SessionProvider>
+  )
 }

@@ -7,6 +7,19 @@ Next.js 16 · React 19 · Prisma 7 · PostgreSQL · Auth.js v5 · Tailwind 4
 
 Xong F1–F6. Chưa có F8 (Admin CMS) — nhập đề qua `prisma/seed-data.ts`.
 
+## Quy ước làm việc
+
+⛔ **Không `git push` nếu chủ dự án không yêu cầu.** Áp dụng cho mọi phiên làm việc,
+mọi người và mọi trợ lý AI đụng vào repo này. Sửa xong thì dừng lại và báo, chờ có
+yêu cầu rõ ràng rồi mới đẩy lên.
+
+Lý do không phải hình thức: nhánh `vers-1.0` nối thẳng với Vercel, nên **push là
+deploy** — không có bước duyệt nào ở giữa (xem [Deploy](#deploy)). Một cú push tự phát
+là một lần đưa bản chưa ai xem lên chạy thật.
+
+Được yêu cầu push một lần **không** có nghĩa là được push ở những lần sửa sau. Mỗi lần
+là một lần xin phép riêng.
+
 ## Chạy
 
 Cần một Postgres trước. Tạo ở [Neon](https://neon.com) (free), chép `.env.example` thành
@@ -24,8 +37,12 @@ môi trường.
 
 ## Deploy
 
-Vercel, nhánh `vers-1.0`. Bốn biến: `DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY`,
-`NEXT_PUBLIC_SITE_URL`. Hai khoá giữa sinh bằng `npm run gen:secrets`.
+Vercel, nhánh **`vers-1.0`** là bản chạy thật. Bốn biến: `DATABASE_URL`, `AUTH_SECRET`,
+`ENCRYPTION_KEY`, `NEXT_PUBLIC_SITE_URL`. Hai khoá giữa sinh bằng `npm run gen:secrets`.
+
+**`vers-1.1-beta`** là nhánh đang làm (đa ngôn ngữ, hiệu ứng chuyển trang, bộ mascot mới).
+Vercel dựng nó thành bản xem thử ở URL riêng, KHÔNG đụng vào bản chạy thật. Muốn đưa lên
+production thì gộp vào `vers-1.0`, hoặc đổi Production Branch trong Settings → Git.
 
 Ba thứ đã mất thời gian:
 
@@ -55,11 +72,70 @@ lib/
   scoring/        Strategy theo kỳ thi + engine chung
   auth/           Session, tuổi, consent (NĐ 13/2023)
   calendar/google freeBusy, chỉ đọc
+  i18n/           config, messages (vi/en/de), server.getT()
 components/
   exam-room/      Store, sync 3 lớp, highlight, timer
   shell/          AppShell, nav, hiệu ứng chuyển trang
   game/           Tầng game — client thuần, không chạm DB
+  i18n/           LocaleProvider — đọc locale ở client
 ```
+
+## Ba ngôn ngữ
+
+Tiếng Việt · English · Deutsch. Đổi trong menu tài khoản, lưu ở cookie `locale`.
+
+**Không phải bản địa hoá để bán ra nước ngoài.** Người đọc là người Việt đang học ngoại
+ngữ — đổi giao diện sang tiếng Anh hoặc Đức là một cách tự đặt mình vào môi trường ngôn
+ngữ đích trong lúc luyện đề. Điều đó đổi cách chọn từ, và ba nguyên tắc đi kèm ghi ở đầu
+`lib/i18n/messages.ts`: chuẩn mực hơn là bản xứ, nhất quán hơn là phong phú, câu trọn vẹn
+hơn là nhãn rút gọn. Tiếng Đức xưng "du" xuyên suốt.
+
+**Tiếng Việt là mặc định cứng.** Không đoán theo `Accept-Language`: máy cài tiếng Anh vẫn
+thấy tiếng Việt cho tới khi chủ máy tự đổi.
+
+**Nội dung đề KHÔNG dịch.** Đề, câu hỏi, đáp án, giải thích, tên chứng chỉ — giữ nguyên,
+đó là nội dung học thuật.
+
+Thiếu một chuỗi ở `en` hay `de` là **lỗi biên dịch**, không phải lỗi người dùng phát hiện
+hộ: hai bản đó khai là `Record<MessageKey, string>` với `MessageKey` suy từ bản tiếng Việt.
+
+Đổi ngôn ngữ chạy `router.refresh()` chứ không `location.reload()` — một phần chữ do
+server render bằng `getT()`, nên phải dựng lại thật, nhưng `reload()` thì vẽ lại từ nền
+trắng và cắt đứt hiệu ứng. Chi tiết trong `components/i18n/locale-provider.tsx`.
+
+⛔ **Đừng gọi `getT()` trong `app/(marketing)/de-thi/**`.** Nhóm đó là SSG/ISR dựng sẵn từ
+database; `cookies()` ép cả route sang render động và xoá sạch phần tĩnh.
+
+### Đã dịch / chưa dịch
+
+| Xong | Chưa |
+|---|---|
+| Khung: rail, cụm nút phải, menu tài khoản | Tab **Lịch ôn** — việc lặp, khoá chưa có |
+| Trang giới thiệu (nút đăng nhập) | **Kho đề** — xem kế hoạch dưới |
+| Đăng nhập, đăng ký | Phòng thi, Thống kê, Bài đã làm |
+| Tổng quan + cả 5 widget | Cài đặt — khoá đã có, chưa gắn vào component |
+| Tab Tiện ích | Form đăng ký: phần ô đồng ý bên trong |
+
+### Kế hoạch dịch Kho đề — CHƯA CHỐT
+
+Đây là phần khó nhất và đang để ngỏ có chủ ý. Hai vấn đề chồng lên nhau:
+
+**1. Mô tả kỳ thi nằm trong DATABASE, không nằm trong code.** `Exam.description`,
+`Exam.fullName`, tên cấp độ — tất cả seed từ `prisma/seed-data.ts`. Dịch chúng không phải
+là thêm khoá vào `messages.ts`. Ba hướng:
+
+| Hướng | Được | Mất |
+|---|---|---|
+| Bảng dịch trong code, khoá theo slug | Nhanh, không đụng schema | Tách khỏi nguồn; F8 nhập đề mới sẽ không có bản dịch |
+| Thêm cột `descriptionEn` / `descriptionDe` | Đúng chỗ, F8 nhập được luôn | Một đợt migration |
+| Bảng `Translation` riêng | Linh hoạt nhất | Nặng nhất, thêm join ở mọi truy vấn |
+
+**2. `/de-thi` đang là SSG/ISR.** Dịch ở server là mất phần tĩnh cùng lợi thế SEO của
+SPEC F7. Giữ được cả hai bằng cách dịch ở CLIENT như phần khung: trang vẫn tĩnh, bot vẫn
+đọc bản tiếng Việt, người dùng đổi ngôn ngữ thì chữ đổi sau khi hydrate.
+
+Nghiêng về **hướng 1 + dịch ở client**, nhưng chưa quyết. Ai làm tiếp thì đọc lại hai
+ràng buộc trên trước khi gõ dòng đầu tiên.
 
 ## Hai bất biến
 
@@ -117,6 +193,7 @@ khoản; thêm `RESET_USERS=1` để xoá sạch.
 | Chấm ESSAY | Ngoài phạm vi v1. `isCorrect = null`, loại khỏi tổng điểm. |
 | Cron nhắc lịch ôn | Bảng `Reminder` đã chạy, thiếu tiến trình định kỳ |
 | Test tự động | Chưa có runner. Thay bằng hai script `check:*` ở trên. |
+| Dịch Kho đề | Chưa chốt hướng — xem "Ba ngôn ngữ" ở trên |
 
 `plan.md` ghi một lỗi **chưa sửa**: danh sách "Bài đã làm" có thể trống khi tải lại trang.
 Sáu chỗ đọc dữ liệu dùng mẫu `userId ? {userId} : {guestId}` loại trừ nhau.

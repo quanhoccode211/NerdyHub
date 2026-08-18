@@ -10,6 +10,7 @@ import { CrownIcon } from '@/components/shell/icons'
 import { getExamProgress, getLearningHours } from '@/lib/dashboard'
 import { getIdentity } from '@/lib/session'
 import { prisma } from '@/lib/db'
+import { getT } from '@/lib/i18n/server'
 
 export const metadata: Metadata = {
   title: 'Tổng quan',
@@ -29,17 +30,18 @@ export default async function DashboardPage() {
 
   const firstName = (session?.user?.name ?? '').trim().split(/\s+/).pop()
   const totalDone = exams.reduce((s, e) => s + e.donePapers, 0)
+  const t = await getT()
 
   return (
     <>
       <PageHeader
-        eyebrow={firstName ? `Chào ${firstName} 👋` : 'Chào bạn 👋'}
-        title={totalDone > 0 ? 'Hôm nay luyện tiếp nhé!' : 'Lock in lock in brooooooo'}
+        eyebrow={firstName ? t('dashboard.greeting', { name: firstName }) : t('dashboard.greetingGuest')}
+        title={t(totalDone > 0 ? 'dashboard.titleContinue' : 'dashboard.titleStart')}
         badge={
           totalDone > 0 ? (
             <span className="pill bg-sky text-[13.5px] text-on-tone">
               <CrownIcon size={13} />
-              {totalDone} đề đã xong
+              {t('dashboard.doneCount', { count: totalDone })}
             </span>
           ) : null
         }
@@ -57,6 +59,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <TestProgress exams={exams} />
         <LearningHours
+          t={t}
           series={hours.series}
           bySkill={hours.bySkill}
           goalSeconds={hours.goalSeconds}
@@ -65,7 +68,7 @@ export default async function DashboardPage() {
 
       {/* Hàng dưới: giới thiệu Tiện ích, lịch tháng, việc hôm nay */}
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-[320px_minmax(0,1fr)_minmax(0,1fr)]">
-        <UtilitiesIntro />
+        <UtilitiesIntro t={t} />
         <MonthCalendar activeDates={activeDates} />
         {/* Cột cuối hẹp hơn bản timeline cũ: danh sách việc chỉ cần một cột chữ */}
         <div className="lg:col-span-2 xl:col-span-1">

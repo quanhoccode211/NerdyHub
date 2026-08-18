@@ -176,14 +176,24 @@
    * NHỊP CỦA HIỆU ỨNG NẢY — dùng cho cả ba chặng: trang giới thiệu hiện ra,
    * trang giới thiệu rời đi, và các khối của ứng dụng hiện ra.
    *
-   * `--pop-out-*` NHANH HƠN hẳn: lúc vào người dùng đang đọc trang lần đầu,
-   * lúc ra họ đã bấm nút và đang chờ. Đường cong lúc ra cũng bỏ phần nảy quá 1
-   * (0.4, 0, 1, 1 thay vì 0.22, 1.35, 0.36, 1) — nảy khi biến mất đọc ra như
-   * element bị giật ngược chứ không phải rút đi.
+   * `--pop-out-*` vẫn NHANH HƠN chiều vào: lúc vào người dùng đang đọc trang
+   * lần đầu, lúc ra họ đã bấm nút và đang chờ. Đường cong lúc ra cũng bỏ phần
+   * nảy quá 1 (0.4, 0, 1, 1 thay vì 0.22, 1.35, 0.36, 1) — nảy khi biến mất đọc
+   * ra như element bị giật ngược chứ không phải rút đi.
+   *
+   * NỚI 1,5 LẦN so với bản đầu (0.22s / 32ms) theo yêu cầu: ở nhịp cũ mỗi khối
+   * tắt quá gọn, cả dãy xong trong 412ms và đọc ra là trang "biến mất" chứ
+   * không phải "rút đi lần lượt". Vẫn giữ đúng tỉ lệ giữa hai số để dãy không
+   * đổi tính chất, chỉ chậm lại.
    *
    * ĐỔI `--pop-out-dur` HAY `--pop-out-step` THÌ SỬA LUÔN `POP_OUT_MS` trong
    * components/shell/nav-slide.tsx: JS phải chờ đủ hết dãy rồi mới điều hướng.
-   * Tổng = --pop-last * --pop-out-step + --pop-out-dur.
+   * Tổng = --pop-last * --pop-out-step + --pop-out-dur = 6 * 48 + 330 = 618ms.
+   *
+   * ĐỔI CHỦ NGÔI: từ đợt nới này, chính dãy nội dung mới là chặng DÀI NHẤT của
+   * cú rời trang (618ms), vượt trademark (510ms). Trước đây ngược lại. Nghĩa là
+   * `POP_OUT_MS` giờ bám theo hai biến này chứ không còn bám theo nhóm
+   * `--wordmark-out-*`.
    */
   /**
    * TRADEMARK "NERDY HUB" trượt ra / thụt lại — xem .brand-wordmark bên dưới.
@@ -196,14 +206,18 @@
    * (0.22,1,0.36,1 / 0.55,0,1,0.45): bậc năm phanh gấp gần cuối và vọt nhanh ở
    * đầu, ở quãng đường ngắn 71px thì mắt đọc ra là giật chứ không phải nhanh.
    *
-   * ĐỔI BẤT KỲ SỐ NÀO Ở ĐÂY THÌ SỬA LUÔN `POP_OUT_MS` trong
-   * components/shell/nav-slide.tsx: JS phải chờ chữ thụt hết vào sau con dấu
-   * rồi mới điều hướng.
+   * KIỂM LẠI `POP_OUT_MS` (components/shell/nav-slide.tsx) MỖI KHI ĐỔI SỐ Ở
+   * ĐÂY — nhưng nay nhóm này KHÔNG còn quyết định con số đó nữa:
    *
    *   tổng chiều ra = out-delay + stagger + out-dur = 60 + 100 + 350 = 510ms
-   *   POP_OUT_MS    = 530ms (510 cộng một nhịp dư)
+   *   dãy nội dung  = 6 * 48 + 330                              = 618ms  <- dài hơn
+   *   POP_OUT_MS    = 640ms (bám theo 618, cộng một nhịp dư)
    *
-   * `--wordmark-stagger` là con số ăn thời gian nhất của cả cú rời trang — hạ
+   * Từ đợt nới nhịp pop-out lên 1,5 lần, dãy nội dung vượt lên thành chặng dài
+   * nhất. Nới nhóm trademark quá 618ms thì nó giành lại ngôi và `POP_OUT_MS`
+   * phải tính theo nó.
+   *
+   * `--wordmark-stagger` là con số ăn thời gian nhất của riêng nhóm này — hạ
    * nó rút ngắn quãng chờ nhiều hơn hẳn so với hạ thời lượng.
    */
   --wordmark-in-dur: 560ms;
@@ -229,9 +243,9 @@
   --pop-dur: 0.52s;
   --pop-ease: cubic-bezier(0.22, 1.35, 0.36, 1);
   --pop-step: 88ms;
-  --pop-out-dur: 0.22s;
+  --pop-out-dur: 0.33s;
   --pop-out-ease: cubic-bezier(0.4, 0, 1, 1);
-  --pop-out-step: 32ms;
+  --pop-out-step: 48ms;
   /*
     DÃY THẺ NẢY LÊN BÊN DASHBOARD — hai biến RIÊNG, không dùng chung `--pop-dur`
     và `--pop-step` với trang giới thiệu.
@@ -1144,9 +1158,9 @@ body {
 }
 
 /*
-  Xong ở 60 + 350 = 410ms, nằm gọn trong POP_OUT_MS (530ms) nên không bị cắt
-  ngang. Ngắn hơn trademark (510ms) là đúng: trademark vẫn là chặng dài nhất và
-  vẫn là thứ quyết định con số bên nav-slide.tsx.
+  Xong ở 60 + 350 = 410ms, nằm gọn trong POP_OUT_MS (640ms) nên không bị cắt
+  ngang. Ngắn hơn cả trademark (510ms) lẫn dãy nội dung (618ms) là đúng: pill
+  này chỉ là một chi tiết ở góc, xong sớm rồi nhường phần còn lại cho dãy chính.
 */
 :root.pop-leaving .account-name {
   animation: var(--wordmark-out-dur) var(--wordmark-ease-out) var(--wordmark-out-delay) forwards
@@ -1179,12 +1193,14 @@ body {
   RÀNG BUỘC VỚI JS: dòng đi sau cùng ("HUB") xong ở
   `--wordmark-out-delay` + `--wordmark-stagger` + `--wordmark-out-dur`
   = 60 + 100 + 350 = 510ms, và con số đó phải NHỎ HƠN `POP_OUT_MS` trong
-  components/shell/nav-slide.tsx (530ms). Chữ phải thụt hết vào sau con dấu
+  components/shell/nav-slide.tsx (640ms). Chữ phải thụt hết vào sau con dấu
   TRƯỚC khi trang đổi, vì bên ứng dụng không có trademark nào để nối tiếp — hụt
   là nó bị cắt ngang lúc đang trượt dở.
 
-  Đây là chặng DÀI NHẤT trong cả cú rời trang (phần nội dung xong ở 412ms), nên
-  chính nó quyết định `POP_OUT_MS`. Chỉnh chậm/nhanh ở đây thì sửa luôn số bên đó.
+  KHÔNG còn là chặng dài nhất. Trước đợt nới nhịp pop-out lên 1,5 lần thì đúng
+  là nó (510ms so với 412ms của nội dung) và `POP_OUT_MS` bám theo đây. Nay dãy
+  nội dung chạy tới 618ms nên ngôi ấy đã đổi chủ; chỉnh số ở khối này chỉ cần
+  giữ dưới 618ms là không phải đụng tới `POP_OUT_MS`.
 */
 :root.pop-leaving .brand-wordmark-line {
   animation: var(--wordmark-out-dur) var(--wordmark-ease-out)
@@ -1238,8 +1254,10 @@ body {
  * nguyên trên màn hình. `both` sẽ fill ngược và giấu nó ngay từ đầu — cả trang
  * biến mất cùng lúc, mất sạch phần lần lượt.
  *
- * Ra NHANH HƠN vào (0.22s so với 0.52s, bước 32ms so với 88ms): lúc vào, người
- * dùng đang đọc trang lần đầu; lúc ra, họ đã bấm nút và đang chờ.
+ * Ra vẫn NHANH HƠN vào (0.33s so với 0.52s, bước 48ms so với 88ms): lúc vào,
+ * người dùng đang đọc trang lần đầu; lúc ra, họ đã bấm nút và đang chờ. Khoảng
+ * chênh đã hẹp lại sau đợt nới 1,5 lần — nhịp cũ (0.22s / 32ms) gọn tới mức đọc
+ * ra là trang biến mất chứ không phải rút đi lần lượt.
  *
  * PHẢI CHẠY TRƯỚC KHI ĐIỀU HƯỚNG, không lồng vào view transition được: trong
  * lúc transition chạy, trang cũ chỉ là một ẢNH CHỤP TĨNH nên không có element
@@ -1278,31 +1296,45 @@ body {
   thứ tự rút đi không còn là ảnh phản chiếu của thứ tự hiện ra.
 */
 .enter-stagger > *,
-:root.app-leaving .app-main > * {
+:root.app-leaving .app-main > *,
+:root.locale-switching .app-main > *,
+:root.locale-switched .app-main > * {
   --pop-row: 0;
 }
 .enter-stagger > *:nth-child(2),
-:root.app-leaving .app-main > *:nth-child(2) {
+:root.app-leaving .app-main > *:nth-child(2),
+:root.locale-switching .app-main > *:nth-child(2),
+:root.locale-switched .app-main > *:nth-child(2) {
   --pop-row: 1;
 }
 .enter-stagger > *:nth-child(3),
-:root.app-leaving .app-main > *:nth-child(3) {
+:root.app-leaving .app-main > *:nth-child(3),
+:root.locale-switching .app-main > *:nth-child(3),
+:root.locale-switched .app-main > *:nth-child(3) {
   --pop-row: 2;
 }
 .enter-stagger > *:nth-child(4),
-:root.app-leaving .app-main > *:nth-child(4) {
+:root.app-leaving .app-main > *:nth-child(4),
+:root.locale-switching .app-main > *:nth-child(4),
+:root.locale-switched .app-main > *:nth-child(4) {
   --pop-row: 3;
 }
 .enter-stagger > * > *,
-:root.app-leaving .app-main > * > * {
+:root.app-leaving .app-main > * > *,
+:root.locale-switching .app-main > * > *,
+:root.locale-switched .app-main > * > * {
   --pop-col: 0;
 }
 .enter-stagger > * > *:nth-child(2),
-:root.app-leaving .app-main > * > *:nth-child(2) {
+:root.app-leaving .app-main > * > *:nth-child(2),
+:root.locale-switching .app-main > * > *:nth-child(2),
+:root.locale-switched .app-main > * > *:nth-child(2) {
   --pop-col: 1;
 }
 .enter-stagger > * > *:nth-child(3),
-:root.app-leaving .app-main > * > *:nth-child(3) {
+:root.app-leaving .app-main > * > *:nth-child(3),
+:root.locale-switching .app-main > * > *:nth-child(3),
+:root.locale-switched .app-main > * > *:nth-child(3) {
   --pop-col: 2;
 }
 
@@ -1348,6 +1380,89 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .header-action-pop-in,
   :root.app-leaving .header-action-pop {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/**
+ * ĐỔI NGÔN NGỮ TẠI CHỖ — rút đi, dựng lại nội dung, nảy lên. Không đổi trang.
+ *
+ * Dùng lại NGUYÊN bộ chỉ số của hai luật stagger phía trên (`--pop-row` /
+ * `--pop-col` đã khai ở đó cho `.app-main`), nên chỉ cần thêm hai luật animation
+ * chứ không phải chép lại bảy luật chỉ số.
+ *
+ * Nhịp lấy y hệt chặng rời ứng dụng và chặng vào ứng dụng: cùng là "nội dung
+ * trang này thay đổi", khác mỗi chỗ không có điều hướng nào ở giữa. Cho nó một
+ * nhịp riêng chỉ tạo ra thêm một con số phải nhớ.
+ *
+ * Cụm nút phải KHÔNG nằm trong hai luật này, và đó là chủ ý: cái `<select>` đổi
+ * ngôn ngữ nằm ngay trong đó. Cho nó rút đi giữa lúc người dùng vừa bấm là giật
+ * mất chính thứ họ đang thao tác. Nó đứng yên như con dấu.
+ */
+:root.locale-switching .app-main > header,
+:root.locale-switching .app-main > div > * {
+  animation: var(--pop-exit-dur) var(--pop-out-ease) forwards pop-out;
+  animation-delay: calc(
+    (var(--pop-exit-last) - (var(--pop-row, 0) * 2 + var(--pop-col, 0))) * var(--pop-exit-step)
+  );
+}
+
+:root.locale-switched .app-main > header,
+:root.locale-switched .app-main > div > * {
+  animation: var(--pop-enter-dur) var(--pop-ease) backwards pop-in;
+  animation-delay: calc((var(--pop-row, 0) * 2 + var(--pop-col, 0)) * var(--pop-enter-step));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root.locale-switching .app-main > header,
+  :root.locale-switching .app-main > div > *,
+  :root.locale-switched .app-main > header,
+  :root.locale-switched .app-main > div > * {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/**
+ * TRANG XÁC THỰC (đăng nhập / đăng ký) — hai khối nảy lên rồi rút đi lần lượt.
+ *
+ * Cùng nhịp với trang giới thiệu (`--pop-*` / `--pop-out-*`) chứ không dùng cặp
+ * `--pop-enter-*` của dashboard: về mặt người dùng, đây vẫn là một trang đứng
+ * TRƯỚC ứng dụng, đi tiếp cùng một mạch với trang giới thiệu vừa rời.
+ *
+ * `.auth-block` là class RIÊNG, không tái dùng `.pop-in`, và đó là điều bắt
+ * buộc chứ không phải sở thích: khung này mount trong lúc cờ `.pop-leaving` vẫn
+ * còn trên <html> (nó chỉ được gỡ trong effect của chính khung này), mà
+ * `:root.pop-leaving .pop-in` là luật chạy pop-OUT. Dùng `.pop-in` thì cả trang
+ * đăng nhập tắt phụt đúng lúc đáng ra phải hiện ra.
+ *
+ * `--auth-last` = chỉ số LỚN NHẤT trong đám `--pop-i` bên
+ * app/(auth)/layout.tsx. Thêm khối thì sửa số này, nếu không khối cuối rút đi
+ * trước cả khi tới lượt.
+ *
+ * Chiều ra xong ở 1 * 48 + 330 = 378ms, vẫn nằm gọn trong `EXIT_APP_MS`
+ * (460ms) sau khi nhóm `--pop-out-*` được nới 1,5 lần. Còn 82ms dư — nới hai
+ * biến đó thêm nữa thì phải kiểm lại chỗ này, vì trang xác thực dùng chung
+ * chúng nhưng lại chờ theo một hằng số khác.
+ */
+:root {
+  --auth-last: 1;
+}
+
+.auth-block {
+  animation: var(--pop-dur) var(--pop-ease) backwards pop-in;
+  animation-delay: calc(var(--pop-i, 0) * var(--pop-step));
+}
+
+:root.app-leaving .auth-block {
+  animation: var(--pop-out-dur) var(--pop-out-ease) forwards pop-out;
+  animation-delay: calc((var(--auth-last) - var(--pop-i, 0)) * var(--pop-out-step));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-block,
+  :root.app-leaving .auth-block {
     animation: none;
     opacity: 1;
   }

@@ -4,6 +4,7 @@ import { auth, isGoogleConfigured } from '@/auth'
 import { userStillExists } from '@/lib/auth/session'
 import { LoginForm } from '@/components/auth/login-form'
 import { WarningIcon } from '@/components/shell/icons'
+import { getT } from '@/lib/i18n/server'
 
 export const metadata: Metadata = {
   title: 'Đăng nhập',
@@ -30,20 +31,20 @@ export default async function LoginPage({ searchParams }: Props) {
   const oauthError = typeof sp.error === 'string' ? sp.error : null
   // Token còn hạn nhưng tài khoản không còn — xem lib/auth/session.ts
   const staleSession = sp.phien === 'het-han'
+  const t = await getT()
 
   return (
     <>
-      <h1 className="text-[27px] font-bold">Đăng nhập</h1>
+      <h1 className="text-[27px] font-bold">{t('login.title')}</h1>
       <p className="mt-1.5 mb-6 text-[15.5px] text-muted-strong">
-        Tiếp tục theo dõi tiến độ và điểm số của bạn.
+        {t('login.subtitle')}
       </p>
 
       {staleSession && (
         <p className="mb-4 flex items-start gap-2 rounded-xl bg-amber-soft px-4 py-3 text-[14px] leading-relaxed text-amber">
           <WarningIcon size={16} />
           <span>
-            Phiên đăng nhập cũ không còn hiệu lực vì tài khoản gắn với nó đã bị xoá.
-            Bạn đăng nhập lại giúp nhé.
+            {t('login.staleSession')}
           </span>
         </p>
       )}

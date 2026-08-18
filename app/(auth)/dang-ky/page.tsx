@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { auth, isGoogleConfigured } from '@/auth'
 import { RegisterForm } from '@/components/auth/register-form'
+import { getT } from '@/lib/i18n/server'
 
 export const metadata: Metadata = {
   title: 'Đăng ký',
@@ -12,12 +13,13 @@ export const metadata: Metadata = {
 export default async function RegisterPage() {
   const session = await auth()
   if (session?.user) redirect('/dashboard')
+  const t = await getT()
 
   return (
     <>
-      <h1 className="text-[27px] font-bold">Tạo tài khoản</h1>
+      <h1 className="text-[27px] font-bold">{t('register.title')}</h1>
       <p className="mt-1.5 mb-6 text-[15.5px] text-muted-strong">
-        Bài bạn đã làm ở chế độ khách sẽ được giữ lại và gộp vào tài khoản này.
+        {t('register.subtitle')}
       </p>
       <RegisterForm googleEnabled={isGoogleConfigured()} />
     </>

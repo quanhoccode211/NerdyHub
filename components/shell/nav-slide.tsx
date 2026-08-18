@@ -107,24 +107,43 @@ export const SLIDE_BACK = 'slide-back'
 export const ENTER_APP = 'enter-app'
 
 /**
+ * RỜI TRANG GIỚI THIỆU SANG TRANG XÁC THỰC (đăng nhập / đăng ký).
+ *
+ * Chặng thoát giống hệt ENTER_APP: cùng gắn `.pop-leaving`, cùng chờ
+ * `POP_OUT_MS` rồi mới điều hướng. Khác đúng MỘT điểm, và đó là lý do phải có
+ * kiểu riêng chứ không mượn tên kia: nó KHÔNG bật cờ `enteringApp`.
+ *
+ * Cờ đó chỉ AppShell đọc, mà trang xác thực dựng khung riêng nên không ai đọc
+ * tới. Mượn ENTER_APP thì cờ nằm treo đúng `true`, và lần SAU khi người dùng
+ * đăng nhập xong bước vào dashboard, AppShell mount lên thấy cờ còn bật rồi
+ * chạy `.enter-stagger` cho một lần điều hướng chẳng liên quan gì.
+ */
+export const ENTER_AUTH = 'enter-auth'
+
+/**
  * Chờ CHẶNG DÀI NHẤT của cú rời trang, không phải chặng đầu tiên xong.
  *
  * Hai thứ chạy song song khi thoát trang giới thiệu, cả hai khai trong
  * globals.css:
- *   • nội dung nảy ngược: `--pop-last` (6) * `--pop-out-step` (32ms)
- *     + `--pop-out-dur` (220ms) = 412ms
+ *   • nội dung nảy ngược: `--pop-last` (6) * `--pop-out-step` (48ms)
+ *     + `--pop-out-dur` (330ms) = 618ms  <- dài hơn, chính nó quyết định
  *   • trademark thụt vào sau con dấu, dòng "HUB" đi sau cùng:
  *     `--wordmark-out-delay` (60ms) + `--wordmark-stagger` (100ms)
- *     + `--wordmark-out-dur` (350ms) = 510ms  <- vẫn dài hơn, chính nó quyết định
+ *     + `--wordmark-out-dur` (350ms) = 510ms
  *
- * 530ms là 510 cộng một nhịp dư. Đặt ngắn hơn là điều hướng lúc chữ còn đang
- * trượt dở, và nó bị cắt ngang giữa chừng vì bên ứng dụng không có trademark
- * nào để nối tiếp. Đổi bất kỳ biến nào ở trên thì tính lại con số này.
+ * 640ms là 618 cộng một nhịp dư. Đặt ngắn hơn là điều hướng lúc dãy còn chạy
+ * dở, và nó bị cắt ngang giữa chừng vì trang đích không có gì nối tiếp. Đổi bất
+ * kỳ biến nào ở trên thì tính lại con số này.
  *
- * Từng là 630ms khi `--wordmark-stagger` còn 200ms. Hạ stagger xuống 100ms rút
- * được 100ms khỏi quãng người dùng nhìn màn hình trắng chờ điều hướng.
+ * ĐÃ ĐỔI CHỦ NGÔI. Trước đợt nới nhịp pop-out lên 1,5 lần, trademark mới là
+ * chặng dài nhất (510ms so với 412ms của nội dung) và con số này bám theo nhóm
+ * `--wordmark-out-*`. Nay ngược lại: nội dung 618ms vượt trademark, nên nó bám
+ * theo `--pop-out-dur` / `--pop-out-step`. Ai chỉnh trademark sau này đừng quên
+ * kiểm lại xem nó có vượt lên thành chặng dài nhất nữa không.
+ *
+ * Từng là 530ms, và trước nữa là 630ms khi `--wordmark-stagger` còn 200ms.
  */
-const POP_OUT_MS = 530
+const POP_OUT_MS = 640
 
 /**
  * RỜI ỨNG DỤNG VỀ TRANG GIỚI THIỆU — chiều ngược của ENTER_APP.
@@ -232,8 +251,12 @@ function useSlideNavigation(): StartSlide {
         VÀO ỨNG DỤNG: chạy hiệu ứng thoát trên DOM thật rồi mới đi, không dùng
         view transition. Lý do đầy đủ ở chỗ khai ENTER_APP.
       */
-      if (type === ENTER_APP) {
-        enteringApp = true
+      if (type === ENTER_APP || type === ENTER_AUTH) {
+        /*
+          CHỈ ENTER_APP bật cờ. Chặng sang trang xác thực dùng chung y hệt phần
+          thoát bên dưới nhưng không được để lại cờ — xem chỗ khai ENTER_AUTH.
+        */
+        if (type === ENTER_APP) enteringApp = true
 
         /*
           Giảm chuyển động: bỏ luôn phần chờ. Giữ `setTimeout` mà tắt animation

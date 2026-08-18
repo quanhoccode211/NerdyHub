@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
+import { useLocale } from '@/components/i18n/locale-provider'
 import Link from 'next/link'
 import { loginAction, type FormState } from '@/app/actions/auth'
 import { Field, FormError, SubmitButton } from './form-parts'
@@ -8,13 +9,14 @@ import { GoogleButton } from './register-form'
 
 export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
   const [state, action] = useActionState<FormState, FormData>(loginAction, null)
+  const { t } = useLocale()
 
   return (
     <form action={action} className="flex flex-col gap-4">
       <FormError message={state?.error} />
 
       <Field
-        label="Email"
+        label={t('field.email')}
         name="email"
         type="email"
         required
@@ -22,30 +24,30 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
         error={state?.fieldErrors?.email}
       />
       <Field
-        label="Mật khẩu"
+        label={t('field.password')}
         name="password"
         type="password"
         required
         error={state?.fieldErrors?.password}
       />
 
-      <SubmitButton>Đăng nhập</SubmitButton>
+      <SubmitButton>{t('login.submit')}</SubmitButton>
 
       {googleEnabled && (
         <>
           <div className="flex items-center gap-3 text-[13.5px] text-muted">
             <span className="h-px flex-1 bg-line" />
-            hoặc
+            {t('form.or')}
             <span className="h-px flex-1 bg-line" />
           </div>
-          <GoogleButton label="Đăng nhập bằng Google" />
+          <GoogleButton label={t('login.google')} />
         </>
       )}
 
       <p className="text-center text-[14.5px] text-muted">
-        Chưa có tài khoản?{' '}
+        {t('login.noAccount')}{' '}
         <Link href="/dang-ky" className="font-medium text-purple hover:underline">
-          Đăng ký
+          {t('login.toRegister')}
         </Link>
       </p>
     </form>

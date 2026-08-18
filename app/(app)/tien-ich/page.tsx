@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { PageHeader } from '@/components/shell/app-shell'
+import { getT } from '@/lib/i18n/server'
 import { GameIcon, SparkIcon, TimerIcon } from '@/components/shell/icons'
 
 export const metadata: Metadata = {
@@ -12,14 +13,15 @@ export const metadata: Metadata = {
  * Danh mục tiện ích dùng kèm lúc học. Mỗi tiện ích mở ở TRANG RIÊNG, không nhúng
  * vào Tổng quan — Pomodoro cần cả màn hình yên tĩnh của nó.
  */
-export default function UtilitiesPage() {
+export default async function UtilitiesPage() {
+  const t = await getT()
   return (
     <>
       {/* Không có `eyebrow`: dòng "Dụng cụ đi kèm" đã bỏ. `subtitle` bên dưới
           nói đúng điều đó rồi, giữ cả hai là lặp ý ngay trên đầu trang. */}
       <PageHeader
-        title="Tiện ích"
-        subtitle="Vài thứ nhỏ dùng kèm lúc ôn. Mở ra khi cần, đóng lại khi xong."
+        title={t('tools.title')}
+        subtitle={t('tools.pageSubtitle')}
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -29,12 +31,11 @@ export default function UtilitiesPage() {
           </span>
           <h2 className="mt-4 text-[21px] font-bold">Pomodoro</h2>
           <p className="mt-2 text-[15px] leading-relaxed text-muted-strong">
-            Đồng hồ tập trung 25 phút, nghỉ 5 phút, cứ 4 phiên thì nghỉ dài 15 phút. Chạy tiếp
-            kể cả khi bạn chuyển tab hoặc tải lại trang.
+            {t('toolsPage.pomodoroDesc')}
           </p>
           <Link href="/tien-ich/pomodoro" className="btn-primary mt-5">
             <SparkIcon size={15} />
-            Mở Pomodoro
+            {t('toolsPage.pomodoroOpen')}
           </Link>
         </section>
 
@@ -44,12 +45,11 @@ export default function UtilitiesPage() {
           </span>
           <h2 className="mt-4 text-[21px] font-bold">More or Less</h2>
           <p className="mt-2 text-[15px] leading-relaxed text-muted-strong">
-            Game đoán xem bên nào nhiều hơn — dân số, diện tích, GDP, nghệ sĩ Việt. Chơi
-            nhanh trong một phút nghỉ Pomodoro rồi quay lại làm bài.
+            {t('toolsPage.moreOrLessDesc')}
           </p>
           <Link href="/tien-ich/more-or-less" className="btn-primary mt-5">
             <GameIcon size={15} />
-            Mở More or Less
+            {t('toolsPage.moreOrLessOpen')}
           </Link>
         </section>
 
@@ -57,14 +57,13 @@ export default function UtilitiesPage() {
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-mint-soft text-[24px] font-bold">
             W
           </span>
-          <h2 className="mt-4 text-[21px] font-bold">Wordle từ vựng</h2>
+          <h2 className="mt-4 text-[21px] font-bold">{t('tools.wordle')}</h2>
           <p className="mt-2 text-[15px] leading-relaxed text-muted-strong">
-            Đoán từ tiếng Anh 5 chữ cái — mỗi ngày một từ chung cho mọi người, kèm nghĩa
-            tiếng Việt sau khi xong. Có chế độ luyện tập vô hạn.
+            {t('toolsPage.wordleDesc')}
           </p>
           <Link href="/tien-ich/wordle" className="btn-primary mt-5">
             <SparkIcon size={15} />
-            Mở Wordle
+            {t('toolsPage.wordleOpen')}
           </Link>
         </section>
       </div>

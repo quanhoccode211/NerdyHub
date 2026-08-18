@@ -1,4 +1,5 @@
 import type { DayHours, SkillTime } from '@/lib/dashboard'
+import type { Translator } from '@/lib/i18n/server'
 import { SKILL_LABELS, type Skill } from '@/lib/enums'
 import { CardHeader } from '../shell/app-shell'
 import { ChartIcon, ChevronDownIcon, DotsIcon, SlidersIcon, TimerIcon } from '../shell/icons'
@@ -17,14 +18,24 @@ function formatHm(seconds: number): string {
   return m === 0 ? `${h}h` : `${h}h${m}p`
 }
 
+/*
+  `t` truyền vào từ trang cha, KHÔNG gọi `useLocale()`.
+
+  Component này là server component (không có 'use client'), nên không dùng hook
+  được. Thêm 'use client' vào chỉ để dịch chữ là đổi luôn thứ nó vốn là: cả khối
+  biểu đồ này sẽ bị đẩy xuống trình duyệt dưới dạng JS. Trang Tổng quan vốn đã
+  gọi `getT()` ở server rồi, chuyền tiếp xuống đây là đủ và không mất gì.
+*/
 export function LearningHours({
   series,
   bySkill,
   goalSeconds,
+  t,
 }: {
   series: DayHours[]
   bySkill: SkillTime[]
   goalSeconds: number
+  t: Translator
 }) {
   const maxSeconds = Math.max(goalSeconds * 1.35, ...series.map((d) => d.seconds), 1)
   // Trục y theo mốc giờ tròn
@@ -39,17 +50,17 @@ export function LearningHours({
     <section className="card p-5 md:p-6">
       <CardHeader
         icon={<ChartIcon size={17} />}
-        title="Giờ luyện tập"
+        title={t('hours.title')}
         actions={
           <>
             <span className="pill border border-line bg-card text-[13.5px] text-muted-strong">
-              6 ngày
+              {t('hours.range')}
               <ChevronDownIcon size={13} />
             </span>
-            <button type="button" className="icon-circle" aria-label="Tuỳ chọn khác">
+            <button type="button" className="icon-circle" aria-label={t('widget.moreOptions')}>
               <DotsIcon size={16} />
             </button>
-            <button type="button" className="icon-circle" aria-label="Bộ lọc">
+            <button type="button" className="icon-circle" aria-label={t('widget.filter')}>
               <SlidersIcon size={16} />
             </button>
           </>
@@ -155,7 +166,7 @@ export function LearningHours({
           ))
         ) : (
           <p className="col-span-full rounded-2xl border border-line p-4 text-center text-[14px] text-muted">
-            Làm một đề để bắt đầu đếm giờ luyện tập.
+            {t('hours.empty')}
           </p>
         )}
       </div>

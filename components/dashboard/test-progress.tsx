@@ -5,6 +5,8 @@ import Link from 'next/link'
 import type { ExamProgress } from '@/lib/dashboard'
 import { LANGUAGE_FLAGS, type Language } from '@/lib/enums'
 import { CardHeader } from '../shell/app-shell'
+import { vi as MESSAGES_VI, type MessageKey } from '@/lib/i18n/messages'
+import { useLocale } from '../i18n/locale-provider'
 import {
   BookIcon,
   ChevronLeftIcon,
@@ -30,19 +32,20 @@ const TONES = [
   { bg: 'var(--tile-sand)', chip: 'var(--tile-chip)', track: 'var(--tile-track)' },
 ] as const
 
-const LANG_LABEL: Record<string, string> = {
-  EN: 'Tiếng Anh',
-  KO: 'Tiếng Hàn',
-  JA: 'Tiếng Nhật',
-  ZH: 'Tiếng Trung',
-  DE: 'Tiếng Đức',
-  VI: 'Tiếng Việt',
-}
+/* Nhãn ngôn ngữ giờ nằm trong từ điển (`lang.*`) — xem hàm dịch bên dưới. */
 
 export function TestProgress({ exams }: { exams: ExamProgress[] }) {
   const scroller = useRef<HTMLDivElement>(null)
   const [atStart, setAtStart] = useState(true)
   const [atEnd, setAtEnd] = useState(false)
+  const { t } = useLocale()
+
+  /* Mã ngôn ngữ tới từ database nên có thể là mã lạ; rơi về chính mã đó thay vì
+     để trống. Danh sách khoá hợp lệ xem LANGUAGES trong lib/enums.ts. */
+  const langLabel = (code: string) => {
+    const key = `lang.` as MessageKey
+    return key in MESSAGES_VI ? t(key) : code
+  }
 
   function onScroll() {
     const el = scroller.current
@@ -61,10 +64,10 @@ export function TestProgress({ exams }: { exams: ExamProgress[] }) {
     <section className="card p-5 md:p-6">
       <CardHeader
         icon={<TargetIcon size={17} />}
-        title="Tiến độ luyện đề"
+        title={t('progress.title')}
         meta={
           remaining > 0 ? (
-            <span className="pill bg-accent text-[var(--color-accent-fg)]">+{remaining} đề</span>
+            <span className="pill bg-accent text-[var(--color-accent-fg)]">{t('progress.remaining', { count: remaining })}</span>
           ) : null
         }
         actions={
@@ -74,7 +77,7 @@ export function TestProgress({ exams }: { exams: ExamProgress[] }) {
               onClick={() => scrollBy(-1)}
               disabled={atStart}
               className="icon-circle disabled:opacity-35"
-              aria-label="Xem thẻ trước"
+              aria-label={t('progress.prev')}
             >
               <ChevronLeftIcon size={16} />
             </button>
@@ -83,11 +86,11 @@ export function TestProgress({ exams }: { exams: ExamProgress[] }) {
               onClick={() => scrollBy(1)}
               disabled={atEnd}
               className="icon-circle disabled:opacity-35"
-              aria-label="Xem thẻ sau"
+              aria-label={t('progress.next')}
             >
               <ChevronRightIcon size={16} />
             </button>
-            <button type="button" className="icon-circle" aria-label="Tuỳ chọn khác">
+            <button type="button" className="icon-circle" aria-label={t('widget.moreOptions')}>
               <DotsIcon size={16} />
             </button>
           </>
@@ -96,7 +99,7 @@ export function TestProgress({ exams }: { exams: ExamProgress[] }) {
 
       {exams.length === 0 ? (
         <p className="panel p-8 text-center text-[15px] text-muted">
-          Chưa có kỳ thi nào được công bố.
+          {t('progress.empty')}
         </p>
       ) : (
         <div
@@ -137,7 +140,7 @@ export function TestProgress({ exams }: { exams: ExamProgress[] }) {
                   <button
                     type="button"
                     className="rounded-full p-1 text-on-tone/45 hover:text-on-tone/70"
-                    aria-label={`Tuỳ chọn cho ${exam.name}`}
+                    aria-label={t('progress.optionsFor', { name: exam.name })}
                   >
                     <DotsIcon size={16} />
                   </button>
@@ -152,20 +155,20 @@ export function TestProgress({ exams }: { exams: ExamProgress[] }) {
                     className="pill text-[12.5px] text-on-tone/75"
                     style={{ background: tone.chip }}
                   >
-                    {LANG_LABEL[exam.language] ?? exam.language}
+                    {langLabel(exam.language)}
                   </span>
                   <span
                     className="pill text-[12.5px] text-on-tone/75"
                     style={{ background: tone.chip }}
                   >
-                    {exam.totalPapers} đề
+                    {t('progress.papers', { count: exam.totalPapers })}
                   </span>
                   {exam.avgScorePercent !== null && (
                     <span
                       className="pill text-[12.5px] text-on-tone/75"
                       style={{ background: tone.chip }}
                     >
-                      TB {Math.round(exam.avgScorePercent)}%
+                      {t('progress.avg', { percent: Math.round(exam.avgScorePercent) })}
                     </span>
                   )}
                 </div>
@@ -183,7 +186,7 @@ export function TestProgress({ exams }: { exams: ExamProgress[] }) {
 
                   <div className="mt-2.5 flex items-center justify-between text-[14px]">
                     <span className="font-medium text-on-tone/70">
-                      {exam.donePapers}/{exam.totalPapers} đề
+                      {t('progress.doneOf', { done: exam.donePapers, total: exam.totalPapers })}
                     </span>
                     <span className="font-bold">{exam.percent}%</span>
                   </div>

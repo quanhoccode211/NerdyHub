@@ -1,8 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { useSession } from 'next-auth/react'
-import { ENTER_APP, SlideLink } from '../shell/nav-slide'
+import { useLocale } from '@/components/i18n/locale-provider'
+import { ENTER_APP, ENTER_AUTH, SlideLink } from '../shell/nav-slide'
 
 /**
  * Góc phải trên trang giới thiệu: đăng nhập, hoặc lối vào cho người đã đăng nhập.
@@ -23,6 +23,7 @@ import { ENTER_APP, SlideLink } from '../shell/nav-slide'
  */
 export function LandingAuth() {
   const { data: session, status } = useSession()
+  const { t } = useLocale()
 
   /*
     Giữ chỗ ĐÚNG CỠ nút "Đăng nhập" — trạng thái thường gặp nhất ở trang này.
@@ -38,9 +39,22 @@ export function LandingAuth() {
   const user = session?.user
   if (!user) {
     return (
-      <Link href="/dang-nhap" className="btn-secondary px-4 py-2 text-[14.5px]">
-        Đăng nhập
-      </Link>
+      /*
+        `SlideLink` + `ENTER_AUTH`, không phải `<Link>` trơn: rời trang giới
+        thiệu sang trang đăng nhập cũng chạy hiệu ứng thoát y như bấm vào ứng
+        dụng — các khối rút đi lần lượt rồi mới điều hướng.
+
+        `ENTER_AUTH` chứ không phải `ENTER_APP`: hai chặng thoát giống hệt nhau,
+        khác đúng chỗ kiểu này không bật cờ `enteringApp`. Xem chỗ khai nó trong
+        components/shell/nav-slide.tsx.
+      */
+      <SlideLink
+        href="/dang-nhap"
+        type={ENTER_AUTH}
+        className="btn-secondary px-4 py-2 text-[14.5px]"
+      >
+        {t('auth.signIn')}
+      </SlideLink>
     )
   }
 
@@ -51,7 +65,7 @@ export function LandingAuth() {
     <SlideLink
       href="/dashboard"
       type={ENTER_APP}
-      aria-label={`Vào ứng dụng với tài khoản ${name}`}
+      aria-label={t('auth.enterApp', { name })}
       /*
         `pr-1.5` chứ không phải `pr-4`, và KHÔNG còn `gap-2`.
 

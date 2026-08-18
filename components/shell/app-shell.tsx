@@ -5,6 +5,9 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState, useTransition } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import { clearGuestIdentityAction } from '@/app/actions/sign-out'
+import { useLocale } from '@/components/i18n/locale-provider'
+import { LOCALES, LOCALE_NAMES, type Locale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/messages'
 import {
   ACTIVE_PILL_VT_NAME,
   APP_LEAVING_CLASS,
@@ -40,13 +43,13 @@ import {
  */
 
 const NAV = [
-  { href: '/dashboard', label: 'Tổng quan', Icon: HomeIcon },
-  { href: '/de-thi', label: 'Kho đề', Icon: BookIcon },
-  { href: '/lich-on', label: 'Lịch ôn', Icon: CalendarIcon },
-  { href: '/thong-ke', label: 'Thống kê', Icon: ChartIcon },
-  { href: '/tien-ich', label: 'Tiện ích', Icon: SparkIcon },
-  { href: '/cai-dat', label: 'Cài đặt', Icon: SettingsIcon },
-]
+  { href: '/dashboard', labelKey: 'nav.dashboard', Icon: HomeIcon },
+  { href: '/de-thi', labelKey: 'nav.exams', Icon: BookIcon },
+  { href: '/lich-on', labelKey: 'nav.schedule', Icon: CalendarIcon },
+  { href: '/thong-ke', labelKey: 'nav.stats', Icon: ChartIcon },
+  { href: '/tien-ich', labelKey: 'nav.tools', Icon: SparkIcon },
+  { href: '/cai-dat', labelKey: 'nav.settings', Icon: SettingsIcon },
+] as const satisfies readonly { href: string; labelKey: MessageKey; Icon: unknown }[]
 
 export type ShellUser = {
   name: string | null
@@ -58,6 +61,7 @@ export type ShellUser = {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
+  const { t } = useLocale()
 
   /**
    * "Vừa bước từ trang giới thiệu vào" — bật hiệu ứng các khối nảy lên lần lượt.
@@ -101,8 +105,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       Nay: 8 * 26ms + 360ms = 568ms, làm tròn lên 620ms.
     */
-    const t = window.setTimeout(() => setEntering(false), 620)
-    return () => window.clearTimeout(t)
+    /* `timer`, không phải `t`: `t` giờ là hàm dịch ở trên. */
+    const timer = window.setTimeout(() => setEntering(false), 620)
+    return () => window.clearTimeout(timer)
   }, [entering])
 
   /*
@@ -171,7 +176,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SlideLink
             href="/"
             type={EXIT_APP}
-            aria-label="Nerdy Hub — trang chủ"
+            aria-label={t('nav.aria.home')}
             className="flex flex-none items-center"
             /*
               Mốc neo của hiệu ứng trượt: đặt tên view-transition thì con dấu
@@ -214,7 +219,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             một pixel nào khác trước.
           */}
           <nav
-            aria-label="Điều hướng chính"
+            aria-label={t('nav.aria.main')}
             className="flex min-w-0 flex-1 items-center justify-center"
           >
             {/*
@@ -232,7 +237,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="nav-rail no-scrollbar max-w-full overflow-x-auto"
               style={{ viewTransitionName: NAV_RAIL_VT_NAME }}
             >
-              {NAV.map(({ href, label, Icon }, i) => {
+              {NAV.map(({ href, labelKey, Icon }, i) => {
+                const label = t(labelKey)
                 /*
                   HAI KHÁI NIỆM KHÁC NHAU, đừng gộp lại làm một.
 
@@ -408,10 +414,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <html> (effect chưa chạy), mà `:root.pop-leaving .pop-in` là luật
               chạy pop-OUT — nút sẽ tắt phụt đúng lúc đáng ra phải hiện.
             */}
+            {/*
+              `h-[46px] w-[46px]` ghi đè cỡ mặc định 36px của `.icon-circle`,
+              KHÔNG sửa chính class đó: nó dùng ở 14 chỗ khác (nút trong thẻ
+              dashboard, hộp thoại điều khoản...) và tất cả đang đúng ở 36px.
+              Ghi đè tại chỗ là cách `pomodoro-clock.tsx` vẫn làm.
+
+              46px vì pill tài khoản ngay bên cạnh cao đúng ngần ấy, mà hai nút
+              đứng cùng một hàng thì lệch 10px là thấy ngay.
+            */}
             <button
               type="button"
-              className={`icon-circle header-action-pop${entering ? ' header-action-pop-in' : ''}`}
-              aria-label="Thông báo"
+              className={`icon-circle header-action-pop h-[46px] w-[46px]${entering ? ' header-action-pop-in' : ''}`}
+              aria-label={t('header.notifications')}
             >
               <BellIcon size={17} />
             </button>
@@ -451,6 +466,7 @@ function AccountMenu({
   onOpenChange: (v: boolean) => void
 }) {
   const [pending, startTransition] = useTransition()
+  const { t, locale, switchLocale } = useLocale()
   const { data: session, status } = useSession()
 
   const user: ShellUser | null = session?.user
@@ -477,8 +493,9 @@ function AccountMenu({
   }, [open, onOpenChange])
 
   // Trang tĩnh nên session tới sau lần render đầu — giữ chỗ để layout không nhảy
+  // 46px = đúng cỡ pill thật bên dưới (32px avatar + 6px đệm + 1px viền, hai phía)
   if (status === 'loading') {
-    return <span className="h-8 w-8 flex-none rounded-full bg-soft" />
+    return <span className="h-[46px] w-[46px] flex-none rounded-pill bg-soft" />
   }
 
   if (!user) {
@@ -509,27 +526,30 @@ function AccountMenu({
         onClick={() => onOpenChange(!open)}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label="Tài khoản"
+        aria-label={t('header.account')}
         /*
-          `h-8 w-8` + `text-[15px]` PHẢI khớp avatar trong pill ở góc phải trang
-          giới thiệu (components/landing/landing-auth.tsx) — cùng một vòng tròn,
-          người dùng thấy nó ở cả hai khung.
+          CÙNG MỘT CÁI PILL với góc phải trang giới thiệu, chỉ khác là đã thu hết
+          — xem components/landing/landing-auth.tsx. Ba con số phải khớp từng cái
+          một: viền `border-line` 1px, đệm `p-1.5` 6px, avatar 32px. Tổng 46px.
 
-          Từng là `h-9 w-9` + `text-[16px]`, tức 36px so với 32px bên kia. Lệch
-          đó đọc ra ngay giữa lúc chuyển trang: pill bên trang giới thiệu thu về
-          đúng hình tròn này, tròn xong thì nó nở thêm 4px một cái. Lấy số NHỎ
-          hơn chứ không nống bên kia lên, vì 32px là cỡ đang nằm vừa trong pill.
+          Bản trước là avatar trần đeo `ring-2 ring-line`, tức vành dính sát vòng
+          tròn đen, không có khoảng thở. Bên kia thì avatar nằm giữa một pill có
+          6px trắng bao quanh. Hai thứ đọc ra là hai kiểu nút khác nhau, và lộ rõ
+          nhất ngay lúc chuyển trang: pill bên kia thu về hình 46px rồi bên này
+          lại là hình 36px.
 
-          Vành `ring-2` không tính vào phép so: bên kia avatar nằm trong pill có
-          viền riêng, bên này vành chính là thứ thay cho cái viền đó.
+          Giờ đích của cú thu và hình đang đứng ở đây là MỘT. Đổi đệm hay viền ở
+          đâu thì sửa cả hai file.
         */
-        className="relative flex h-8 w-8 items-center justify-center rounded-full bg-accent text-[15px] font-bold text-[var(--color-accent-fg)] ring-2 ring-line"
+        className="account-pill relative flex items-center rounded-pill border border-line p-1.5 transition-colors hover:border-line-strong"
       >
-        {initial}
+        <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-accent text-[15px] font-bold text-[var(--color-accent-fg)]">
+          {initial}
+        </span>
         {needsGuardian && (
           <span
             className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-warn text-white"
-            title="Chờ xác nhận của người giám hộ"
+            title={t('account.guardianTitle')}
           >
             <WarningIcon size={10} />
           </span>
@@ -544,14 +564,14 @@ function AccountMenu({
           <div className="border-b border-line px-2 pb-2.5">
             {/* Tên và email là NHÃN, không phải câu văn — kéo về Roboto Mono */}
             <p className="truncate font-sans text-[15px] font-semibold">
-              {user.name ?? 'Tài khoản'}
+              {user.name ?? t('account.fallbackName')}
             </p>
             <p className="truncate font-sans text-[13.5px] text-muted">{user.email}</p>
           </div>
 
           {needsGuardian && (
             <p className="mt-2 rounded-lg bg-warn-soft px-2.5 py-2 text-[13px] leading-relaxed text-warn">
-              Đang chờ xác nhận của người giám hộ.
+              {t('account.guardianPending')}
             </p>
           )}
 
@@ -562,16 +582,44 @@ function AccountMenu({
               onClick={() => onOpenChange(false)}
               className="rounded-lg px-2.5 py-2 text-[14.5px] hover:bg-soft"
             >
-              Dữ liệu cá nhân
+              {t('account.data')}
             </Link>
-            <Link
-              href="/bai-lam"
-              role="menuitem"
-              onClick={() => onOpenChange(false)}
-              className="rounded-lg px-2.5 py-2 text-[14.5px] hover:bg-soft"
-            >
-              Bài đã làm
-            </Link>
+            {/*
+              MỤC "Bài đã làm" ĐÃ BỎ (theo yêu cầu). Trang `/bai-lam` vẫn còn và
+              vẫn vào được bằng đường dẫn trực tiếp — chỉ lối tắt trong menu này
+              là mất. Muốn dựng lại thì chép mẫu <Link> ngay phía trên.
+            */}
+
+            {/*
+              ĐỔI NGÔN NGỮ.
+
+              Là `<select>` gốc chứ không phải danh sách tự vẽ: nó nằm trong một
+              menu đang mở, mà một popup tự vẽ lồng trong popup thì phải tự lo
+              bẫy tiêu điểm, phím mũi tên và chuyện đóng cái nào trước. `<select>`
+              được trình duyệt lo hết, lại mở đúng kiểu quen thuộc trên di động.
+
+              `stopPropagation` là BẮT BUỘC: menu tài khoản đóng khi có
+              `mousedown` ra ngoài `[data-account-menu]`, mà trên vài trình duyệt
+              lớp phủ của `<select>` nằm ngoài cây đó — thiếu dòng này thì vừa bấm
+              mở danh sách là cả menu đóng sập.
+            */}
+            <label className="mt-0.5 flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-[14.5px]">
+              <span className="text-muted-strong">{t('locale.label')}</span>
+              <select
+                aria-label={t('locale.aria')}
+                value={locale}
+                onMouseDown={(e) => e.stopPropagation()}
+                onChange={(e) => switchLocale(e.target.value as Locale)}
+                className="rounded-md border border-line bg-card px-1.5 py-1 text-[13.5px] font-semibold outline-none focus-visible:border-line-strong"
+              >
+                {LOCALES.map((code) => (
+                  <option key={code} value={code}>
+                    {LOCALE_NAMES[code]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <button
               type="button"
               role="menuitem"
@@ -587,7 +635,7 @@ function AccountMenu({
               }
               className="rounded-lg px-2.5 py-2 text-left text-[14.5px] text-bad hover:bg-bad-soft disabled:opacity-60"
             >
-              {pending ? 'Đang thoát…' : 'Đăng xuất'}
+              {pending ? t('account.signOutPending') : t('account.signOut')}
             </button>
           </div>
         </div>
