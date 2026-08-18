@@ -1314,11 +1314,17 @@ body {
 }
 
 /**
- * CỤM NÚT BÊN PHẢI HEADER (chuông, tài khoản) — nảy lên và rút đi cùng nhịp.
+ * NÚT LẺ Ở CỤM PHẢI HEADER (hiện chỉ có chuông) — nảy lên và rút đi cùng nhịp.
  *
  * Phải có luật riêng vì cụm này nằm trong <header>, tức NGOÀI <main>, nên hai
  * luật stagger ở trên và dưới đều không với tới: chúng chỉ nhắm con của
  * `.enter-stagger` / `.app-main`.
+ *
+ * NHẮM TỪNG NÚT, KHÔNG nhắm cả cụm. Bản đầu đặt trên thẻ bọc nên avatar tài
+ * khoản nảy theo, và thành ra hai hiệu ứng chồng lên cùng một vòng tròn: pill
+ * bên trang giới thiệu đã thu về đúng hình đó rồi (xem `.account-name`), tròn
+ * xong lại pop-out rồi pop-in thêm một lần nữa. Avatar giờ đứng yên xuyên suốt,
+ * đúng vai trò mốc neo như con dấu thương hiệu ở đầu kia hàng header.
  *
  * Đi CÙNG NHỊP với tiêu đề trang (`> header`, chỉ số 0), không phải một nhịp
  * riêng: hai thứ nằm cùng vùng trên của màn hình, lệch nhau là mắt đọc ra hai
@@ -1326,22 +1332,22 @@ body {
  *   • chiều vào  — trễ 0, tức đi đầu dãy
  *   • chiều ra   — trễ `--pop-exit-last * --pop-exit-step` (160ms), đi cuối dãy
  *
- * `.header-actions` mang `view-transition-name` (xem HEADER_ACTIONS_VT_NAME).
- * Không xung đột: hai chặng ENTER_APP / EXIT_APP cố ý KHÔNG dùng view
- * transition, còn lúc đổi tab thì không cờ nào trong hai cờ dưới đây được bật.
+ * Thẻ bọc mang `view-transition-name` (xem HEADER_ACTIONS_VT_NAME). Không xung
+ * đột: hai chặng ENTER_APP / EXIT_APP cố ý KHÔNG dùng view transition, còn lúc
+ * đổi tab thì không cờ nào trong hai cờ dưới đây được bật.
  */
-.header-actions-in {
+.header-action-pop-in {
   animation: var(--pop-enter-dur) var(--pop-ease) backwards pop-in;
 }
 
-:root.app-leaving .header-actions {
+:root.app-leaving .header-action-pop {
   animation: var(--pop-exit-dur) var(--pop-out-ease) forwards pop-out;
   animation-delay: calc(var(--pop-exit-last) * var(--pop-exit-step));
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .header-actions-in,
-  :root.app-leaving .header-actions {
+  .header-action-pop-in,
+  :root.app-leaving .header-action-pop {
     animation: none;
     opacity: 1;
   }

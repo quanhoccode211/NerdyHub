@@ -385,24 +385,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             `relative` ở đây không đổi bố cục (cụm vẫn nằm trong dòng flex), chỉ
             để z-index còn tác dụng nếu sau này ai đổi header khỏi flex.
           */}
-          {/*
-            `header-actions` là class CỐ ĐỊNH, chỉ để CSS neo vào — xem hai luật
-            cùng tên trong globals.css. Cụm này nằm trong <header>, tức NGOÀI
-            `<main>`, nên nó không được `.enter-stagger` hay `.app-leaving` quét
-            trúng (cả hai chỉ với tới con của <main>). Thiếu nó thì chuông và
-            nút tài khoản đứng trơ khi mọi thứ khác nảy lên hoặc rút đi.
-
-            `header-actions-in` chỉ có mặt ở lượt vừa bước từ trang giới thiệu
-            vào, rồi được gỡ cùng `entering`. Phải là class RIÊNG chứ không tái
-            dùng `.pop-in`: lúc AppShell render khung hình đầu, cờ `.pop-leaving`
-            vẫn còn trên <html> (effect chưa chạy), mà `:root.pop-leaving .pop-in`
-            là luật chạy pop-OUT — cụm nút sẽ tắt phụt đúng lúc đáng ra phải hiện.
-          */}
           <div
-            className={`header-actions relative z-50 flex flex-none items-center gap-2${entering ? ' header-actions-in' : ''}`}
+            className="relative z-50 flex flex-none items-center gap-2"
             style={{ viewTransitionName: HEADER_ACTIONS_VT_NAME }}
           >
-            <button type="button" className="icon-circle" aria-label="Thông báo">
+            {/*
+              Hiệu ứng nảy đặt trên TỪNG NÚT, không phải trên cả cụm — và ở đây
+              chỉ có chuông mang nó.
+
+              Bản đầu gắn cho cả cụm, nên avatar tài khoản nảy theo. Thành ra
+              hai hiệu ứng chồng lên cùng một vật: pill bên trang giới thiệu
+              đang thu về đúng hình tròn ấy (xem `.account-name`), mà tròn xong
+              thì nó lại pop-out rồi pop-in một lần nữa. Mắt đọc ra là vòng tròn
+              biến mất rồi hiện lại, chứ không phải một vật đi liền mạch.
+
+              Avatar vì vậy đứng yên xuyên suốt, đúng vai trò mốc neo mà con dấu
+              thương hiệu vẫn giữ ở đầu kia hàng header. Chuông thì không có gì
+              thay thế nên vẫn cần nảy.
+
+              `header-action-pop-in` là class RIÊNG chứ không tái dùng `.pop-in`:
+              lúc AppShell render khung hình đầu, cờ `.pop-leaving` vẫn còn trên
+              <html> (effect chưa chạy), mà `:root.pop-leaving .pop-in` là luật
+              chạy pop-OUT — nút sẽ tắt phụt đúng lúc đáng ra phải hiện.
+            */}
+            <button
+              type="button"
+              className={`icon-circle header-action-pop${entering ? ' header-action-pop-in' : ''}`}
+              aria-label="Thông báo"
+            >
               <BellIcon size={17} />
             </button>
             <AccountMenu open={menuOpen} onOpenChange={setMenuOpen} />
@@ -468,7 +478,7 @@ function AccountMenu({
 
   // Trang tĩnh nên session tới sau lần render đầu — giữ chỗ để layout không nhảy
   if (status === 'loading') {
-    return <span className="h-9 w-9 flex-none rounded-full bg-soft" />
+    return <span className="h-8 w-8 flex-none rounded-full bg-soft" />
   }
 
   if (!user) {
@@ -500,7 +510,20 @@ function AccountMenu({
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Tài khoản"
-        className="relative flex h-9 w-9 items-center justify-center rounded-full bg-accent text-[16px] font-bold text-[var(--color-accent-fg)] ring-2 ring-line"
+        /*
+          `h-8 w-8` + `text-[15px]` PHẢI khớp avatar trong pill ở góc phải trang
+          giới thiệu (components/landing/landing-auth.tsx) — cùng một vòng tròn,
+          người dùng thấy nó ở cả hai khung.
+
+          Từng là `h-9 w-9` + `text-[16px]`, tức 36px so với 32px bên kia. Lệch
+          đó đọc ra ngay giữa lúc chuyển trang: pill bên trang giới thiệu thu về
+          đúng hình tròn này, tròn xong thì nó nở thêm 4px một cái. Lấy số NHỎ
+          hơn chứ không nống bên kia lên, vì 32px là cỡ đang nằm vừa trong pill.
+
+          Vành `ring-2` không tính vào phép so: bên kia avatar nằm trong pill có
+          viền riêng, bên này vành chính là thứ thay cho cái viền đó.
+        */
+        className="relative flex h-8 w-8 items-center justify-center rounded-full bg-accent text-[15px] font-bold text-[var(--color-accent-fg)] ring-2 ring-line"
       >
         {initial}
         {needsGuardian && (
