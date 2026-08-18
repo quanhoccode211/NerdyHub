@@ -1217,6 +1217,40 @@ body {
 }
 
 /**
+ * CỤM NÚT BÊN PHẢI HEADER (chuông, tài khoản) — nảy lên và rút đi cùng nhịp.
+ *
+ * Phải có luật riêng vì cụm này nằm trong <header>, tức NGOÀI <main>, nên hai
+ * luật stagger ở trên và dưới đều không với tới: chúng chỉ nhắm con của
+ * `.enter-stagger` / `.app-main`.
+ *
+ * Đi CÙNG NHỊP với tiêu đề trang (`> header`, chỉ số 0), không phải một nhịp
+ * riêng: hai thứ nằm cùng vùng trên của màn hình, lệch nhau là mắt đọc ra hai
+ * hiệu ứng rời rạc thay vì một lượt.
+ *   • chiều vào  — trễ 0, tức đi đầu dãy
+ *   • chiều ra   — trễ `--pop-exit-last * --pop-exit-step` (160ms), đi cuối dãy
+ *
+ * `.header-actions` mang `view-transition-name` (xem HEADER_ACTIONS_VT_NAME).
+ * Không xung đột: hai chặng ENTER_APP / EXIT_APP cố ý KHÔNG dùng view
+ * transition, còn lúc đổi tab thì không cờ nào trong hai cờ dưới đây được bật.
+ */
+.header-actions-in {
+  animation: var(--pop-enter-dur) var(--pop-ease) backwards pop-in;
+}
+
+:root.app-leaving .header-actions {
+  animation: var(--pop-exit-dur) var(--pop-out-ease) forwards pop-out;
+  animation-delay: calc(var(--pop-exit-last) * var(--pop-exit-step));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-actions-in,
+  :root.app-leaving .header-actions {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/**
  * RỜI ỨNG DỤNG VỀ TRANG GIỚI THIỆU: các khối rút đi lần lượt, thứ tự NGƯỢC.
  *
  * `--pop-exit-last - (row*2 + col)` lộn chiều đúng như trang giới thiệu vẫn làm

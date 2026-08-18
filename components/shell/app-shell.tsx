@@ -385,8 +385,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             `relative` ở đây không đổi bố cục (cụm vẫn nằm trong dòng flex), chỉ
             để z-index còn tác dụng nếu sau này ai đổi header khỏi flex.
           */}
+          {/*
+            `header-actions` là class CỐ ĐỊNH, chỉ để CSS neo vào — xem hai luật
+            cùng tên trong globals.css. Cụm này nằm trong <header>, tức NGOÀI
+            `<main>`, nên nó không được `.enter-stagger` hay `.app-leaving` quét
+            trúng (cả hai chỉ với tới con của <main>). Thiếu nó thì chuông và
+            nút tài khoản đứng trơ khi mọi thứ khác nảy lên hoặc rút đi.
+
+            `header-actions-in` chỉ có mặt ở lượt vừa bước từ trang giới thiệu
+            vào, rồi được gỡ cùng `entering`. Phải là class RIÊNG chứ không tái
+            dùng `.pop-in`: lúc AppShell render khung hình đầu, cờ `.pop-leaving`
+            vẫn còn trên <html> (effect chưa chạy), mà `:root.pop-leaving .pop-in`
+            là luật chạy pop-OUT — cụm nút sẽ tắt phụt đúng lúc đáng ra phải hiện.
+          */}
           <div
-            className="relative z-50 flex flex-none items-center gap-2"
+            className={`header-actions relative z-50 flex flex-none items-center gap-2${entering ? ' header-actions-in' : ''}`}
             style={{ viewTransitionName: HEADER_ACTIONS_VT_NAME }}
           >
             <button type="button" className="icon-circle" aria-label="Thông báo">
