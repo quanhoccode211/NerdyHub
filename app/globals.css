@@ -1063,6 +1063,103 @@ body {
   --wordmark-lag: 1;
 }
 
+/* ============================================================================
+   TÊN TÀI KHOẢN Ở GÓC PHẢI TRANG GIỚI THIỆU — pill thu về tròn, tên mất theo.
+
+   Cùng họ chuyển động với trademark bên trái, và cố ý dùng chung biến thời gian
+   với nó: hai thứ nằm hai đầu cùng một hàng header, chạy lệch nhịp là mắt đọc
+   ra hai hiệu ứng rời rạc thay vì một lượt dọn hàng.
+
+   Bên ứng dụng, chỗ này chỉ còn một vòng tròn chữ cái (AccountMenu trong
+   app-shell.tsx). Hiệu ứng vì vậy chỉ cần dựng ở PHÍA TRANG GIỚI THIỆU: đi thì
+   nó tự thu về tròn cho khớp hình bên kia, về thì nở lại ra tên.
+
+   KHÔNG ghép cặp bằng `view-transition-name` được: hai chặng ENTER_APP /
+   EXIT_APP cố ý không dùng View Transitions API (xem nav-slide.tsx), nên đây
+   phải là animation trên DOM thật, đúng như trademark vẫn làm.
+   ========================================================================= */
+
+/*
+  `grid-template-columns: 1fr -> 0fr`, KHÔNG PHẢI `max-width: 140px -> 0`.
+
+  `max-width` là cách hiển nhiên và nó SAI ở đây, sai theo kiểu chỉ lộ ra khi
+  tên ngắn: 140px là TRẦN chứ không phải bề rộng thật. Tên "Minh Quân" đo được
+  ~70px, nên khi max-width chạy từ 140 xuống 70 thì chưa có gì nhúc nhích —
+  nửa đầu animation là thời gian chết, rồi chữ mới bắt đầu hẹp lại. Đúng cái
+  triệu chứng "khựng một nhịp rồi mới biến mất" đã ghi ở `brand-wordmark-out`.
+
+  Đơn vị `fr` thì đo theo nội dung thật: `1fr` là vừa đúng bề rộng chữ, `0fr`
+  là 0. Chuyển động trải đều suốt thời lượng với mọi độ dài tên, không phải đo
+  tay con số nào. Trình duyệt nội suy được `fr` từ Chrome 107 / Firefox 66 /
+  Safari 16; cũ hơn thì nhảy cóc một nhát chứ không hỏng bố cục.
+*/
+.account-name {
+  display: grid;
+  grid-template-columns: 1fr;
+  /* Đệm quanh tên nằm ở ĐÂY chứ không ở pill, để nó thu về 0 cùng một nhịp */
+  margin-left: 8px;
+  margin-right: 10px;
+  animation: var(--wordmark-in-dur) var(--wordmark-ease-in) 90ms backwards account-name-in;
+}
+
+/* `min-width: 0` là bắt buộc: grid item mặc định không chịu hẹp hơn nội dung,
+   thiếu nó thì cột 0fr vẫn rộng bằng chữ và chẳng có gì thu lại. */
+.account-name > span {
+  min-width: 0;
+}
+
+@keyframes account-name-in {
+  from {
+    grid-template-columns: 0fr;
+    margin-left: 0;
+    margin-right: 0;
+    opacity: 0;
+  }
+  to {
+    grid-template-columns: 1fr;
+    margin-left: 8px;
+    margin-right: 10px;
+    opacity: 1;
+  }
+}
+
+/*
+  Keyframe RIÊNG cho chiều ra, không phải `account-name-in` + `reverse` — cùng
+  cái bẫy đã ghi ở `brand-wordmark-out` và `pop-out`: animation chỉ khởi động
+  lại khi `animation-name` đổi, còn lại trình duyệt vẽ thẳng khung cuối.
+*/
+@keyframes account-name-out {
+  from {
+    grid-template-columns: 1fr;
+    margin-left: 8px;
+    margin-right: 10px;
+    opacity: 1;
+  }
+  to {
+    grid-template-columns: 0fr;
+    margin-left: 0;
+    margin-right: 0;
+    opacity: 0;
+  }
+}
+
+/*
+  Xong ở 60 + 350 = 410ms, nằm gọn trong POP_OUT_MS (530ms) nên không bị cắt
+  ngang. Ngắn hơn trademark (510ms) là đúng: trademark vẫn là chặng dài nhất và
+  vẫn là thứ quyết định con số bên nav-slide.tsx.
+*/
+:root.pop-leaving .account-name {
+  animation: var(--wordmark-out-dur) var(--wordmark-ease-out) var(--wordmark-out-delay) forwards
+    account-name-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-name,
+  :root.pop-leaving .account-name {
+    animation: none;
+  }
+}
+
 /* Cùng quãng đường với chiều vào — xem ghi chú ở `brand-wordmark-in` */
 @keyframes brand-wordmark-out {
   from {

@@ -52,14 +52,28 @@ export function LandingAuth() {
       href="/dashboard"
       type={ENTER_APP}
       aria-label={`Vào ứng dụng với tài khoản ${name}`}
-      className="flex items-center gap-2 rounded-pill border border-line py-1.5 pr-4 pl-1.5 transition-colors hover:border-line-strong"
+      /*
+        `pr-1.5` chứ không phải `pr-4`, và KHÔNG còn `gap-2`.
+
+        Toàn bộ khoảng cách quanh tên đã dời vào chính `.account-name` để nó thu
+        về 0 được — xem globals.css. Giữ `gap`/`pr` ở pill thì lúc tên biến mất
+        vẫn còn 24px đệm thừa và pill dừng lại ở hình viên thuốc dẹt, không bao
+        giờ tròn. Đệm hai bên bằng nhau (6px) nên pill lúc thu hết là hình tròn
+        quanh avatar 32px.
+      */
+      className="account-pill flex items-center rounded-pill border border-line py-1.5 pr-1.5 pl-1.5 transition-colors hover:border-line-strong"
     >
       <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-accent text-[15px] font-bold text-[var(--color-accent-fg)]">
         {initial}
       </span>
-      {/* `max-w` + `truncate`: tên dài không được đẩy con dấu hay nống hàng header,
-          vì chiều cao hàng này là hợp đồng dùng chung với AppShell. */}
-      <span className="max-w-[140px] truncate text-[14.5px] font-semibold">{name}</span>
+      {/* Hai lớp, không gộp được: lớp ngoài là KHUNG co giãn (grid 1fr -> 0fr),
+          lớp trong giữ chữ một dòng và cắt phần thừa. Gộp lại thì không có gì
+          để cắt trong lúc khung đang hẹp dần. Xem `.account-name`. */}
+      <span className="account-name">
+        {/* `max-w` + `truncate`: tên dài không được đẩy con dấu hay nống hàng
+            header, vì chiều cao hàng này là hợp đồng dùng chung với AppShell. */}
+        <span className="max-w-[140px] truncate text-[14.5px] font-semibold">{name}</span>
+      </span>
     </SlideLink>
   )
 }
