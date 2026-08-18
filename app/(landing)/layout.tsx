@@ -12,9 +12,21 @@ import { BRAND_VT_NAME, PAGE_CONTENT_STYLE } from '@/components/shell/nav-slide'
  */
 export default function LandingLayout({ children }: { children: React.ReactNode }) {
   return (
-    // md trở lên khoá đúng chiều cao màn hình — hero phải xem hết được mà không
-    // cuộn. Mobile vẫn min-h-screen vì ở đó cuộn là chuyện bình thường.
-    <div className="flex min-h-screen justify-center p-[10px] md:h-screen">
+    // `min-h-screen`, KHÔNG còn `md:h-screen`.
+    //
+    // Khoá cũ ghim hero vào đúng một màn hình với lý do "phải xem hết được mà
+    // không cuộn". Gỡ đi là cái giá phải trả để phóng to khối minh hoạ: ba ảnh
+    // giờ lấp kín bề ngang nên chiều cao là hệ quả của tỉ lệ, chứ không còn co
+    // theo phần thừa. Còn khoá thì chúng bị ghim lại đúng phần thừa (229,8px ở
+    // 1280x720) và không to lên được chút nào.
+    //
+    // Hệ quả phải biết: ở màn hình thấp trang cuộn thêm một đoạn. Màn hình cao
+    // thì không đổi gì, vì phần thừa vốn đã đủ chỗ.
+    //
+    // Viền 15px (trước là 10px) — PHẢI khớp con số bên app-shell.tsx, xem ghi
+    // chú ở đó. Hai khung lệch nhau bao nhiêu thì con dấu nhảy ngang đúng bấy
+    // nhiêu lúc chuyển trang, mà nó là mốc neo đứng yên.
+    <div className="flex min-h-screen justify-center p-[15px]">
       {/*
         Lề NGANG và lề TRÊN phải trùng khít components/shell/app-shell.tsx —
         con dấu ở góc là thứ duy nhất có mặt ở cả hai khung, nên khung nào rộng

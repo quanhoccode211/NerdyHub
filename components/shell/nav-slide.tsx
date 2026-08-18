@@ -127,6 +127,46 @@ export const ENTER_APP = 'enter-app'
 const POP_OUT_MS = 530
 
 /**
+ * RỜI ỨNG DỤNG VỀ TRANG GIỚI THIỆU — chiều ngược của ENTER_APP.
+ *
+ * Cùng lý do không dùng View Transitions API: yêu cầu là các khối của dashboard
+ * rút đi LẦN LƯỢT, mà trong lúc view transition chạy thì trang cũ chỉ còn là một
+ * ảnh chụp tĩnh, không có element riêng lẻ nào để cho rút đi lần lượt.
+ *
+ * Chặng này chia làm ba, chạy trên DOM THẬT:
+ *   1. Gắn `.app-leaving` lên <html> -> CSS chạy `pop-out` trên các khối trong
+ *      `.app-main`, theo thứ tự ngược lúc hiện ra (xem globals.css).
+ *   2. Chờ đủ dãy rồi mới `router.push`.
+ *   3. Trang giới thiệu KHÔNG cần cờ nào cả — mọi khối hero của nó đã mang sẵn
+ *      `.pop-in`, và `.pop-in` chạy ngay khi element được dựng. Đây là chỗ hai
+ *      chiều KHÔNG đối xứng: chiều vào phải có `enteringApp` vì các thẻ dashboard
+ *      không tự mang hiệu ứng nào, chiều ra thì không.
+ *
+ * Con dấu là thứ duy nhất đứng yên xuyên suốt: nó có mặt ở cả hai khung, cùng
+ * toạ độ. Trademark "NERDY HUB" bên trang giới thiệu tự trượt ra từ sau nó khi
+ * trang đích dựng xong — tức chặng này khép lại đúng bằng động tác ngược với lúc
+ * chữ thụt vào ở ENTER_APP.
+ */
+export const EXIT_APP = 'exit-app'
+
+/**
+ * Chờ hết dãy rút đi rồi mới điều hướng.
+ *
+ * Khác ENTER_APP ở chỗ chỉ có MỘT chặng phải chờ, không phải hai: bên ứng dụng
+ * không có trademark nào để thụt vào, nên không có chặng 510ms cạnh tranh.
+ *
+ *   `--pop-exit-last` (8) * `--pop-exit-step` (20ms) + `--pop-exit-dur` (280ms)
+ *   = 440ms
+ *
+ * 460ms là 440 cộng một nhịp dư, cùng cách tính với POP_OUT_MS. Đổi ba biến
+ * `--pop-exit-*` trong globals.css thì tính lại con số này.
+ */
+const EXIT_APP_MS = 460
+
+/** Cờ trên <html> suốt chặng rút đi. AppShell gỡ lúc unmount — xem chỗ dùng. */
+export const APP_LEAVING_CLASS = 'app-leaving'
+
+/**
  * Cờ một lần: "vừa bước từ trang giới thiệu vào".
  *
  * Là biến cấp module chứ không phải sessionStorage, vì nó chỉ cần sống qua ĐÚNG
@@ -211,6 +251,26 @@ function useSlideNavigation(): StartSlide {
           hình cuối trước khi trang đổi.
         */
         window.setTimeout(() => router.push(href), POP_OUT_MS)
+        return
+      }
+
+      /*
+        RỜI ỨNG DỤNG: cũng chạy trên DOM thật, cùng lý do. Xem chỗ khai EXIT_APP.
+      */
+      if (type === EXIT_APP) {
+        /* Giảm chuyển động: bỏ luôn phần chờ, y như nhánh trên */
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          router.push(href)
+          return
+        }
+
+        document.documentElement.classList.add(APP_LEAVING_CLASS)
+        /*
+          Cờ được gỡ lúc AppShell unmount, KHÔNG phải ở đây — cùng lý do với
+          `.pop-leaving`: gỡ sớm là những thẻ chưa tới lượt bật lại đầy đủ trong
+          đúng khung hình cuối trước khi trang đổi.
+        */
+        window.setTimeout(() => router.push(href), EXIT_APP_MS)
         return
       }
 

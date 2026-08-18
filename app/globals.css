@@ -247,6 +247,34 @@
   */
   --pop-enter-step: 26ms;
   --pop-enter-dur: 0.36s;
+  /*
+    DÃY THẺ RÚT ĐI KHI RỜI ỨNG DỤNG VỀ TRANG GIỚI THIỆU — chiều ngược của
+    `--pop-enter-*`, và là cặp thứ tư khép kín bộ bốn:
+
+      --pop-*        trang giới thiệu hiện ra
+      --pop-out-*    trang giới thiệu rời đi
+      --pop-enter-*  các khối ứng dụng hiện ra
+      --pop-exit-*   các khối ứng dụng rút đi   <- cặp này
+
+    Nhanh hơn chiều vào, cùng lý do đã ghi ở `--pop-out-*`: lúc vào người dùng
+    mới tới trang, lúc ra họ đã bấm con dấu và đang chờ. Nhưng KHÔNG nhanh bằng
+    chặng rời trang giới thiệu (32ms / 0.22s): dãy bên này có 9 nấc chỉ số chứ
+    không phải 7, ép cùng nhịp đó thì cả lưới thẻ tắt gần như cùng lúc và mất
+    đúng cái phần "lần lượt" mà hiệu ứng sinh ra để có.
+
+    `--pop-exit-last` là chỉ số LỚN NHẤT của công thức `--pop-row * 2 +
+    --pop-col`: row cao nhất 3, col cao nhất 2 -> 8. Khác `--pop-last` bên trang
+    giới thiệu ở chỗ nó là hằng số của chính file CSS này — do mấy luật
+    nth-child bên dưới chặn — chứ không phải con số TSX truyền vào.
+
+    ĐỔI BA SỐ NÀY THÌ SỬA LUÔN `EXIT_APP_MS` trong
+    components/shell/nav-slide.tsx: JS phải chờ hết dãy rồi mới điều hướng.
+    Tổng = --pop-exit-last * --pop-exit-step + --pop-exit-dur
+         = 8 * 20ms + 280ms = 440ms.
+  */
+  --pop-exit-step: 20ms;
+  --pop-exit-dur: 0.28s;
+  --pop-exit-last: 8;
 
   --nav-icon-size: 28px;
   --nav-pill-pad-y: 0.9375rem;
@@ -361,16 +389,46 @@
 
   /**
    * Nền dưới cùng của cả web — dải màu nằm SAU khung thẻ trắng.
+   *
+   * MESH, không phải một dải thẳng. Bản cũ là `linear-gradient(90deg, …)` sáu
+   * chặng: màu chỉ đổi theo trục ngang nên mọi cột dọc đều đồng màu từ trên
+   * xuống. Bảng màu này cần ba cực nằm ở ba phía khác nhau (xanh lá trái, vàng
+   * đáy giữa, xanh dương phải) toả ra rồi chồng lên nhau ở quãng giữa — một
+   * hàm linear không diễn đạt được, nên dựng bằng ba radial phủ lên một nền
+   * gần trắng.
+   *
+   * THỨ TỰ VẼ NGƯỢC VỚI THỨ TỰ VIẾT: lớp đầu danh sách nằm TRÊN CÙNG. Nền
+   * `linear-gradient` phải là lớp CUỐI, và nó là lớp đục duy nhất — ba radial
+   * bên trên đều tan ra trong suốt nên tự chúng không phủ kín được khung.
+   *
+   * ĐỪNG TAN RA `transparent`. Từ khoá đó là `rgba(0, 0, 0, 0)`, tức màu ĐEN
+   * trong suốt, và trình duyệt nội suy cả kênh màu chứ không riêng alpha — nửa
+   * đường sẽ ra một vành xám đục vắt ngang chỗ chuyển. Mỗi lớp vì vậy tan ra
+   * `rgba()` của CHÍNH màu nó, alpha 0: chỉ độ mờ đổi, sắc màu giữ nguyên.
+   *
+   * Nấc 0.5 ở giữa mỗi lớp là để giữ màu lâu hơn về phía cực. Bỏ nó đi thì
+   * alpha giảm tuyến tính từ tâm và cả ba cực nhạt đi thấy rõ.
    */
-  --app-gradient: linear-gradient(
-    90deg,
-    #edebec 0%,
-    #f0d0c6 20%,
-    #f8ccd8 40%,
-    #fcd7e7 58%,
-    #f2ddf8 78%,
-    #e9e0fc 100%
-  );
+  --app-gradient:
+    radial-gradient(
+      78% 88% at 6% 74%,
+      #cdf47e 0%,
+      rgba(205, 244, 126, 0.55) 34%,
+      rgba(205, 244, 126, 0) 72%
+    ),
+    radial-gradient(
+      62% 62% at 46% 104%,
+      #fdd875 0%,
+      rgba(253, 216, 117, 0.5) 38%,
+      rgba(253, 216, 117, 0) 74%
+    ),
+    radial-gradient(
+      72% 96% at 99% 58%,
+      #9dd9f6 0%,
+      rgba(157, 217, 246, 0.5) 40%,
+      rgba(157, 217, 246, 0) 78%
+    ),
+    linear-gradient(160deg, #fdfef6 0%, #f8fcf0 45%, #f2f9ea 100%);
 
   /* Pomodoro — nền tròn và màu vòng tiến trình theo từng pha */
   --pomo-focus-bg: linear-gradient(145deg, #c6bfec 0%, #9a8fda 100%);
@@ -1113,25 +1171,41 @@ body {
  * `<section class="card">` hoặc `<header>` nên nhắm bằng CSS là đủ, không phải
  * sửa component nào.
  */
-.enter-stagger > * {
+/*
+  Hai chiều dùng CHUNG bộ chỉ số này, nên mỗi luật mang hai selector.
+
+  Chiều vào đọc chỉ số từ `.enter-stagger` (class tạm, AppShell gỡ sau khi dãy
+  chạy xong); chiều ra đọc từ `.app-main` (class cố định, luôn có mặt) cộng cờ
+  `.app-leaving` trên <html>. Phải là hai gốc khác nhau vì hai chiều tồn tại ở
+  hai thời điểm khác nhau — nhưng CÔNG THỨC chỉ số thì phải y hệt, nếu không
+  thứ tự rút đi không còn là ảnh phản chiếu của thứ tự hiện ra.
+*/
+.enter-stagger > *,
+:root.app-leaving .app-main > * {
   --pop-row: 0;
 }
-.enter-stagger > *:nth-child(2) {
+.enter-stagger > *:nth-child(2),
+:root.app-leaving .app-main > *:nth-child(2) {
   --pop-row: 1;
 }
-.enter-stagger > *:nth-child(3) {
+.enter-stagger > *:nth-child(3),
+:root.app-leaving .app-main > *:nth-child(3) {
   --pop-row: 2;
 }
-.enter-stagger > *:nth-child(4) {
+.enter-stagger > *:nth-child(4),
+:root.app-leaving .app-main > *:nth-child(4) {
   --pop-row: 3;
 }
-.enter-stagger > * > * {
+.enter-stagger > * > *,
+:root.app-leaving .app-main > * > * {
   --pop-col: 0;
 }
-.enter-stagger > * > *:nth-child(2) {
+.enter-stagger > * > *:nth-child(2),
+:root.app-leaving .app-main > * > *:nth-child(2) {
   --pop-col: 1;
 }
-.enter-stagger > * > *:nth-child(3) {
+.enter-stagger > * > *:nth-child(3),
+:root.app-leaving .app-main > * > *:nth-child(3) {
   --pop-col: 2;
 }
 
@@ -1142,12 +1216,40 @@ body {
   animation-delay: calc((var(--pop-row, 0) * 2 + var(--pop-col, 0)) * var(--pop-enter-step));
 }
 
+/**
+ * RỜI ỨNG DỤNG VỀ TRANG GIỚI THIỆU: các khối rút đi lần lượt, thứ tự NGƯỢC.
+ *
+ * `--pop-exit-last - (row*2 + col)` lộn chiều đúng như trang giới thiệu vẫn làm
+ * ở `.pop-leaving`: thẻ hiện ra sau cùng là thẻ rút đi đầu tiên.
+ *
+ * `.app-main`, KHÔNG phải `main` trơn. Trang giới thiệu cũng có một <main> chứa
+ * một <div> bọc, mà `main > div > *` thì khớp đúng các khối hero của nó — cờ
+ * `.app-leaving` chỉ cần nán lại một khung hình sau khi trang đổi là hero vừa
+ * pop-in xong đã bị pop-out ngay. Buộc phải có `.app-main` thì selector không
+ * với sang được trang bên kia, và thời điểm gỡ cờ thôi làm nên chuyện.
+ *
+ * Cùng keyframe `pop-out` và cùng `--pop-out-ease` với chặng rời trang giới
+ * thiệu: hai lối ra của cùng một sản phẩm thì phải rút đi theo một nhịp.
+ *
+ * `forwards` chứ không phải `both` — lý do đầy đủ ở `.pop-leaving .pop-in`:
+ * thẻ chưa tới lượt phải còn nguyên trên màn hình chứ không bị giấu từ đầu.
+ */
+:root.app-leaving .app-main > header,
+:root.app-leaving .app-main > div > * {
+  animation: var(--pop-exit-dur) var(--pop-out-ease) forwards pop-out;
+  animation-delay: calc(
+    (var(--pop-exit-last) - (var(--pop-row, 0) * 2 + var(--pop-col, 0))) * var(--pop-exit-step)
+  );
+}
+
 /* Tôn trọng cài đặt giảm chuyển động của hệ điều hành */
 @media (prefers-reduced-motion: reduce) {
   .pop-in,
   :root.pop-leaving .pop-in,
   .enter-stagger > header,
-  .enter-stagger > div > * {
+  .enter-stagger > div > *,
+  :root.app-leaving .app-main > header,
+  :root.app-leaving .app-main > div > * {
     animation: none;
     /* `pop-out` có `forwards`; tắt animation mà quên dòng này thì ở chế độ giảm
        chuyển động element vẫn nằm nguyên chứ không biến mất — nhưng ta điều

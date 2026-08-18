@@ -102,7 +102,20 @@ export function TestProgress({ exams }: { exams: ExamProgress[] }) {
         <div
           ref={scroller}
           onScroll={onScroll}
-          className="thin-scroll -mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto px-1 pb-1"
+          /*
+            `no-scrollbar`, KHÔNG phải `thin-scroll`: giấu thanh cuộn đi nhưng
+            vẫn cuộn được y như cũ — lăn chuột, vuốt trên cảm ứng, phím mũi tên
+            đều nguyên vẹn, chỉ có cái vạch xám là mất.
+
+            Ở ĐÂY thì giấu được, chỗ khác thì không. Hàng này đã có hai nút mũi
+            tên ở góc thẻ, và chúng tự tắt khi chạm hai đầu (`atStart` /
+            `atEnd`) — tức lối đi và cả dấu hiệu "còn thẻ nữa ở ngoài rìa" đều
+            đã nằm sẵn trong giao diện, thanh cuộn chỉ nói lại lần thứ hai.
+            Những chỗ `thin-scroll` còn lại (hộp thoại điều khoản, phòng thi)
+            không có nút nào thay thế nên thanh cuộn ở đó là dấu hiệu DUY NHẤT,
+            đừng bê cách này sang.
+          */
+          className="no-scrollbar -mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto px-1 pb-1"
         >
           {exams.map((exam, i) => {
             const tone = TONES[i % TONES.length]

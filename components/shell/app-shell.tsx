@@ -7,7 +7,9 @@ import { signOut, useSession } from 'next-auth/react'
 import { clearGuestIdentityAction } from '@/app/actions/sign-out'
 import {
   ACTIVE_PILL_VT_NAME,
+  APP_LEAVING_CLASS,
   BRAND_VT_NAME,
+  EXIT_APP,
   HEADER_ACTIONS_VT_NAME,
   NAV_RAIL_VT_NAME,
   PAGE_CONTENT_STYLE,
@@ -103,6 +105,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(t)
   }, [entering])
 
+  /*
+    CHIỀU RA: gỡ `.app-leaving` khỏi <html> lúc AppShell unmount.
+
+    Unmount là tín hiệu chính xác cho "đã rời hẳn ứng dụng" — trang giới thiệu
+    dựng layout riêng nên cả khung này bị tháo. Gỡ sớm hơn thì những thẻ chưa
+    tới lượt bật lại đầy đủ trong khung hình cuối trước khi trang đổi.
+
+    Cờ này KHÔNG tự hết hạn, nên không gỡ là lần sau quay lại ứng dụng các thẻ
+    dashboard chạy pop-out ngay khi vừa hiện ra. Còn chuyện gỡ đúng lúc nào so
+    với khung hình đầu của trang giới thiệu thì không quan trọng: selector bên
+    globals.css neo vào `.app-main`, mà class đó chỉ có ở khung này.
+  */
+  useEffect(() => {
+    return () => document.documentElement.classList.remove(APP_LEAVING_CLASS)
+  }, [])
+
   /* Vị trí tab đang mở trên rail — dùng để suy ra HƯỚNG trượt, xem NAV.map dưới. */
   const activeIndex = NAV.findIndex(
     ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
@@ -110,14 +128,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     /*
-      Viền 10px: chỉ để lộ đúng một vệt gradient quanh thẻ. Không đặt max-width —
+      Viền 15px: chỉ để lộ đúng một vệt gradient quanh thẻ. Không đặt max-width —
       thẻ phải chạm sát mép ở mọi bề rộng màn hình, nếu giới hạn lại thì hai bên
-      sẽ hở ra một khoảng nền rộng thay vì 10px.
+      sẽ hở ra một khoảng nền rộng thay vì 15px.
+
+      Từng là 10px. Nới thêm 5px mỗi phía sau khi nền đổi sang bảng màu mesh mới:
+      vệt 10px quá hẹp để đọc ra ba cực màu, chỉ thấy một viền nhàn nhạt.
 
       Phải khớp với app/(landing)/layout.tsx — hai khung nằm cạnh nhau khi
-      chuyển trang, lệch vài px là thấy ngay.
+      chuyển trang, lệch vài px là thấy ngay. Sửa một bên mà quên bên kia thì con
+      dấu ở góc nhảy ngang đúng bằng khoảng chênh, mà nó là mốc neo đứng yên
+      giữa hiệu ứng.
     */
-    <div className="flex min-h-screen justify-center p-[10px]">
+    <div className="flex min-h-screen justify-center p-[15px]">
       <div className="shell-card w-full px-4 pt-4 pb-6 md:px-6 md:pt-5 md:pb-8 lg:px-7">
         {/* ---------- NAV NGANG ---------- */}
         {/*
@@ -135,8 +158,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             viền rộng quây quanh mỗi cặp kính, đọc ra như một nút bấm chứ không
             phải thương hiệu.
           */}
-          <Link
+          {/*
+            `SlideLink` + `EXIT_APP`, không phải `<Link>` trơn: bấm con dấu là
+            rời hẳn ứng dụng về trang giới thiệu, và chặng đó có hiệu ứng riêng —
+            các khối nội dung rút đi lần lượt rồi mới điều hướng. Đây là chiều
+            ngược của nút CTA bên trang giới thiệu (components/landing/enter-button.tsx).
+
+            KHÔNG phải SLIDE_FORWARD / SLIDE_BACK: hai kiểu đó đi qua View
+            Transitions API, mà ở đó trang cũ chỉ còn là ảnh chụp tĩnh nên không
+            có thẻ riêng lẻ nào để cho rút đi lần lượt. Xem EXIT_APP.
+          */}
+          <SlideLink
             href="/"
+            type={EXIT_APP}
             aria-label="Nerdy Hub — trang chủ"
             className="flex flex-none items-center"
             /*
@@ -145,27 +179,43 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               trang giới thiệu. Hai bên đã nằm đúng cùng toạ độ nên cặp này
               "morph" bằng không — mắt thấy nó đứng yên trong lúc mọi thứ khác
               trượt qua. Xem components/shell/nav-slide.tsx.
+
+              Vẫn giữ dù chặng EXIT_APP không dùng view transition: con dấu còn
+              là mốc neo của SLIDE_FORWARD / SLIDE_BACK khi đổi tab.
             */
             style={{ viewTransitionName: BRAND_VT_NAME }}
           >
             <LogoMark size={BRAND_LOGO_SIZE} />
-          </Link>
+          </SlideLink>
 
           {/*
-            KHÔNG cuộn ngang. Hàng tab hiện nguyên vẹn ở mọi bề rộng.
+            HÀNG TAB HIỆN NGUYÊN VẸN Ở MỌI BỀ RỘNG NÓ VỪA — và chỉ cuộn khi
+            không còn cách nào khác.
 
-            Trước đây chỗ này là `overflow-x-auto` + `no-scrollbar` để phòng màn
-            hình rất hẹp. Bỏ đi theo yêu cầu: sáu icon là một mốc điều hướng
-            luôn phải thấy hết, mà thanh cuộn thì giấu bớt tab đi và người dùng
-            không có dấu hiệu nào cho biết còn tab nữa ở ngoài rìa.
+            Yêu cầu cũ là bỏ hẳn cuộn ngang: sáu icon là mốc điều hướng luôn
+            phải thấy hết, mà thanh cuộn thì giấu bớt tab đi. Yêu cầu đó vẫn
+            đúng và vẫn được giữ ở MỌI bề rộng mà hàng tab vừa khung.
 
-            `min-w-0` cũng bỏ theo: nó tồn tại để cho phép hàng tab CO LẠI nhỏ
-            hơn nội dung — đúng cái điều kiện sinh ra thanh cuộn. Giữ lại thì
-            hàng tab vẫn bị bóp, chỉ khác là không cuộn được nữa.
+            Nhưng ở khổ điện thoại nó bất khả thi, và đã đo ra con số: tại
+            375px, header cần 720px (con dấu 70 + hàng tab 473 + cụm nút 153 +
+            hai gap 24) trong khi chỉ có 311px. Ngay cả khi bóp đệm pill về 0,
+            sáu icon 28px vẫn là 168px, cộng hai đầu vẫn 415px — không đời nào
+            vừa.
+
+            Bỏ cuộn KHÔNG làm hàng tab hiện đủ; nó chỉ đẩy phần thừa ra ngoài
+            và kéo CẢ TRANG rộng ra. Đo tại /dashboard 375px: `<html>` có
+            scrollWidth 751 trên clientWidth 375 — người dùng vuốt ngang thì cả
+            thẻ trắng, nội dung, mọi thứ đều trôi, và các tab vẫn khuất y như
+            khi có thanh cuộn. Tức là đánh đổi lấy một thứ tệ hơn hẳn.
+
+            Nên: `min-w-0` cho <nav> co được, `overflow-x-auto` cho hàng tab tự
+            cuộn TRONG khung của nó. `overflow-x: auto` chỉ sinh cuộn khi nội
+            dung thật sự tràn, nên từ ~800px trở lên không có gì đổi — không
+            một pixel nào khác trước.
           */}
           <nav
             aria-label="Điều hướng chính"
-            className="flex flex-1 items-center justify-center"
+            className="flex min-w-0 flex-1 items-center justify-center"
           >
             {/*
               Một thanh nền liền bọc cả hàng tab — xem .nav-rail trong globals.css.
@@ -173,8 +223,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               `viewTransitionName` ở đây KHÔNG phải để làm hiệu ứng, mà để hàng
               tab thoát khỏi ảnh chụp tĩnh `root` và cập nhật ngay — xem
               NAV_RAIL_VT_NAME.
+
+              `max-w-full` là bắt buộc đi kèm `overflow-x-auto`: .nav-rail là
+              `inline-flex` nên nó co giãn theo nội dung chứ không theo cha —
+              thiếu dòng này thì nó cứ rộng 473px và chẳng có gì để mà cuộn.
             */}
-            <div className="nav-rail" style={{ viewTransitionName: NAV_RAIL_VT_NAME }}>
+            <div
+              className="nav-rail no-scrollbar max-w-full overflow-x-auto"
+              style={{ viewTransitionName: NAV_RAIL_VT_NAME }}
+            >
               {NAV.map(({ href, label, Icon }, i) => {
                 /*
                   HAI KHÁI NIỆM KHÁC NHAU, đừng gộp lại làm một.
@@ -345,8 +402,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           phải đều đứng nguyên — chúng là cái khung để mắt bám vào, khung mà trôi
           theo thì hiệu ứng đọc ra như bị đẩy cả cửa sổ.
         */}
+        {/*
+          `app-main` là class CỐ ĐỊNH, khác hẳn `enter-stagger` bên cạnh vốn là
+          class tạm. Nó chỉ tồn tại để làm cái neo cho selector chiều ra trong
+          globals.css: `main > div > *` trơn sẽ khớp luôn các khối hero của trang
+          giới thiệu, và cờ `.app-leaving` chỉ cần nán lại một khung hình sau khi
+          trang đổi là hero vừa hiện ra đã bị rút đi ngay.
+        */}
         <main
-          className={`mt-6 md:mt-7${entering ? ' enter-stagger' : ''}`}
+          className={`app-main mt-6 md:mt-7${entering ? ' enter-stagger' : ''}`}
           style={PAGE_CONTENT_STYLE}
         >
           {children}
