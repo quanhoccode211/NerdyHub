@@ -1,6 +1,5 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
 import { clearGuestId } from '@/lib/session'
 
 /**
@@ -12,6 +11,11 @@ import { clearGuestId } from '@/lib/session'
  * nguyên trên header — trông đúng như đăng xuất không ăn thua. `signOut` của
  * `next-auth/react` xoá cả hai và tải lại trang, nên nó phải là bước cuối.
  *
+ * KHÔNG `revalidatePath` ở đây. Router Cache đúng là phải dọn, nhưng `signOut` chạy
+ * ngay sau lời gọi này lại đặt `window.location.href` — tải lại cả tài liệu, và cache
+ * đó chết theo. Dọn một cái cache sắp bị vứt chỉ tốn thêm một lượt đi-về server, mà
+ * lượt đó nằm chắn trước `signOut` vì có `await`.
+ *
  * `guest_id` thì ngược lại: cookie httpOnly, client không đụng tới được, buộc phải
  * xoá ở server. Nó sống một năm và không đổi theo lần đăng nhập — giữ lại thì phiên
  * khách kế tiếp trên cùng máy thừa kế đúng danh tính cũ, và qua nhánh khách của
@@ -19,6 +23,4 @@ import { clearGuestId } from '@/lib/session'
  */
 export async function clearGuestIdentityAction() {
   await clearGuestId()
-  // Dọn Router Cache: các trang đã render lúc còn đăng nhập không được phát lại
-  revalidatePath('/', 'layout')
 }

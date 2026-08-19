@@ -133,11 +133,11 @@ export const LANGUAGE_STRIPES: Record<Language, string[]> = {
  * Gradient mềm sẽ trộn đỏ với vàng thành cam ở giữa — một màu không có trên lá
  * cờ nào trong danh sách.
  */
-export function languageStripe(language: Language): string {
+export function languageStripe(language: Language, deg: 90 | 180 = 180): string {
   const colors = LANGUAGE_STRIPES[language]
   const step = 100 / colors.length
   const stops = colors.map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`)
-  return `linear-gradient(180deg, ${stops.join(', ')})`
+  return `linear-gradient(${deg}deg, ${stops.join(', ')})`
 }
 
 export const EXAM_CATEGORIES = ['LANGUAGE_CERT', 'NATIONAL_EXAM', 'APTITUDE'] as const

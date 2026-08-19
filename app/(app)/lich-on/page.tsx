@@ -13,6 +13,7 @@ import {
   isCalendarConfigured,
   type GridDay,
 } from '@/lib/calendar/google'
+import { getLocale, getT, type Translator } from '@/lib/i18n/server'
 
 export const metadata: Metadata = {
   title: 'Lịch ôn',
@@ -28,25 +29,15 @@ export const dynamic = 'force-dynamic'
  */
 const WINDOW = { days: 7, dayStartHour: 7, dayEndHour: 22, minMinutes: 45, bufferMinutes: 10 }
 
-const ERROR_TEXT: Record<string, string> = {
-  'chua-cau-hinh': 'Máy chủ chưa có Google OAuth client. Xem docs/google-oauth-setup.md.',
-  'tu-choi': 'Bạn đã huỷ ở màn hình cấp quyền của Google. Chưa có gì được kết nối.',
-  'state-sai': 'Phiên kết nối không khớp. Thử lại từ đầu cho chắc.',
-  'thieu-code': 'Google không trả về mã uỷ quyền. Thử lại giúp mình.',
-  'thieu-refresh-token':
-    'Google không cấp refresh token nên kết nối sẽ chết sau một giờ. Vào Tài khoản Google → Bảo mật, gỡ quyền của app rồi kết nối lại.',
-  'doi-token-that-bai': 'Không đổi được mã uỷ quyền sang token. Thử lại sau ít phút.',
-}
-
 // Nhãn ngày/giờ của lưới do `buildWeekGrid` định dạng sẵn ở server — xem ghi chú
 // về múi giờ trong lib/calendar/google.ts.
 
-function humanLength(minutes: number): string {
+function humanLength(minutes: number, t: Translator): string {
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
-  if (h === 0) return `${m} phút`
-  if (m === 0) return `${h} giờ`
-  return `${h} giờ ${m} phút`
+  if (h === 0) return t('time.minutes', { m })
+  if (m === 0) return t('time.hours', { h })
+  return t('time.hoursMinutes', { h, m })
 }
 
 export default async function StudyPlanPage({
@@ -54,39 +45,48 @@ export default async function StudyPlanPage({
 }: {
   searchParams: Promise<{ loi?: string; ok?: string }>
 }) {
-  const [{ loi, ok }, session] = await Promise.all([searchParams, auth()])
+  const [{ loi, ok }, session, t] = await Promise.all([searchParams, auth(), getT()])
+
+  const ERROR_TEXT: Record<string, string> = {
+    'chua-cau-hinh': t('schedule.err.notConfigured'),
+    'tu-choi': t('schedule.err.denied'),
+    'state-sai': t('schedule.err.state'),
+    'thieu-code': t('schedule.err.noCode'),
+    'thieu-refresh-token': t('schedule.err.noRefresh'),
+    'doi-token-that-bai': t('schedule.err.tokenFailed'),
+  }
 
   return (
     <>
       <PageHeader
-        title="Lịch ôn"
-        subtitle="Kết nối Google Calendar để tìm những khoảng trống trong tuần mà ôn bài."
+        title={t('schedule.title')}
+        subtitle={t('schedule.subtitle')}
       />
 
       {loi && (
         <p className="mb-5 flex items-start gap-2 rounded-xl bg-amber-soft px-4 py-3 text-[14.5px] leading-relaxed text-amber">
           <WarningIcon size={17} />
-          {ERROR_TEXT[loi] ?? 'Có lỗi khi kết nối lịch. Thử lại giúp mình.'}
+          {ERROR_TEXT[loi] ?? t('schedule.err.fallback')}
         </p>
       )}
       {ok && !loi && (
         <p className="mb-5 flex items-start gap-2 rounded-xl bg-good-soft px-4 py-3 text-[14.5px] leading-relaxed text-good">
           <CheckIcon size={17} />
-          Đã kết nối Google Calendar.
+          {t('schedule.ok')}
         </p>
       )}
 
-      <CalendarSection userId={session?.user?.id ?? null} />
+      <CalendarSection userId={session?.user?.id ?? null} t={t} />
     </>
   )
 }
 
-async function CalendarSection({ userId }: { userId: string | null }) {
+async function CalendarSection({ userId, t }: { userId: string | null; t: Translator }) {
   if (!isCalendarConfigured()) {
     return (
       <Notice
-        title="Máy chủ chưa cấu hình Google OAuth"
-        body="Cần GOOGLE_CLIENT_ID và GOOGLE_CLIENT_SECRET trong .env, và bật Google Calendar API. Các bước nằm ở docs/google-oauth-setup.md."
+        title={t('schedule.unconfiguredTitle')}
+        body={t('schedule.unconfiguredBody')}
       />
     )
   }
@@ -94,11 +94,11 @@ async function CalendarSection({ userId }: { userId: string | null }) {
   if (!userId) {
     return (
       <Notice
-        title="Đăng nhập để kết nối lịch"
-        body="Lịch gắn với tài khoản, nên phần này cần đăng nhập. Làm đề thì vẫn không cần."
+        title={t('schedule.loginTitle')}
+        body={t('schedule.loginBody')}
         action={
           <Link href="/dang-nhap" className="btn-primary mx-auto mt-6">
-            Đăng nhập
+            {t('schedule.loginBtn')}
             <ChevronRightIcon size={16} />
           </Link>
         }
@@ -115,7 +115,7 @@ async function CalendarSection({ userId }: { userId: string | null }) {
           <CalendarIcon size={28} />
         </span>
         <h2 className="mt-5 text-[21px] font-bold">
-          {conn.status === 'broken' ? 'Kết nối đã dừng' : 'Kết nối Google Calendar'}
+          {conn.status === 'broken' ? t('schedule.connBroken') : t('schedule.connTitle')}
         </h2>
 
         {conn.status === 'broken' && (
@@ -123,18 +123,16 @@ async function CalendarSection({ userId }: { userId: string | null }) {
         )}
 
         <p className="mt-3 max-w-[560px] text-[15.5px] leading-relaxed text-muted-strong">
-          Nerdy Hub đọc các khoảng <strong className="font-semibold text-ink">đã bận</strong> trong
-          lịch của bạn để chỉ ra chỗ còn trống mà ôn bài.
+          {t('schedule.connDesc')}
         </p>
 
         {/*
           Chữ của mỗi gạch đầu dòng phải nằm TRONG MỘT <span>.
 
           `<li>` là flex container, mà trong flex thì MỖI đoạn text và MỖI thẻ inline
-          thành một flex item riêng. Để trần thì "…người tham dự", <strong>không</strong>
-          và "được gửi về máy chủ." là ba item khác nhau: mỗi item tự xuống dòng theo
-          bề rộng của riêng nó, và `gap-2` chèn khoảng trắng vào giữa. Kết quả là chữ
-          rời rạc, ngắt sai chỗ và thứ tự đọc bị vỡ.
+          thành một flex item riêng. Để trần thì mỗi mẩu chữ tự xuống dòng theo bề
+          rộng của riêng nó, và `gap-2` chèn khoảng trắng vào giữa câu. Kết quả là
+          chữ rời rạc, ngắt sai chỗ và thứ tự đọc bị vỡ.
 
           Bọc lại thành đúng hai item — icon và khối chữ — thì chữ chảy như văn bản
           bình thường trở lại.
@@ -142,26 +140,20 @@ async function CalendarSection({ userId }: { userId: string | null }) {
         <ul className="mt-4 flex max-w-[560px] flex-col gap-2 text-[14.5px] leading-relaxed text-muted-strong">
           <li className="flex items-start gap-2">
             <CheckIcon size={16} className="mt-1 flex-none text-good" />
-            <span>
-              Chỉ xin quyền <strong className="font-semibold text-ink">chỉ đọc</strong>. Nerdy Hub
-              không tạo, sửa hay xoá bất kỳ sự kiện nào.
-            </span>
+            <span>{t('schedule.benefit1')}</span>
           </li>
           <li className="flex items-start gap-2">
             <CheckIcon size={16} className="mt-1 flex-none text-good" />
-            <span>
-              Chỉ lấy mốc bận/rảnh. Tiêu đề, mô tả và người tham dự{' '}
-              <strong className="font-semibold text-ink">không</strong> được gửi về máy chủ.
-            </span>
+            <span>{t('schedule.benefit2')}</span>
           </li>
           <li className="flex items-start gap-2">
             <CheckIcon size={16} className="mt-1 flex-none text-good" />
-            <span>Token lưu dạng mã hoá AES-256-GCM, và bị xoá hẳn khi bạn ngắt kết nối.</span>
+            <span>{t('schedule.benefit3')}</span>
           </li>
         </ul>
 
         <a href="/api/calendar/connect" className="btn-primary mt-6">
-          {conn.status === 'broken' ? 'Kết nối lại' : 'Kết nối Google Calendar'}
+          {conn.status === 'broken' ? t('schedule.reconnectBtn') : t('schedule.connectBtn')}
           <ChevronRightIcon size={16} />
         </a>
       </section>
@@ -192,14 +184,14 @@ async function CalendarSection({ userId }: { userId: string | null }) {
         lịch là dữ liệu sống, hiện một tuần bận cũ là sai theo hướng nguy hiểm
         nhất vì nó gợi ý ôn đúng vào giờ đang có việc.
       */}
-      <Suspense fallback={<WeekGridSkeleton />}>
-        <WeekGridPanel accessToken={conn.accessToken} />
+      <Suspense fallback={<WeekGridSkeleton t={t} />}>
+        <WeekGridPanel accessToken={conn.accessToken} t={t} />
       </Suspense>
 
       <section className="card mt-5 flex flex-wrap items-center justify-between gap-4 p-5 md:p-6">
         <p className="flex min-w-0 items-center gap-2 text-[15px] font-semibold">
           <CheckIcon size={16} className="flex-none text-good" />
-          <span>Đã kết nối Google Calendar</span>
+          <span>{t('schedule.ok')}</span>
         </p>
         <DisconnectCalendarButton />
       </section>
@@ -208,7 +200,8 @@ async function CalendarSection({ userId }: { userId: string | null }) {
 }
 
 /** Phần chờ Google: tách riêng để `<Suspense>` có cái mà bọc. */
-async function WeekGridPanel({ accessToken }: { accessToken: string }) {
+async function WeekGridPanel({ accessToken, t }: { accessToken: string; t: Translator }) {
+  const locale = await getLocale()
   let week: GridDay[]
   let freeCount = 0
   try {
@@ -216,16 +209,16 @@ async function WeekGridPanel({ accessToken }: { accessToken: string }) {
     const until = new Date(now)
     until.setDate(until.getDate() + WINDOW.days)
     const busy = await getBusySlots(accessToken, now, until)
-    week = buildWeekGrid(busy, WINDOW)
+    week = buildWeekGrid(busy, WINDOW, locale)
     freeCount = week.reduce((n, d) => n + d.blocks.filter((b) => b.kind === 'free').length, 0)
   } catch {
     return (
       <Notice
-        title="Không đọc được lịch"
-        body="Google từ chối yêu cầu. Thường là do Google Calendar API chưa được bật trong project, hoặc quyền vừa bị thu hồi."
+        title={t('schedule.readErrTitle')}
+        body={t('schedule.readErrBody')}
         action={
           <a href="/api/calendar/connect" className="btn-primary mx-auto mt-6">
-            Cấp quyền lại
+            {t('schedule.grantAgain')}
             <ChevronRightIcon size={16} />
           </a>
         }
@@ -239,14 +232,13 @@ async function WeekGridPanel({ accessToken }: { accessToken: string }) {
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
             <h2 className="text-[18px] font-bold tracking-[-0.01em]">
-              Khoảng trống {WINDOW.days} ngày tới
+              {t('schedule.gridTitle', { days: WINDOW.days })}
             </h2>
             <p className="mt-1 text-[14px] text-muted">
-              Trong khung {WINDOW.dayStartHour}:00–{WINDOW.dayEndHour}:00, từ{' '}
-              {humanLength(WINDOW.minMinutes)} trở lên.
+              {t('schedule.gridDesc', { start: WINDOW.dayStartHour, end: WINDOW.dayEndHour, min: humanLength(WINDOW.minMinutes, t) })}
             </p>
           </div>
-          <WeekGridLegend bufferMinutes={WINDOW.bufferMinutes} />
+          <WeekGridLegend bufferMinutes={WINDOW.bufferMinutes} t={t} />
         </div>
 
         <div className="mt-5">
@@ -254,20 +246,21 @@ async function WeekGridPanel({ accessToken }: { accessToken: string }) {
             days={week}
             dayStartHour={WINDOW.dayStartHour}
             dayEndHour={WINDOW.dayEndHour}
+            t={t}
           />
         </div>
 
         {freeCount === 0 && (
           <div className="panel mt-4 px-6 py-8 text-center">
-            <p className="text-[15px] font-medium">Tuần tới lịch bạn kín rồi.</p>
+            <p className="text-[15px] font-medium">{t('schedule.gridEmptyTitle')}</p>
             <p className="mt-1.5 text-[14px] leading-relaxed text-muted">
-              Không có khoảng trống nào dài từ {humanLength(WINDOW.minMinutes)} trong khung giờ trên.
+              {t('schedule.gridEmptyDesc', { min: humanLength(WINDOW.minMinutes, t) })}
             </p>
           </div>
         )}
 
         <Link href="/de-thi" className="btn-primary mt-6">
-          Chọn đề cho khung giờ trống
+          {t('schedule.pickPaper')}
           <ChevronRightIcon size={16} />
         </Link>
       </section>
@@ -283,17 +276,17 @@ async function WeekGridPanel({ accessToken }: { accessToken: string }) {
  * thật thì lúc dữ liệu về, cả trang giật nảy một cái xuống dưới — đổi một cú
  * khựng lấy một cú nhảy thì chẳng lời gì.
  */
-function WeekGridSkeleton() {
+function WeekGridSkeleton({ t }: { t: Translator }) {
   return (
     <section className="card p-5 md:p-6" aria-busy="true">
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <h2 className="text-[18px] font-bold tracking-[-0.01em]">
-            Khoảng trống {WINDOW.days} ngày tới
+            {t('schedule.gridTitle', { days: WINDOW.days })}
           </h2>
-          <p className="mt-1 text-[14px] text-muted">Đang đọc lịch từ Google…</p>
+          <p className="mt-1 text-[14px] text-muted">{t('schedule.reading')}</p>
         </div>
-        <WeekGridLegend bufferMinutes={WINDOW.bufferMinutes} />
+        <WeekGridLegend bufferMinutes={WINDOW.bufferMinutes} t={t} />
       </div>
 
       <div
@@ -314,7 +307,7 @@ function Notice({
   action?: React.ReactNode
 }) {
   return (
-    <div className="panel p-10 text-center">
+    <section className="panel p-10 text-center">
       <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-purple-soft text-purple">
         <CalendarIcon size={30} />
       </span>
@@ -323,6 +316,6 @@ function Notice({
         {body}
       </p>
       {action}
-    </div>
+    </section>
   )
 }

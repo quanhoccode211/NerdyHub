@@ -1,6 +1,7 @@
 import 'server-only'
 import { prisma } from '@/lib/db'
 import { decrypt, encrypt } from '@/lib/crypto'
+import { DEFAULT_LOCALE, type Locale } from '@/lib/i18n/config'
 
 /**
  * Kết nối Google Calendar — CHỈ ĐỌC.
@@ -379,12 +380,18 @@ export type GridDay = {
  * `Date`: server và trình duyệt có thể khác múi giờ, và lúc đó khối sẽ vẽ lệch so
  * với chính con số giờ in bên cạnh nó.
  */
-export function buildWeekGrid(busy: BusySlot[], opts: WindowOpts): GridDay[] {
+export function buildWeekGrid(
+  busy: BusySlot[],
+  opts: WindowOpts,
+  locale: Locale = DEFAULT_LOCALE,
+): GridDay[] {
   const merged = mergeBusy(busy)
   const free = findFreeSlots(busy, opts)
   const spanMin = (opts.dayEndHour - opts.dayStartHour) * 60
 
-  const weekdayFmt = new Intl.DateTimeFormat('vi-VN', { weekday: 'short' })
+  const weekdayFmt = new Intl.DateTimeFormat(locale, { weekday: 'short' })
+  // Giờ giữ nguyên `vi-VN`: định dạng 24h là một phần của thiết kế lưới. `en-US`
+  // sinh AM/PM, dài hơn và phá bề rộng khối lẫn nhãn "07:00–09:00".
   const timeFmt = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' })
 
   const todayKey = new Date().toDateString()

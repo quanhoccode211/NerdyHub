@@ -1,4 +1,5 @@
 import type { GridDay } from '@/lib/calendar/google'
+import type { Translator } from '@/lib/i18n/server'
 
 /**
  * Lưới tuần kiểu Google Calendar: cột là ngày, trục dọc là giờ.
@@ -23,10 +24,12 @@ export function WeekGrid({
   days,
   dayStartHour,
   dayEndHour,
+  t,
 }: {
   days: GridDay[]
   dayStartHour: number
   dayEndHour: number
+  t: Translator
 }) {
   const spanMin = (dayEndHour - dayStartHour) * 60
   const hours = Array.from({ length: dayEndHour - dayStartHour + 1 }, (_, i) => dayStartHour + i)
@@ -101,7 +104,7 @@ export function WeekGrid({
                     // Cả hai màu đều sáng ở mọi giao diện -> chữ phải luôn tối
                     color: 'var(--color-on-tone)',
                   }}
-                  title={`${b.kind === 'free' ? 'Rảnh' : 'Bận'} ${b.label}`}
+                  title={`${b.kind === 'free' ? t('schedule.free') : t('schedule.busy')} ${b.label}`}
                 >
                   <span className="block text-[11px] leading-tight font-semibold tabular-nums">
                     {b.label}
@@ -109,7 +112,7 @@ export function WeekGrid({
                   {/* Khối ngắn không đủ chỗ cho dòng thứ hai — 50 phút ≈ 36px */}
                   {b.minutes >= 50 && (
                     <span className="block text-[10.5px] leading-tight opacity-70">
-                      {b.kind === 'free' ? 'Rảnh' : 'Bận'}
+                      {b.kind === 'free' ? t('schedule.free') : t('schedule.busy')}
                     </span>
                   )}
                 </div>
@@ -123,18 +126,19 @@ export function WeekGrid({
 }
 
 /** Chú giải màu. Tách riêng để trang gọi đặt ở đâu tuỳ ý. */
-export function WeekGridLegend({ bufferMinutes }: { bufferMinutes: number }) {
+export function WeekGridLegend({ bufferMinutes, t }: { bufferMinutes: number; t: Translator }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-muted">
       <span className="flex items-center gap-1.5">
         <span className="h-3 w-3 rounded" style={{ background: COLORS.free }} />
-        <span>Rảnh</span>
+        <span>{t('schedule.free')}</span>
       </span>
       <span className="flex items-center gap-1.5">
         <span className="h-3 w-3 rounded" style={{ background: COLORS.busy }} />
-        <span>Bận</span>
+        <span>{t('schedule.busy')}</span>
       </span>
-      <span>Chừa {bufferMinutes} phút trước và sau mỗi khoảng bận.</span>
+      <span>{t('schedule.buffer', { min: bufferMinutes })}</span>
     </div>
   )
 }
+

@@ -626,11 +626,45 @@ function AccountMenu({
               disabled={pending}
               onClick={() =>
                 startTransition(async () => {
-                  // Thứ tự quan trọng: xoá cookie khách khi phiên còn sống, rồi mới
-                  // thoát. `signOut` của next-auth/react tải lại trang nên mọi thứ
-                  // sau nó không chắc chạy.
-                  await clearGuestIdentityAction()
-                  await signOut({ callbackUrl: '/' })
+                  /*
+                    Cho trang rút đi NGAY, không chờ request nào.
+
+                    `startTransition` giữ nguyên giao diện cũ tới lúc xong, nên nếu
+                    không có dòng này thì hai lượt đi-về bên dưới là một quãng đứng
+                    hình, chỉ có chữ trên nút đổi. Dùng lại đúng cờ của chặng rời
+                    ứng dụng (xem nav-slide.tsx) chứ không dựng hiệu ứng riêng.
+
+                    KHÔNG `setTimeout` chờ dãy chạy hết như `EXIT_APP`: ở đó phải
+                    chờ vì điều hướng do mình gọi, còn ở đây `signOut` mới là thứ
+                    quyết định lúc rời trang. Hai bên chạy song song, và bên nào
+                    xong trước cũng đúng — hết dãy thì màn hình nằm yên ở trạng
+                    thái đã trống, xong request thì trình duyệt tải trang mới đè lên.
+
+                    Cờ không cần gỡ: `signOut` tải lại cả tài liệu.
+                  */
+                  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                    document.documentElement.classList.add(APP_LEAVING_CLASS)
+                  }
+
+                  try {
+                    // Thứ tự quan trọng: xoá cookie khách khi phiên còn sống, rồi mới
+                    // thoát. `signOut` của next-auth/react tải lại trang nên mọi thứ
+                    // sau nó không chắc chạy.
+                    await clearGuestIdentityAction()
+                    await signOut({ callbackUrl: '/' })
+                  } catch (err) {
+                    /*
+                      Hỏng thì phải TRẢ MÀN HÌNH LẠI. `pop-out` có `forwards`, nên
+                      không gỡ cờ là người dùng ngồi trước một trang trống rỗng vĩnh
+                      viễn — mất mạng giữa chừng cũng đủ rơi vào đó.
+
+                      Chỉ gỡ ở nhánh lỗi, KHÔNG dùng `finally`: đường thành công vẫn
+                      đang chờ trình duyệt tải trang mới, gỡ ở đó là cả trang nảy trở
+                      lại một nhịp ngay trước khi biến mất.
+                    */
+                    document.documentElement.classList.remove(APP_LEAVING_CLASS)
+                    throw err
+                  }
                 })
               }
               className="rounded-lg px-2.5 py-2 text-left text-[14.5px] text-bad hover:bg-bad-soft disabled:opacity-60"

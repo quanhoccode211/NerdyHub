@@ -453,13 +453,10 @@
   --pomo-long-ring: #d98324;
   --pomo-track: rgba(255, 255, 255, 0.5);
 
-  /* Thẻ tiến độ / lịch ôn — gradient nền và lớp phủ bên trên nó */
+  /* Nền ba loại ô của lịch ôn — xem components/dashboard/study-schedule.tsx */
   --tile-mint: linear-gradient(145deg, #d5e3ef 0%, #a6c1d8 100%);
   --tile-peri: linear-gradient(145deg, #c6bfec 0%, #9a8fda 100%);
   --tile-sky: linear-gradient(145deg, #bcd8ec 0%, #86b4d9 100%);
-  --tile-sand: linear-gradient(145deg, #98c0de 0%, #6199c2 100%);
-  --tile-chip: rgba(255, 255, 255, 0.72);
-  --tile-track: rgba(255, 255, 255, 0.55);
 
   /**
    * Dấu tick vẽ trong ô checkbox của widget "Việc hôm nay".
@@ -1338,7 +1335,22 @@ body {
   --pop-col: 2;
 }
 
-.enter-stagger > header,
+/*
+ * `> :not(div)` CHỨ KHÔNG PHẢI `> header`.
+ *
+ * Bản đầu chỉ nhắm `<header>` vì lúc đó mọi trang đều là "tiêu đề + mấy hàng
+ * <div> bọc thẻ" như Tổng quan. Không phải trang nào cũng vậy: Lịch ôn đặt
+ * `<section class="card">` THẲNG dưới <main> (thẻ kết nối Google Calendar, các
+ * <p> báo lỗi/thành công), Thống kê cũng vậy với hàng số liệu. Những thẻ đó rơi
+ * ra ngoài cả `> header` lẫn `> div > *` nên đứng im trong khi phần còn lại của
+ * trang rút đi rồi nảy lên — lộ nhất lúc đổi ngôn ngữ, vì không có điều hướng
+ * che đi.
+ *
+ * Vẫn CHỪA `div`: div ở tầng này là thẻ bọc bố cục, phần nảy giao cho con của
+ * nó ở luật ngay dưới. Nhắm cả hai là hai lớp opacity chồng nhau — đúng cái bẫy
+ * đã ghi ở đầu bộ chỉ số.
+ */
+.enter-stagger > :not(div),
 .enter-stagger > div > * {
   /* `--pop-enter-dur`, KHÔNG phải `--pop-dur` — xem ghi chú ở chỗ khai biến */
   animation: var(--pop-enter-dur) var(--pop-ease) backwards pop-in;
@@ -1400,7 +1412,7 @@ body {
  * ngôn ngữ nằm ngay trong đó. Cho nó rút đi giữa lúc người dùng vừa bấm là giật
  * mất chính thứ họ đang thao tác. Nó đứng yên như con dấu.
  */
-:root.locale-switching .app-main > header,
+:root.locale-switching .app-main > :not(div),
 :root.locale-switching .app-main > div > * {
   animation: var(--pop-exit-dur) var(--pop-out-ease) forwards pop-out;
   animation-delay: calc(
@@ -1408,16 +1420,16 @@ body {
   );
 }
 
-:root.locale-switched .app-main > header,
+:root.locale-switched .app-main > :not(div),
 :root.locale-switched .app-main > div > * {
   animation: var(--pop-enter-dur) var(--pop-ease) backwards pop-in;
   animation-delay: calc((var(--pop-row, 0) * 2 + var(--pop-col, 0)) * var(--pop-enter-step));
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root.locale-switching .app-main > header,
+  :root.locale-switching .app-main > :not(div),
   :root.locale-switching .app-main > div > *,
-  :root.locale-switched .app-main > header,
+  :root.locale-switched .app-main > :not(div),
   :root.locale-switched .app-main > div > * {
     animation: none;
     opacity: 1;
@@ -1486,7 +1498,7 @@ body {
  * `forwards` chứ không phải `both` — lý do đầy đủ ở `.pop-leaving .pop-in`:
  * thẻ chưa tới lượt phải còn nguyên trên màn hình chứ không bị giấu từ đầu.
  */
-:root.app-leaving .app-main > header,
+:root.app-leaving .app-main > :not(div),
 :root.app-leaving .app-main > div > * {
   animation: var(--pop-exit-dur) var(--pop-out-ease) forwards pop-out;
   animation-delay: calc(
@@ -1498,9 +1510,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .pop-in,
   :root.pop-leaving .pop-in,
-  .enter-stagger > header,
+  .enter-stagger > :not(div),
   .enter-stagger > div > *,
-  :root.app-leaving .app-main > header,
+  :root.app-leaving .app-main > :not(div),
   :root.app-leaving .app-main > div > * {
     animation: none;
     /* `pop-out` có `forwards`; tắt animation mà quên dòng này thì ở chế độ giảm
