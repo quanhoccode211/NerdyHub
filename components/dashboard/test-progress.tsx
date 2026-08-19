@@ -192,10 +192,10 @@ export function TestProgress({ exams }: { exams: ExamProgress[] }) {
                   >
                     <PlayIcon size={12} />
                     {exam.inProgressAttemptId
-                      ? 'Làm tiếp bài dở'
+                      ? t('progress.continue')
                       : started
-                        ? 'Làm đề tiếp theo'
-                        : 'Bắt đầu'}
+                        ? t('progress.nextPaper')
+                        : t('progress.start')}
                   </Link>
                 </div>
               </article>

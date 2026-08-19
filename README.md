@@ -110,11 +110,17 @@ database; `cookies()` ép cả route sang render động và xoá sạch phần 
 
 | Xong | Chưa |
 |---|---|
-| Khung: rail, cụm nút phải, menu tài khoản | Tab **Lịch ôn** — việc lặp, khoá chưa có |
-| Trang giới thiệu (nút đăng nhập) | **Kho đề** — xem kế hoạch dưới |
-| Đăng nhập, đăng ký | Phòng thi, Thống kê, Bài đã làm |
-| Tổng quan + cả 5 widget | Cài đặt — khoá đã có, chưa gắn vào component |
-| Tab Tiện ích | Form đăng ký: phần ô đồng ý bên trong |
+| Khung: rail, cụm nút phải, menu tài khoản | **Kho đề** — xem kế hoạch dưới |
+| Trang giới thiệu (nút đăng nhập) | Phòng thi, Bài đã làm, trang Kết quả |
+| Đăng nhập, đăng ký | Cài đặt → **Dữ liệu & quyền riêng tư** (trang con) |
+| Tổng quan + cả 5 widget | Form đăng ký: phần ô đồng ý bên trong |
+| Tab Tiện ích | Ba trang trò chơi trong tab Tiện ích |
+| Thống kê, Lịch ôn (cả lưới tuần), Cài đặt | |
+
+Nhãn thứ trong tuần của lưới Lịch ôn đi theo `locale`, nhưng GIỜ thì không:
+`buildWeekGrid` giữ `vi-VN` 24h. `en-US` sinh AM/PM, dài hơn và phá cả bề rộng
+khối lẫn nhãn "07:00–09:00" — đó là định dạng của thiết kế, không phải của ngôn
+ngữ.
 
 ### Kế hoạch dịch Kho đề — CHƯA CHỐT
 
