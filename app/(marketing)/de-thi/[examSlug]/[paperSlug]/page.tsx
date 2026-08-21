@@ -228,10 +228,6 @@ export default async function PaperDetailPage({ params }: Props) {
                 <dt className="text-muted">Đơn vị</dt>
                 <dd className="text-right font-medium">{paper.provenance.sourceName}</dd>
               </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted">Giấy phép</dt>
-                <dd className="text-right font-medium">{paper.provenance.license}</dd>
-              </div>
             </dl>
             {paper.provenance.attribution && (
               <p className="mt-3 border-t border-line pt-3 text-[13.5px] leading-relaxed text-muted">

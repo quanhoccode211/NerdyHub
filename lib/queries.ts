@@ -71,7 +71,7 @@ export async function getPapersForExam(examId: string, filters: PaperFilters) {
     orderBy,
     include: {
       level: true,
-      provenance: { select: { attribution: true, sourceName: true, license: true } },
+      provenance: { select: { attribution: true, sourceName: true } },
       sections: { select: { skill: true, duration: true }, orderBy: { sortOrder: 'asc' } },
       _count: { select: { sections: true } },
     },

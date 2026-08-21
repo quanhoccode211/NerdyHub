@@ -1,8 +1,11 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import type { RoomQuestion } from '@/lib/attempt-service'
 import { CheckIcon, FlagIcon, XIcon } from '../shell/icons'
 import { useExamStore } from './store'
+// @ts-expect-error KaTeX lacks type defs for mjs contrib
+import renderMathInElement from 'katex/dist/contrib/auto-render.mjs'
 
 /**
  * Hiển thị một câu hỏi và thu đáp án.
@@ -32,6 +35,20 @@ export function QuestionView({
   const isEssay = question.type === 'ESSAY'
   const correctIds = question.correctChoiceIds ?? []
 
+  const containerRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!containerRef.current) return
+    renderMathInElement(containerRef.current, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '$', right: '$', display: false },
+        { left: '\\(', right: '\\)', display: false },
+        { left: '\\[', right: '\\]', display: true }
+      ],
+      throwOnError: false,
+    })
+  }, [question.content])
+
   // Bỏ trống thì không tô màu đúng/sai — trung tính, để nhãn "Bỏ trống" nói thay
   const blank = (answer?.textAnswer ?? '').trim() === ''
   const textAnswerRing = blank
@@ -44,6 +61,7 @@ export function QuestionView({
 
   return (
     <article
+      ref={containerRef}
       id={`question-${question.id}`}
       className="scroll-mt-24 rounded-card bg-card p-5 ring-1 ring-line md:p-6"
     >

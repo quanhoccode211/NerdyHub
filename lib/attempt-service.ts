@@ -13,12 +13,12 @@ import type { AnnotationType, AttemptMode, AttemptStatus, AudioPlayMode, Highlig
  * chứ không dựa vào client ẩn đi.
  */
 
-const ALLOWED_TAGS = ['p', 'br', 'strong', 'em', 'u', 'b', 'i', 'h3', 'h4', 'ul', 'ol', 'li', 'blockquote', 'span']
+const ALLOWED_TAGS = ['p', 'br', 'strong', 'em', 'u', 'b', 'i', 'h3', 'h4', 'ul', 'ol', 'li', 'blockquote', 'span', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'div']
 
 function sanitize(html: string): string {
   return DOMPurify.sanitize(html, {
     ALLOWED_TAGS,
-    ALLOWED_ATTR: [], // không cho attribute nào — passage là văn bản thuần
+    ALLOWED_ATTR: ['class'],
   })
 }
 

@@ -11,6 +11,9 @@ import {
   paintHighlights,
 } from './highlight-engine'
 import { useExamStore } from './store'
+// @ts-expect-error KaTeX lacks type defs for mjs contrib
+import renderMathInElement from 'katex/dist/contrib/auto-render.mjs'
+import 'katex/dist/katex.min.css'
 
 const COLORS: { key: HighlightColor; className: string; label: string }[] = [
   { key: 'yellow', className: 'bg-hl-yellow', label: 'Vàng' },
@@ -52,6 +55,21 @@ export function PassageView({
     .map((a) => `${a.id}:${a.startOffset}:${a.endOffset}:${a.color}:${a.noteContent ? 1 : 0}`)
     .sort()
     .join('|')
+
+  // Render toán học (KaTeX) TRƯỚC khi paintHighlights chạy
+  useEffect(() => {
+    const root = containerRef.current
+    if (!root) return
+    renderMathInElement(root, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '$', right: '$', display: false },
+        { left: '\\(', right: '\\)', display: false },
+        { left: '\\[', right: '\\]', display: true }
+      ],
+      throwOnError: false,
+    })
+  }, [passage.content])
 
   // Vẽ lại highlight sau mỗi lần nội dung hoặc annotation đổi
   useEffect(() => {

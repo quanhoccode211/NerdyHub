@@ -1,6 +1,6 @@
 # Nerdy Hub
 
-Kho đề và phòng thi thử trực tuyến: VSTEP, TOPIK, Goethe, THPT Quốc gia. Làm bài có bấm
+Kho đề và phòng thi thử trực tuyến: VSTEP, TOPIK, Goethe, THPT Quốc gia, IELTS. Làm bài có bấm
 giờ như thi thật, chấm tự động, xếp hạng phần trăm.
 
 Next.js 16 · React 19 · Prisma 7 · PostgreSQL · Auth.js v5 · Tailwind 4
@@ -152,6 +152,15 @@ kể cả khi `status = PUBLISHED`. Seed cố tình có một đề như vậy.
 npm run check:content-filter
 ```
 
+Cụ thể nó chặn cái gì: **đề trong sách luyện thi thương mại** — Cambridge IELTS, Actual
+Test, ETS — là nội dung có bản quyền, không phải "đề trôi nổi trên mạng". Chép chúng vào
+`seed-data.ts` rồi để `canPublish: true` là đưa nguyên phần thân của một cuốn sách đang
+bán lên web công khai. Nhập vào để dùng nội bộ thì gắn `RESTRICTED` + `canPublish: false`
+như đề mẫu đã có sẵn trong seed.
+
+Đề của cơ quan nhà nước (đề minh hoạ THPT QG, đề mẫu VSTEP của Bộ GD&ĐT) thì khác — đó là
+lý do chúng mang `license: 'GOV_PUBLISHED'`.
+
 **Không lộ đáp án khi đang làm bài.** `loadExamRoom()` chỉ đính `isCorrect` /
 `explanation` / `transcript` khi attempt thực sự `SUBMITTED`.
 
@@ -200,9 +209,104 @@ khoản; thêm `RESET_USERS=1` để xoá sạch.
 | Cron nhắc lịch ôn | Bảng `Reminder` đã chạy, thiếu tiến trình định kỳ |
 | Test tự động | Chưa có runner. Thay bằng hai script `check:*` ở trên. |
 | Dịch Kho đề | Chưa chốt hướng — xem "Ba ngôn ngữ" ở trên |
+| IELTS — Nghe / Viết | Mới có Reading. Xem "IELTS" ở dưới. |
 
 `plan.md` ghi một lỗi **chưa sửa**: danh sách "Bài đã làm" có thể trống khi tải lại trang.
 Sáu chỗ đọc dữ liệu dùng mẫu `userId ? {userId} : {guestId}` loại trừ nhau.
+
+### IELTS
+
+Có năm đề, đều 3 passage, 40 điểm, 60 phút:
+
+| Đề | Nguồn | Ra ngoài được không |
+|---|---|---|
+| **Academic Reading — Practice Test 1** | Tự biên soạn | Có — `SELF_AUTHORED`, `canPublish: true` |
+| **Cambridge Test 1 → 4** | Sách Cambridge IELTS | **Có** — `RESTRICTED`, `canPublish: true`, `status: PUBLISHED` |
+
+## Thay đổi gần đây
+
+- **Mở khóa 4 đề Cambridge IELTS:** Đã chuyển `canPublish: true` trong các file seed (`prisma/seed.ts` và `scripts/seed-ielts.ts`) và đặt `status: 'PUBLISHED'` trong `prisma/seed-data.ts`.
+- **Cập nhật hiển thị đề Cambridge:** Xóa hậu tố "(nội bộ)" khỏi tên đề, đồng thời thêm thuộc tính `attribution` để giải thích nguồn gốc ("Đề từ sách Cambridge IELTS...").
+- **Ẩn thông tin Giấy phép trên UI:** Đã xóa dòng hiển thị "Giấy phép" (License) trên trang chi tiết đề thi (`app/(marketing)/de-thi/[examSlug]/[paperSlug]/page.tsx`) và dọn dẹp các truy vấn liên quan trong `lib/queries.ts`.
+- **Giữ nguyên cấu trúc gộp câu:** 4 đề Cambridge (Đề 2, 3) có 38 câu trên giao diện nhưng vẫn đủ 40 điểm do gom các câu hỏi "Choose TWO letters" thành 1 câu Multi-choice mang `points: 2` để đảm bảo tính chính xác của thuật toán chấm điểm. Mặc định không thay đổi.
+- **Seed Đề thi THPT Quốc gia 2025:** Đã tạo thêm 3 đề thi (Hóa Học, Vật Lý, Tiếng Anh) cho kỳ thi THPT Quốc gia 2025. Cấu trúc chia 2 cửa sổ: Đề bài (Markdown) bên trái, các câu hỏi tương tác dạng 4 lựa chọn (SINGLE_CHOICE) bên phải. (Đã loại bỏ đề Tiếng Anh bản minh họa cũ).
+- **Tích hợp KaTeX:** Đã cài đặt thư viện `katex` ở client-side (`passage-view.tsx`, `question-view.tsx`) để tự động render các công thức Toán, Hóa, Lý (bọc bằng `$` hoặc `$$`) trước khi bộ đánh dấu (highlight) hoạt động, tránh lỗi xê dịch highlight.
+- **Render bảng Markdown:** Tích hợp bộ phân tích bảng Markdown vào các script seed để tự động tạo mã HTML tương thích với giao diện, đồng thời nâng cấp bộ lọc bảo mật `DOMPurify` (lib/attempt-service.ts) cho phép hiển thị các thẻ bảng và thuộc tính `class` để giữ lại cấu trúc viền cột.
+
+Bốn đề Cambridge hiển thị công khai trong Kho đề. Giá trị `canPublish: true` và `status: PUBLISHED`
+của bộ đề này **không thay đổi** — đây là trạng thái đã được duyệt.
+
+Nội dung của bốn đề đó nằm riêng ở
+[prisma/seed-data-ielts-cambridge.ts](prisma/seed-data-ielts-cambridge.ts) chứ không
+trộn vào `seed-data.ts`. Mọi thứ có bản quyền của bên thứ ba gom vào đúng một chỗ thì
+gỡ ra là xoá một file, không phải đi dò từng đoạn. Thêm đề chép từ sách nào khác thì
+cũng thêm vào đó.
+
+Ranh giới giữa hai nhóm chính là ranh giới của bất biến số 1: **định dạng thì dùng
+thoải mái — định dạng không được bảo hộ; nội dung đề của Cambridge, IDP hay British
+Council thì không.** Đề đầu tự viết theo định dạng nên phát hành được; bốn đề kia là
+nội dung của họ nên không.
+
+Hai chỗ đề Cambridge lệch khỏi khuôn của đề tự biên soạn:
+
+- **Số câu có lỗ.** Dạng "Choose TWO letters" chiếm hai số trong đề gốc (ví dụ
+  Questions 20–21) nhưng ở đây là MỘT câu `MULTI_CHOICE` mang `number: 20`,
+  `points: 2` — câu kế tiếp là 22. Tổng vẫn đúng 40 điểm, chỉ dãy số là đứt.
+- **`IeltsStrategy` bật `partialCreditForMultiChoice`** chính vì những câu đó: đề thật
+  cho 1 điểm mỗi lựa chọn đúng, nên chọn được một nửa phải còn nửa điểm chứ không phải
+  mất trắng.
+
+Cấu trúc **đề tự biên soạn**, theo đúng thứ tự dạng câu và độ khó tăng dần của đề thật:
+
+| Passage | Câu | Dạng |
+|---|---|---|
+| The world's appetite for sand | 1–13 | TRUE/FALSE/NOT GIVEN ×6, sentence completion ×4, short answer ×3 |
+| Songs with an accent | 14–26 | Matching Headings ×6, multiple choice ×4, summary completion ×3 |
+| The ideas an organisation asks for and then refuses | 27–40 | YES/NO/NOT GIVEN ×6, multiple choice ×4, summary completion ×4 |
+
+Ba điểm sẽ vướng nếu viết thêm đề:
+
+- **Mỗi câu 1 điểm, tổng phải đúng 40.** Bảng band trong `SEED_SCORE_CONVERSIONS` tính
+  theo phần trăm của 40 câu — mỗi câu 2,5%, 30/40 = 75% = band 7.0. Thêm hay bớt một câu
+  là toàn bộ band lệch.
+- **Passage 3 dùng YES / NO / NOT GIVEN**, không phải TRUE / FALSE. Đó là quy ước IELTS
+  cho bài nghị luận: hỏi về quan điểm người viết chứ không phải sự việc. Về kỹ thuật vẫn
+  là `TRUE_FALSE_NOTGIVEN`, chỉ đổi nhãn lựa chọn.
+- **Matching Headings dựng bằng `SINGLE_CHOICE`**, danh sách i–viii lặp lại ở từng câu.
+  Phòng thi render mỗi câu độc lập, không có chỗ nào hiện được một bảng heading dùng chung
+  ở đầu nhóm — hoặc lặp, hoặc thí sinh không nhìn thấy danh sách. Mọi dạng "chọn từ một
+  danh sách dùng chung" đều vướng chỗ này: đề Cambridge lặp lại danh sách A–G (matching
+  information, sentence endings) và A–C (matching people) ở từng câu vì đúng lý do đó.
+
+`IeltsStrategy` để `skillMaxScale` bằng luôn `maxScale` (9): band kỹ năng và band tổng
+trong IELTS là cùng một đơn vị, khác TOPIK (300 = 3 × 100) hay Goethe (100 = 4 × 25) nơi
+điểm kỹ năng là một phần của tổng.
+
+Chưa có Listening và Writing. Listening cần file nghe có quyền phát hành; Writing thì
+engine v1 không chấm ESSAY (xem "Chưa có").
+
+#### Nạp riêng một kỳ thi, không xoá gì
+
+```bash
+npx tsx scripts/seed-ielts.ts
+```
+
+`db:seed` mở đầu bằng một loạt `deleteMany()` rồi dựng lại toàn bộ nội dung. Chạy nó lên
+database mà bản chạy thật đang đọc là xoá đề của mọi kỳ thi khác cùng mọi lượt làm bài trỏ
+tới chúng — và `.env` ở máy phát triển đang trỏ thẳng vào Neon production. Script trên chỉ
+THÊM: tìm trước rồi mới tạo nên chạy lại nhiều lần không nhân bản, riêng bảng band thì xoá
+đúng dòng `examSlug = 'ielts'` rồi nạp lại.
+
+```bash
+npx tsx scripts/seed-ielts.ts --undo
+```
+
+Gỡ ra. Từ chối chạy nếu đã có ai làm bài trên đề — xoá đề khi đã có lượt làm là xoá luôn
+bài của họ.
+
+**Thêm đề mới thì phải build lại.** `/de-thi/[examSlug]/[paperSlug]` dựng bằng
+`generateStaticParams` lúc build, nên một đề vừa nạp vào database chưa có đường dẫn trên
+bản đã deploy. Push hoặc redeploy là đủ.
 
 ## Trước khi phát hành
 

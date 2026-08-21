@@ -53,6 +53,33 @@ const PROVENANCES = {
     notes:
       'Chủ dự án xác nhận công khai bộ đề này. LƯU Ý: license LICENSED yêu cầu có licenseDocUrl khi vận hành thật — điền văn bản cho phép của Goethe-Institut vào trước khi phát hành. Muốn gỡ khỏi public ngay thì đổi canPublish thành false, không cần sửa gì khác.',
   },
+  /*
+    Đề IELTS trong seed là nội dung TỰ VIẾT theo định dạng Academic Reading, không
+    chép từ Cambridge IELTS hay bất kỳ sách luyện thi thương mại nào — xem ghi chú
+    ở đầu ieltsReading trong seed-data.ts.
+  */
+  'ielts-original': {
+    license: 'SELF_AUTHORED',
+    sourceName: 'Nerdy Hub',
+    sourceUrl: null,
+    attribution: 'Đề luyện do đội ngũ Nerdy Hub biên soạn, viết theo định dạng IELTS Academic Reading.',
+    canPublish: true,
+    notes: 'Định dạng IELTS thuộc về British Council / IDP / Cambridge English; ĐỊNH DẠNG thì dùng được, NỘI DUNG đề của họ thì không.',
+  },
+  /*
+    Đề chép từ sách luyện thi Cambridge IELTS. Là nội dung có bản quyền của
+    Cambridge University Press — nhập vào để tra cứu nội bộ thì được, phát hành
+    thì không. canPublish = false là thứ duy nhất đứng giữa hai chuyện đó.
+  */
+  'cambridge-restricted': {
+    license: 'RESTRICTED',
+    sourceName: 'Cambridge IELTS (Cambridge University Press)',
+    sourceUrl: null,
+    attribution: 'Đề từ sách Cambridge IELTS (Cambridge University Press). Nội dung thuộc bản quyền nhà xuất bản.',
+    canPublish: true,
+    notes:
+      'CHỈ tham khảo nội bộ, KHÔNG có quyền phân phối. Muốn mở ra công khai thì phải có văn bản cho phép của Cambridge University Press và đổi license sang LICENSED kèm licenseDocUrl — đừng chỉ bật canPublish.',
+  },
   'restricted-internal': {
     license: 'RESTRICTED',
     sourceName: 'Tài liệu nội bộ',
