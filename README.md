@@ -69,6 +69,7 @@ app/
 lib/
   content-filter  Chốt chặn canPublish
   exam-clock      GRACE_SEC + overdueSeconds
+  sanitize-html   Lọc HTML đường GHI — KHÔNG import từ route (kéo theo jsdom)
   scoring/        Strategy theo kỳ thi + engine chung
   auth/           Session, tuổi, consent (NĐ 13/2023)
   calendar/google freeBusy, chỉ đọc
@@ -199,6 +200,14 @@ npm run db:reset-attempts
 `db:reset-attempts` xoá lượt làm bài, giữ nguyên đề. `db:seed` nạp lại nội dung và giữ tài
 khoản; thêm `RESET_USERS=1` để xoá sạch.
 
+```bash
+npm run sanitize:passages
+```
+
+**Chạy sau mỗi lần nạp đề mới.** Lọc HTML của mọi passage đang nằm trong database, ghi đè
+tại chỗ — phòng thi không lọc lại lúc đọc nữa (xem "Bẫy đã mất thời gian"). Idempotent,
+thêm `--dry` để xem trước mà không ghi.
+
 ## Chưa có
 
 | | |
@@ -231,7 +240,8 @@ Có năm đề, đều 3 passage, 40 điểm, 60 phút:
 - **Giữ nguyên cấu trúc gộp câu:** 4 đề Cambridge (Đề 2, 3) có 38 câu trên giao diện nhưng vẫn đủ 40 điểm do gom các câu hỏi "Choose TWO letters" thành 1 câu Multi-choice mang `points: 2` để đảm bảo tính chính xác của thuật toán chấm điểm. Mặc định không thay đổi.
 - **Seed Đề thi THPT Quốc gia 2025:** Đã tạo thêm 3 đề thi (Hóa Học, Vật Lý, Tiếng Anh) cho kỳ thi THPT Quốc gia 2025. Cấu trúc chia 2 cửa sổ: Đề bài (Markdown) bên trái, các câu hỏi tương tác dạng 4 lựa chọn (SINGLE_CHOICE) bên phải. (Đã loại bỏ đề Tiếng Anh bản minh họa cũ).
 - **Tích hợp KaTeX:** Đã cài đặt thư viện `katex` ở client-side (`passage-view.tsx`, `question-view.tsx`) để tự động render các công thức Toán, Hóa, Lý (bọc bằng `$` hoặc `$$`) trước khi bộ đánh dấu (highlight) hoạt động, tránh lỗi xê dịch highlight.
-- **Render bảng Markdown:** Tích hợp bộ phân tích bảng Markdown vào các script seed để tự động tạo mã HTML tương thích với giao diện, đồng thời nâng cấp bộ lọc bảo mật `DOMPurify` (lib/attempt-service.ts) cho phép hiển thị các thẻ bảng và thuộc tính `class` để giữ lại cấu trúc viền cột.
+- **Render bảng Markdown:** Tích hợp bộ phân tích bảng Markdown vào các script seed để tự động tạo mã HTML tương thích với giao diện, đồng thời nâng cấp bộ lọc bảo mật `DOMPurify` cho phép hiển thị các thẻ bảng và thuộc tính `class` để giữ lại cấu trúc viền cột.
+- **Lọc HTML chuyển sang đường ghi:** `DOMPurify` từng chạy ở mỗi lần đọc trong `lib/attempt-service.ts`. Nó kéo theo jsdom, và jsdom không nạp được trong hàm serverless của Vercel — phòng thi trả 500 trên bản deploy trong khi localhost vẫn chạy. Nay lọc nằm ở `lib/sanitize-html.ts`, gọi từ `npm run sanitize:passages`; đường đọc không lọc lại. Xem "Bẫy đã mất thời gian".
 
 Bốn đề Cambridge hiển thị công khai trong Kho đề. Giá trị `canPublish: true` và `status: PUBLISHED`
 của bộ đề này **không thay đổi** — đây là trạng thái đã được duyệt.
@@ -303,6 +313,9 @@ npx tsx scripts/seed-ielts.ts --undo
 
 Gỡ ra. Từ chối chạy nếu đã có ai làm bài trên đề — xoá đề khi đã có lượt làm là xoá luôn
 bài của họ.
+
+**Nạp xong thì chạy `npm run sanitize:passages`.** Phòng thi không lọc HTML lúc đọc nữa,
+nên nội dung phải sạch từ lúc nằm trong database.
 
 **Thêm đề mới thì phải build lại.** `/de-thi/[examSlug]/[paperSlug]` dựng bằng
 `generateStaticParams` lúc build, nên một đề vừa nạp vào database chưa có đường dẫn trên
