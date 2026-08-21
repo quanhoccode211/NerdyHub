@@ -1,5 +1,4 @@
 import 'server-only'
-import DOMPurify from 'isomorphic-dompurify'
 import { prisma } from './db'
 import { assertPublishable, publicQuestionFilter } from './content-filter'
 import { parseStringArray } from './json-fields'
@@ -13,14 +12,24 @@ import type { AnnotationType, AttemptMode, AttemptStatus, AudioPlayMode, Highlig
  * chứ không dựa vào client ẩn đi.
  */
 
-const ALLOWED_TAGS = ['p', 'br', 'strong', 'em', 'u', 'b', 'i', 'h3', 'h4', 'ul', 'ol', 'li', 'blockquote', 'span', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'div']
+/*
+  KHÔNG sanitize ở đây nữa — nội dung đã sạch từ lúc GHI vào database.
 
-function sanitize(html: string): string {
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS,
-    ALLOWED_ATTR: ['class'],
-  })
-}
+  DOMPurify kéo theo jsdom, mà Turbopack externalize jsdom thành
+  `require("jsdom-<hash>")`; alias đó không nạp được trong hàm serverless của
+  Vercel, nên MỌI route đi qua file này (phòng thi, trang xem lại, và
+  /api/attempts/[id]) trả 500 "Failed to load external module" trên bản deploy
+  trong khi localhost chạy bình thường. Bỏ nó ra cũng cắt ~11MB và ~1s cold
+  start khỏi đường vào phòng thi.
+
+  Lọc nay nằm ở lib/sanitize-html.ts, gọi từ script seed và
+  scripts/sanitize-passages.ts.
+
+  ponytail: nội dung đề hiện 100% do người viết repo seed từ prisma/seed-data*.ts,
+  nên đường ghi là chốt chặn đủ. Khi F8 (Admin CMS) cho nhập đề qua web thì
+  route nhập BẮT BUỘC gọi sanitizeHtml() trước khi ghi — đó là lúc đường ghi có
+  đầu vào không tin được.
+*/
 
 export type RoomChoice = { id: string; label: string; content: string }
 
@@ -196,7 +205,7 @@ export async function loadExamRoom(
     passages: s.passages.map((p) => ({
       id: p.id,
       title: p.title,
-      content: sanitize(p.content),
+      content: p.content,
       sortOrder: p.sortOrder,
     })),
     questions: s.questions.map((q) => ({

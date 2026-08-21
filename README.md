@@ -321,6 +321,12 @@ dùng thương mại, chỉ cần giữ dòng credit trong `globals.css`.
 
 ## Bẫy đã mất thời gian
 
+- **Đừng import `isomorphic-dompurify` (hay bất cứ thứ gì kéo jsdom) từ code chạy trong
+  route.** Turbopack externalize jsdom thành `require("jsdom-<hash>")`, và alias đó không
+  nạp được trong hàm serverless của Vercel: mọi route chạm tới nó trả 500 *"Failed to load
+  external module"* trong khi `next start` ở máy vẫn chạy — vì máy có sẵn `node_modules`,
+  còn Vercel chỉ đóng gói theo trace. Đã sập phòng thi đúng kiểu này. Lọc HTML nay ở đường
+  GHI (`lib/sanitize-html.ts` + `npm run sanitize:passages`), không ở đường đọc.
 - **Đổi schema Prisma thì khởi động lại `next dev`.** `migrate dev` sinh lại client trên
   đĩa nhưng tiến trình đang chạy vẫn giữ module cũ. Triệu chứng: 500 "Unknown field" trong
   khi `typecheck` sạch.

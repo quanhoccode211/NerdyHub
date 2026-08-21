@@ -192,7 +192,8 @@ export function PassageView({
       <div
         ref={containerRef}
         className="passage-body text-[16.5px] leading-relaxed text-ink selection:bg-purple-soft"
-        // Nội dung đã sanitize server-side bằng DOMPurify (lib/attempt-service.ts)
+        // Nội dung đã sanitize từ lúc GHI vào DB (lib/sanitize-html.ts,
+        // scripts/sanitize-passages.ts) — không lọc lại ở đường đọc.
          
         dangerouslySetInnerHTML={{ __html: passage.content }}
       />
