@@ -8,8 +8,7 @@
  */
 
 /**
- * Màu phân loại theo kỹ năng. Đọc từ CSS variable để dark mode được sáng thêm
- * một nấc — mã hex cố định sẽ chìm trên nền thẻ tối. Xem globals.css.
+ * Màu phân loại theo kỹ năng. Đọc từ CSS variable — xem globals.css.
  */
 const SKILL_TONES = [
   'var(--skill-1)',

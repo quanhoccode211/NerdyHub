@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { assertPublishable } from '@/lib/content-filter'
+import { assertPublishable, publicQuestionFilter } from '@/lib/content-filter'
 import { createAttemptSchema } from '@/lib/api-schemas'
 import { ensureGuestId, getIdentity } from '@/lib/session'
 import { LIMITS, rateLimit } from '@/lib/rate-limit'
@@ -50,6 +50,25 @@ export async function POST(request: NextRequest) {
   }
 
   /*
+    Đề không có câu nào thì đừng mở phòng thi.
+
+    Đếm SAU bộ lọc nội dung: một đề có thể đủ câu trên giấy nhưng mọi câu đều mang
+    provenance không được publish, và phòng thi sẽ nạp ra đúng con số không. Trước
+    đây route tạo lượt thi vô tư, rồi phòng thi hiện một dòng "Đề thi này chưa có
+    nội dung." không kèm link nào — mà nhóm route phòng thi thì cố ý không có nav.
+    Ngõ cụt hoàn toàn.
+  */
+  const questionCount = await prisma.question.count({
+    where: { section: { paperId: paper.id }, ...publicQuestionFilter() },
+  })
+  if (questionCount === 0) {
+    return NextResponse.json(
+      { error: 'Đề thi này chưa có nội dung để làm bài.' },
+      { status: 422 },
+    )
+  }
+
+  /*
     Khôi phục thay vì tạo trùng: đã có lượt đang làm dở cho đề này thì vào lại.
 
     Khớp theo CHỦ SỞ HỮU chứ không phải guestId cứng — người đã đăng nhập đổi máy
@@ -67,9 +86,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ attemptId: existing.id, resumed: true })
   }
 
-  // expiresAt tính ở SERVER — đổi giờ máy client không kéo dài được thời gian (F2.2)
-  const BUFFER_SEC = 30
-  const expiresAt = new Date(Date.now() + (paper.totalDuration + BUFFER_SEC) * 1000)
+  /*
+    expiresAt tính ở SERVER — đổi giờ máy client không kéo dài được thời gian (F2.2).
+
+    Đúng bằng thời lượng đề, KHÔNG cộng đệm. Bản cũ cộng 30 giây vào đây nên đề 60
+    phút mở ra là đồng hồ chạy từ 60:30 — khoảng đệm đáng ra thuộc về phía server
+    lại thành phần hiển thị cho thí sinh. Dung sai giờ nằm ở `GRACE_SEC`, chỗ cưỡng
+    chế hết giờ, là nơi nó vốn thuộc về.
+  */
+  const expiresAt = new Date(Date.now() + paper.totalDuration * 1000)
 
   const attempt = await prisma.attempt.create({
     data: {

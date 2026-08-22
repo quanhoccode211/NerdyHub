@@ -11,11 +11,40 @@ import { isMinor, isPlausibleBirthDate } from '@/lib/auth/age'
 import { recordConsents } from '@/lib/auth/consent'
 import { guardianConsentEmail, sendEmail } from '@/lib/email'
 import { TERMS_VERSION } from '@/lib/legal/terms'
-import { CONSENT_PURPOSES, type ConsentPurpose } from '@/lib/enums'
+import {
+  CONSENT_FORM_PURPOSES,
+  type ConsentPurpose,
+} from '@/lib/enums'
 
 export type FormState = { error?: string; fieldErrors?: Record<string, string> } | null
 
 const GUARDIAN_TOKEN_DAYS = 7
+
+/**
+ * Đọc lựa chọn đồng ý từ form đăng ký / hoàn tất hồ sơ.
+ *
+ * Chỉ còn MỘT nguồn: `CONSENT_FORM_PURPOSES` — người dùng tự tích, không tích
+ * thì false.
+ *
+ * Trước đây còn `CONSENT_TERMS_PURPOSES` gộp ANALYTICS và LEADERBOARD_PUBLIC
+ * vào Điều khoản sử dụng. Hai mục đó đã bỏ hẳn (xem `CONSENT_PURPOSES`), nên
+ * không còn sự đồng ý nào được suy ra từ một cú bấm khác nữa — mọi mục đích ở
+ * đây đều do người dùng tự tích, đúng tinh thần "tách bạch từng mục đích".
+ *
+ * CALENDAR_ACCESS không nằm ở đây: nó được ghi lúc người dùng bấm kết nối và
+ * cấp quyền ở màn hình Google. Bỏ trống thì `recordConsents` ghi false, đúng
+ * thực tế tại thời điểm tạo tài khoản.
+ *
+ * Trẻ dưới 16 chưa có xác nhận giám hộ vẫn được `recordConsents` ép
+ * MARKETING_EMAIL về false — chốt đó nằm ở tầng dưới.
+ */
+function consentsFromForm(formData: FormData): Partial<Record<ConsentPurpose, boolean>> {
+  const granted: Partial<Record<ConsentPurpose, boolean>> = {}
+  for (const purpose of CONSENT_FORM_PURPOSES) {
+    granted[purpose] = formData.get(`consent_${purpose}`) === 'on'
+  }
+  return granted
+}
 
 const registerSchema = z
   .object({
@@ -102,12 +131,7 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
     },
   })
 
-  // Consent tách bạch từng mục đích, các mục không bắt buộc mặc định TẮT
-  const granted: Partial<Record<ConsentPurpose, boolean>> = {}
-  for (const purpose of CONSENT_PURPOSES) {
-    granted[purpose] = formData.get(`consent_${purpose}`) === 'on'
-  }
-  await recordConsents(user.id, granted)
+  await recordConsents(user.id, consentsFromForm(formData))
 
   if (minor && guardianEmail) {
     await issueGuardianConsent(user.id, name, guardianEmail)
@@ -195,6 +219,19 @@ export async function completeProfileAction(
     }
   }
 
+  /*
+    `update` mù quáng ném PrismaClientKnownRequestError khi hàng không tồn tại, và
+    lỗi đó nổ ra sau khi người dùng đã điền xong form, đọc điều khoản và bấm đồng ý.
+    Token thì hợp lệ — nó chỉ trỏ tới một tài khoản đã bị xoá cứng (job dọn dẹp 48
+    giờ) hoặc biến mất cùng lần dựng lại DB. Kiểm tra trước để đổi một stack trace
+    lấy một lần chuyển hướng có nghĩa.
+  */
+  const exists = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true },
+  })
+  if (!exists) redirect('/dang-nhap?phien=het-han')
+
   const user = await prisma.user.update({
     where: { id: session.user.id },
     data: {
@@ -206,11 +243,7 @@ export async function completeProfileAction(
     },
   })
 
-  const granted: Partial<Record<ConsentPurpose, boolean>> = {}
-  for (const purpose of CONSENT_PURPOSES) {
-    granted[purpose] = formData.get(`consent_${purpose}`) === 'on'
-  }
-  await recordConsents(user.id, granted)
+  await recordConsents(user.id, consentsFromForm(formData))
 
   if (minor && parsed.data.guardianEmail) {
     await issueGuardianConsent(user.id, user.name ?? 'Người dùng', parsed.data.guardianEmail)

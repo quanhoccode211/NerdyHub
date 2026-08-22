@@ -32,7 +32,7 @@ function gradeOne(
   answer: SubmittedAnswer | undefined,
   partialCreditForMultiChoice: boolean,
 ): GradedAnswer {
-  // ESSAY / SPEAKING: v1 không chấm tự động, loại khỏi tổng điểm
+  // ESSAY: v1 không chấm tự động, loại khỏi tổng điểm
   if (UNGRADED_TYPES.includes(q.type)) {
     return { questionId: q.id, isCorrect: null, pointsEarned: 0, pointsPossible: q.points }
   }

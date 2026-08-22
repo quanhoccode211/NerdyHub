@@ -20,5 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect('/hoan-tat-ho-so')
   }
 
+  // Hiệu ứng trượt nằm BÊN TRONG AppShell (ruột thẻ trắng), không bọc ở đây —
+  // xem ghi chú trong components/shell/nav-slide.tsx.
   return <AppShell>{children}</AppShell>
 }

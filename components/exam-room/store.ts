@@ -47,6 +47,14 @@ type State = {
   dirtyAnnotations: Set<string>
   deletedAnnotations: Set<string>
 
+  /**
+   * Phần đã BẮT ĐẦU phát audio. Server là nguồn sự thật (`RoomSection.audioStarted`);
+   * đây là bản sao cục bộ để giao diện phản hồi ngay, không phải nơi lưu trữ.
+   */
+  audioPlayedSections: Set<string>
+  /** Có thay đổi audio chưa gửi lên server hay không */
+  dirtyAudio: boolean
+
   syncStatus: SyncStatus
   lastSyncedAt: number | null
 
@@ -95,6 +103,9 @@ type Actions = {
   setText: (questionId: string, text: string) => void
   toggleFlag: (questionId: string) => void
 
+  /** Ghi nhận một phần đã bắt đầu phát audio. Một chiều: không có hàm gỡ. */
+  markAudioStarted: (sectionId: string) => void
+
   addAnnotation: (a: RoomAnnotation) => void
   updateAnnotation: (id: string, patch: Partial<RoomAnnotation>) => void
   removeAnnotation: (id: string) => void
@@ -111,6 +122,8 @@ type Actions = {
     answers: { questionId: string; patch: LocalAnswer }[]
     annotations: RoomAnnotation[]
     deleted: string[]
+    /** Cả tập, không phải delta — server hợp nhất nên gửi lại vô hại */
+    audioPlayedSectionIds: string[]
   }
   hasPending: () => boolean
   setSubmitted: () => void
@@ -160,6 +173,7 @@ function readLocal(attemptId: string) {
           annotations: Record<string, RoomAnnotation>
           currentSectionId?: string
           currentQuestionId?: string | null
+          savedAt?: number
         })
       : null
   } catch {
@@ -188,6 +202,8 @@ export const useExamStore = create<State & Actions>((set, get) => ({
   dirtyAnswers: new Set(),
   dirtyAnnotations: new Set(),
   deletedAnnotations: new Set(),
+  audioPlayedSections: new Set(),
+  dirtyAudio: false,
   syncStatus: 'saved',
   lastSyncedAt: null,
   dirtyVersion: 0,
@@ -215,11 +231,41 @@ export const useExamStore = create<State & Actions>((set, get) => ({
     const serverAnnotations: Record<string, RoomAnnotation> = {}
     for (const an of data.annotations) serverAnnotations[an.id] = an
 
-    const local = readLocal(data.attempt.id)
+    const submittedAlready = data.attempt.status === 'SUBMITTED'
+
+    /*
+      BÀI ĐÃ CHẤM THÌ SERVER LÀ NGUỒN SỰ THẬT DUY NHẤT.
+
+      Trang xem lại gọi đúng hàm hydrate này. Nếu vẫn merge bản nháp cục bộ vào, nó
+      sẽ hiện những lựa chọn CHƯA TỪNG được chấm, ngay cạnh nhãn đỏ "Sai" tính từ dữ
+      liệu server — hai con số trên cùng một màn hình nói hai chuyện khác nhau.
+
+      Chốt ở đây chứ không ở từng nơi gọi, vì có đường không đi qua client chút nào:
+      khi server tự chấm một lượt hết hạn, `clearLocal()` phía client không bao giờ
+      chạy và khoá `exam-room:<id>` nằm lại nguyên vẹn.
+    */
+    if (submittedAlready) clearLocal(data.attempt.id)
+
+    const local = submittedAlready ? null : readLocal(data.attempt.id)
     const dirtyAnswers = new Set<string>()
     const dirtyAnnotations = new Set<string>()
 
-    if (local) {
+    /*
+      Bản nháp chỉ được ghi đè server khi nó MỚI HƠN lần đồng bộ gần nhất.
+
+      Bản cũ ghi đè bất cứ khi nào giá trị khác nhau, tức là "ai ghi sau thắng" — mà
+      "sau" ở đây là thứ tự mở tab, không phải thứ tự thao tác. sessionStorage riêng
+      từng tab còn server thì chung, nên tab mở từ sáng khi được focus lại sẽ đè bản
+      nháp buổi sáng lên đáp án tab kia vừa làm.
+
+      So đồng hồ tường của client với mốc của server nên có sai lệch. Đánh đổi có
+      chủ đích: bản nháp mới hơn vài giây bị bỏ qua thì mất một lần ghi đè đúng, còn
+      bản nháp cũ đè lên bài mới là mất dữ liệu thật.
+    */
+    const localIsFresher =
+      local?.savedAt !== undefined && local.savedAt > Date.parse(data.attempt.lastSyncAt)
+
+    if (local && localIsFresher) {
       for (const [qid, ans] of Object.entries(local.answers ?? {})) {
         const server = serverAnswers[qid]
         const differs =
@@ -255,6 +301,11 @@ export const useExamStore = create<State & Actions>((set, get) => ({
       dirtyAnswers,
       dirtyAnnotations,
       deletedAnnotations: new Set(),
+      // Server là nguồn sự thật cho audio: nạp thẳng, không merge với bản cục bộ nào
+      audioPlayedSections: new Set(
+        data.sections.filter((s) => s.audioStarted).map((s) => s.id),
+      ),
+      dirtyAudio: false,
       syncStatus: dirtyAnswers.size + dirtyAnnotations.size > 0 ? 'pending' : 'saved',
       // Attempt mới thì mọi cờ khoá và lỗi của attempt cũ phải sạch — store là
       // singleton cấp module, sống sót qua điều hướng client-side.
@@ -295,8 +346,16 @@ export const useExamStore = create<State & Actions>((set, get) => ({
     } else {
       selected = prev.selectedChoiceIds[0] === choiceId ? [] : [choiceId]
     }
-    // changedCount: số lần đổi đáp án — dữ liệu phân tích tốt (SPEC 3.3)
-    const changed = prev.selectedChoiceIds.length > 0 ? prev.changedCount + 1 : prev.changedCount
+    /*
+      changedCount = số lần ĐỔI Ý, không phải số lần chạm vào câu hỏi (SPEC 3.3).
+
+      Chỉ tính khi lựa chọn cũ bị THAY THẾ bằng một lựa chọn khác. Bản cũ tăng bất
+      cứ khi nào đã có lựa chọn nào đó, nên ở MULTI_CHOICE việc tick thêm ô thứ hai
+      — hành vi bình thường của dạng câu nhiều đáp án — cũng bị ghi là đổi ý, và
+      dữ liệu phân tích trở thành thứ không đọc được.
+    */
+    const replacedPrevious = !multi && prev.selectedChoiceIds[0] !== undefined && prev.selectedChoiceIds[0] !== choiceId
+    const changed = replacedPrevious ? prev.changedCount + 1 : prev.changedCount
     get().setAnswer(questionId, { selectedChoiceIds: selected, changedCount: changed })
   },
 
@@ -307,6 +366,25 @@ export const useExamStore = create<State & Actions>((set, get) => ({
   toggleFlag: (questionId) => {
     const prev = get().answers[questionId] ?? EMPTY_ANSWER
     get().setAnswer(questionId, { isFlagged: !prev.isFlagged })
+  },
+
+  /*
+    MỘT CHIỀU, và cố ý không có hàm gỡ.
+
+    Không kiểm tra `locked`/`submitted` như các action khác: đây không phải bài làm
+    của thí sinh mà là ghi nhận một sự kiện đã xảy ra. Bỏ qua nó ở trạng thái biên
+    nào cũng là mở đường nghe lại.
+  */
+  markAudioStarted: (sectionId) => {
+    set((s) => {
+      if (s.audioPlayedSections.has(sectionId)) return s
+      return {
+        audioPlayedSections: new Set(s.audioPlayedSections).add(sectionId),
+        dirtyAudio: true,
+        syncStatus: 'pending',
+        dirtyVersion: s.dirtyVersion + 1,
+      }
+    })
   },
 
   addAnnotation: (a) => {
@@ -415,10 +493,18 @@ export const useExamStore = create<State & Actions>((set, get) => ({
       .map((id) => s.annotations[id])
       .filter((a): a is RoomAnnotation => a !== undefined)
     const deleted = [...s.deletedAnnotations]
+    // Gửi CẢ TẬP, không phải delta: tập chỉ có vài phần tử, server hợp nhất, nên
+    // gửi lại là vô hại và không cần theo dõi phần tử nào đã đi phần tử nào chưa.
+    const audioPlayedSectionIds = s.dirtyAudio ? [...s.audioPlayedSections] : []
 
     // Xoá cờ dirty NGAY khi lấy batch; nếu gửi lỗi thì đánh dấu lại (xem useSync)
-    set({ dirtyAnswers: new Set(), dirtyAnnotations: new Set(), deletedAnnotations: new Set() })
-    return { answers, annotations, deleted }
+    set({
+      dirtyAnswers: new Set(),
+      dirtyAnnotations: new Set(),
+      deletedAnnotations: new Set(),
+      dirtyAudio: false,
+    })
+    return { answers, annotations, deleted, audioPlayedSectionIds }
   },
 
   hasPending: () => {
@@ -430,6 +516,7 @@ export const useExamStore = create<State & Actions>((set, get) => ({
     */
     if (s.submitted || s.syncStatus === 'blocked') return false
     return (
+      s.dirtyAudio ||
       s.dirtyAnswers.size + s.dirtyAnnotations.size + s.deletedAnnotations.size > 0 ||
       s.syncStatus === 'saving' ||
       s.syncStatus === 'offline' ||
@@ -463,6 +550,7 @@ export function requeue(batch: {
   answers: { questionId: string; patch: LocalAnswer }[]
   annotations: RoomAnnotation[]
   deleted: string[]
+  audioPlayedSectionIds: string[]
 }) {
   useExamStore.setState((s) => {
     // Bài đã nộp: xếp hàng thêm chỉ để bật lại cảnh báo beforeunload một cách vô ích
@@ -473,7 +561,12 @@ export function requeue(batch: {
     for (const an of batch.annotations) dirtyAnnotations.add(an.id)
     const deletedAnnotations = new Set(s.deletedAnnotations)
     for (const id of batch.deleted) deletedAnnotations.add(id)
-    return { dirtyAnswers, dirtyAnnotations, deletedAnnotations }
+    return {
+      dirtyAnswers,
+      dirtyAnnotations,
+      deletedAnnotations,
+      dirtyAudio: s.dirtyAudio || batch.audioPlayedSectionIds.length > 0,
+    }
   })
 }
 

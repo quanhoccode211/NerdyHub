@@ -54,3 +54,6 @@ next-env.d.ts
 
 # prisma generated client
 /lib/generated
+
+# Sách luyện thi có bản quyền — dùng để nhập đề nội bộ, KHÔNG commit vào repo.
+*.pdf

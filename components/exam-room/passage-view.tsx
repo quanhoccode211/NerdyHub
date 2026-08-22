@@ -11,6 +11,9 @@ import {
   paintHighlights,
 } from './highlight-engine'
 import { useExamStore } from './store'
+// @ts-expect-error KaTeX lacks type defs for mjs contrib
+import renderMathInElement from 'katex/dist/contrib/auto-render.mjs'
+import 'katex/dist/katex.min.css'
 
 const COLORS: { key: HighlightColor; className: string; label: string }[] = [
   { key: 'yellow', className: 'bg-hl-yellow', label: 'Vàng' },
@@ -52,6 +55,21 @@ export function PassageView({
     .map((a) => `${a.id}:${a.startOffset}:${a.endOffset}:${a.color}:${a.noteContent ? 1 : 0}`)
     .sort()
     .join('|')
+
+  // Render toán học (KaTeX) TRƯỚC khi paintHighlights chạy
+  useEffect(() => {
+    const root = containerRef.current
+    if (!root) return
+    renderMathInElement(root, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '$', right: '$', display: false },
+        { left: '\\(', right: '\\)', display: false },
+        { left: '\\[', right: '\\]', display: true }
+      ],
+      throwOnError: false,
+    })
+  }, [passage.content])
 
   // Vẽ lại highlight sau mỗi lần nội dung hoặc annotation đổi
   useEffect(() => {
@@ -174,7 +192,8 @@ export function PassageView({
       <div
         ref={containerRef}
         className="passage-body text-[16.5px] leading-relaxed text-ink selection:bg-purple-soft"
-        // Nội dung đã sanitize server-side bằng DOMPurify (lib/attempt-service.ts)
+        // Nội dung đã sanitize từ lúc GHI vào DB (lib/sanitize-html.ts,
+        // scripts/sanitize-passages.ts) — không lọc lại ở đường đọc.
          
         dangerouslySetInnerHTML={{ __html: passage.content }}
       />
@@ -211,7 +230,7 @@ export function PassageView({
       {popup?.kind === 'edit' && editing && (
         <div
           data-hl-popup
-          className="fixed z-50 w-[280px] -translate-x-1/2 -translate-y-full rounded-2xl bg-white p-4 shadow-xl ring-1 ring-line"
+          className="fixed z-50 w-[280px] -translate-x-1/2 -translate-y-full rounded-2xl bg-card p-4 shadow-xl ring-1 ring-line"
           style={{ left: popup.x, top: popup.y - 8 }}
         >
           <div className="flex items-center justify-between">

@@ -1,5 +1,5 @@
-import Link from 'next/link'
 import { ChevronRightIcon } from '../shell/icons'
+import { ENTER_APP, SlideLink } from '../shell/nav-slide'
 
 /**
  * Nút vào ứng dụng ở cuối hero — thay chỗ thanh subscribe của bản tham chiếu.
@@ -9,8 +9,13 @@ import { ChevronRightIcon } from '../shell/icons'
  * một lần nữa chỉ là thêm một bước. Giờ dẫn thẳng vào Tổng quan, và nav ngang
  * của AppShell lo phần còn lại.
  *
- * Không còn state nên cũng không còn 'use client': trang chủ trở lại tĩnh hoàn
- * toàn, không kèm JS nào.
+ * `SlideLink` là client component, nên nút này kéo theo một mẩu JS — đánh đổi có
+ * ý thức để lấy hiệu ứng sang ứng dụng. Phần còn lại của trang chủ vẫn tĩnh;
+ * bản thân thẻ vẫn là `<a href>` thật nên SEO và "mở tab mới" không đổi.
+ *
+ * `ENTER_APP` chứ không phải `SLIDE_FORWARD`: chặng này KHÔNG trượt. Các element
+ * của trang giới thiệu rút đi lần lượt, rồi các khối của trang đích nảy lên lần
+ * lượt — xem ENTER_APP trong components/shell/nav-slide.tsx.
  */
 export function EnterButton({
   label = 'Vào học thôi',
@@ -20,9 +25,9 @@ export function EnterButton({
   href?: string
 }) {
   return (
-    <Link href={href} className="btn-primary px-7 py-3.5 text-[16px]">
+    <SlideLink href={href} type={ENTER_APP} className="btn-primary px-7 py-3.5 text-[16px]">
       {label}
       <ChevronRightIcon size={16} />
-    </Link>
+    </SlideLink>
   )
 }

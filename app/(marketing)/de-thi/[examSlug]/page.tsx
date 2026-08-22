@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { PageHeader } from '@/components/shell/app-shell'
 import { StartButtons } from '@/components/catalog/start-buttons'
+import { FavoriteStar } from '@/components/exams/favorite-star'
 import { ChevronRightIcon, ClockIcon, FlagIcon } from '@/components/shell/icons'
 import {
   getAvailableYears,
@@ -48,7 +49,7 @@ export default async function ExamLandingPage({ params, searchParams }: Props) {
     level: typeof sp.level === 'string' ? sp.level : undefined,
     skill: typeof sp.skill === 'string' ? sp.skill : undefined,
     year: typeof sp.year === 'string' ? sp.year : undefined,
-    sort: sp.sort === 'newest' || sp.sort === 'duration' ? sp.sort : 'popular',
+    sort: sp.sort === 'popular' || sp.sort === 'duration' ? sp.sort : 'newest',
   }
 
   const exam = await getExamBySlug(examSlug)
@@ -66,7 +67,7 @@ export default async function ExamLandingPage({ params, searchParams }: Props) {
     const q = new URLSearchParams()
     const merged = { ...filters, ...patch }
     for (const [k, v] of Object.entries(merged)) {
-      if (v && !(k === 'sort' && v === 'popular')) q.set(k, String(v))
+      if (v && !(k === 'sort' && v === 'newest')) q.set(k, String(v))
     }
     const s = q.toString()
     return `${basePath}${s ? `?${s}` : ''}`
@@ -184,19 +185,31 @@ export default async function ExamLandingPage({ params, searchParams }: Props) {
                   {paper.level && (
                     <span className="pill bg-purple-soft text-purple">{paper.level.name}</span>
                   )}
-                  {paper.year && <span className="pill bg-cream text-[#8a6d2f]">{paper.year}</span>}
+                  {paper.year && <span className="pill bg-cream text-on-tone">{paper.year}</span>}
                   {skills.map((s) => (
-                    <span key={s} className="pill bg-white text-muted-strong">
+                    <span key={s} className="pill bg-card text-muted-strong">
                       {SKILL_LABELS[s]}
                     </span>
                   ))}
                 </div>
 
-                <h3 className="mt-3 text-[20px] font-semibold">
-                  <Link href={`/de-thi/${exam.slug}/${paper.slug}`} className="hover:text-purple">
-                    {paper.title}
-                  </Link>
-                </h3>
+                {/*
+                  Ngôi sao nằm CÙNG HÀNG với tên đề, không phải trong cụm nút
+                  bên phải: cụm đó là "bắt đầu làm bài", còn đánh dấu quan tâm
+                  là một hành động khác hẳn về mức cam kết. Đặt cạnh nhau thì
+                  người ta bấm nhầm cái đắt hơn.
+
+                  `min-w-0` cho thẻ <h3> co được, nếu không thì tên đề dài đẩy
+                  ngôi sao tràn khỏi thẻ.
+                */}
+                <div className="mt-3 flex items-start gap-2">
+                  <h3 className="min-w-0 flex-1 text-[20px] font-semibold">
+                    <Link href={`/de-thi/${exam.slug}/${paper.slug}`} className="hover:text-purple">
+                      {paper.title}
+                    </Link>
+                  </h3>
+                  <FavoriteStar paperId={paper.id} className="-mt-1" />
+                </div>
 
                 <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[15px] text-muted-strong">
                   <span className="flex items-center gap-1.5">
@@ -207,7 +220,7 @@ export default async function ExamLandingPage({ params, searchParams }: Props) {
                   <span>{paper._count.sections} phần</span>
                   <span className="flex items-center gap-1.5">
                     <FlagIcon size={13} />
-                    {formatNumber(paper.attemptCount)} lượt
+                    <span>{formatNumber(paper.attemptCount)} lượt</span>
                   </span>
                   {paper.avgScore !== null && <span>TB {formatScore(paper.avgScore)}</span>}
                 </div>

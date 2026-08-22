@@ -4,7 +4,8 @@ import { useState } from 'react'
 import type { RoomSection } from '@/lib/attempt-service'
 import { SKILL_LABELS, type Skill } from '@/lib/enums'
 import { FlagIcon, WarningIcon, XIcon } from '../shell/icons'
-import { useExamStore, useProgressSummaryFromStore } from './store-helpers'
+import { useModal } from '../shell/use-modal'
+import { isAnswered, useExamStore, useProgressSummaryFromStore } from './store-helpers'
 
 /**
  * Màn hình xem lại trước khi nộp (SPEC F2.6).
@@ -27,15 +28,25 @@ export function ReviewScreen({
   const answers = useExamStore((s) => s.answers)
   const summary = useProgressSummaryFromStore(sections)
   const needsConfirm = summary.unanswered > 0
+  const dialogRef = useModal<HTMLDivElement>(true, onClose)
 
   return (
+    // Nền đóng khi bấm ra ngoài. Trước đây khối này khai `role="dialog"` nhưng
+    // không có onClick, nên thao tác quen thuộc nhất với hộp thoại lặng lẽ vô hiệu.
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 backdrop-blur-sm sm:items-center sm:p-6"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="review-title"
+      onClick={onClose}
+      role="presentation"
     >
-      <div className="flex max-h-[92vh] w-full max-w-[760px] flex-col overflow-hidden rounded-t-[28px] bg-white sm:rounded-[28px]">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="review-title"
+        className="flex max-h-[92vh] w-full max-w-[760px] flex-col overflow-hidden rounded-t-[28px] bg-card outline-none sm:rounded-[28px]"
+      >
         <header className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
           <div>
             <h2 id="review-title" className="text-[23px] font-bold">
@@ -59,7 +70,9 @@ export function ReviewScreen({
         {needsConfirm && (
           <div className="flex items-center gap-3 bg-amber-soft px-6 py-3.5 text-[15px] font-medium text-amber">
             <WarningIcon size={18} />
-            Còn {summary.unanswered} câu chưa làm. Câu bỏ trống được tính 0 điểm.
+            {/* Bọc <span>: trong flex, "Còn", {số} và phần chữ còn lại là ba item
+                riêng, nên `gap-3` chèn khoảng trắng vào hai bên con số. */}
+            <span>Còn {summary.unanswered} câu chưa làm. Câu bỏ trống được tính 0 điểm.</span>
           </div>
         )}
 
@@ -72,9 +85,7 @@ export function ReviewScreen({
               <div className="grid grid-cols-[repeat(auto-fill,minmax(44px,1fr))] gap-2">
                 {section.questions.map((q) => {
                   const a = answers[q.id]
-                  const answered =
-                    (a?.selectedChoiceIds.length ?? 0) > 0 ||
-                    (a?.textAnswer != null && a.textAnswer.trim() !== '')
+                  const answered = isAnswered(a)
                   const flagged = a?.isFlagged ?? false
                   return (
                     <button

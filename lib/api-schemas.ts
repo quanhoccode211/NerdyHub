@@ -8,6 +8,35 @@ export const createAttemptSchema = z.object({
   mode: z.enum(ATTEMPT_MODES),
 })
 
+/** Đúng MỘT trong hai: sao trên một đề, hoặc sao trên cả kỳ thi. */
+export const toggleFavoriteSchema = z.union([
+  z.object({ paperId: z.string().min(1) }).strict(),
+  z.object({ examId: z.string().min(1) }).strict(),
+])
+
+/** To-do list — xem app/api/todos/. `MAX_LEN` giữ đồng bộ với lib/todos.ts. */
+const todoText = z.string().trim().min(1).max(80)
+/* `datetime()` chứ không phải `string()`: cột là TIMESTAMP, một chuỗi rác lọt
+   xuống `new Date()` thành Invalid Date và Prisma ném lỗi 500 thay vì 400. */
+const todoDue = z.string().datetime().nullable().optional()
+
+export const createTodoSchema = z.object({
+  text: todoText,
+  dueDate: todoDue,
+})
+
+export const patchTodoSchema = z.object({
+  done: z.boolean(),
+})
+
+/** Nhập danh sách khách đã gõ lúc chưa đăng nhập. Trần bằng MAX_TASKS ở route. */
+export const importTodosSchema = z.object({
+  import: z
+    .array(z.object({ text: todoText, done: z.boolean(), dueDate: todoDue }))
+    .min(1)
+    .max(20),
+})
+
 export const answerPatchSchema = z.object({
   questionId: z.string().min(1),
   selectedChoiceIds: z.array(z.string()).max(20).optional(),
@@ -57,6 +86,12 @@ export const syncSchema = z.object({
   annotations: z.array(annotationSyncSchema).max(300).default([]),
   currentSectionId: z.string().nullable().optional(),
   timeSpent: z.number().int().min(0).max(86_400).optional(),
+  /**
+   * Các phần đã BẮT ĐẦU phát audio. Server HỢP NHẤT chứ không ghi đè — xem route
+   * sync. Client gửi cả tập chứ không gửi delta: tập rất nhỏ, và gửi lại toàn bộ
+   * khiến thao tác này idempotent một cách hiển nhiên.
+   */
+  audioPlayedSectionIds: z.array(z.string().min(1)).max(50).optional(),
 })
 
 export type SyncPayload = z.infer<typeof syncSchema>

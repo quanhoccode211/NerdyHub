@@ -37,9 +37,30 @@ export async function profileIsComplete(user: {
   return Boolean(fresh?.birthDate)
 }
 
+/**
+ * Tài khoản trong token còn tồn tại không.
+ *
+ * Token sống 30 ngày, tài khoản thì có thể biến mất sớm hơn nhiều: job dọn dẹp
+ * xoá cứng sau 48 giờ (`scripts/purge-deleted-users.ts`), hoặc DB dev bị dựng lại.
+ * Khi đó `session.user.id` trỏ vào hư không và mọi truy vấn theo nó đều hỏng —
+ * nhưng hỏng MUỘN, ở giữa một server action, dưới dạng lỗi Prisma thô ném vào mặt
+ * người dùng thay vì một lời mời đăng nhập lại.
+ *
+ * Callback `jwt` trong auth.ts đã huỷ token ở lần đăng nhập / lần `update` kế
+ * tiếp; hàm này chặn khoảng giữa, khi token cũ vẫn đang được dùng.
+ */
+export async function userStillExists(userId: string): Promise<boolean> {
+  const row = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { deletedAt: true },
+  })
+  return Boolean(row) && !row?.deletedAt
+}
+
 export async function requireUser() {
   const session = await auth()
   if (!session?.user?.id) redirect('/dang-nhap')
+  if (!(await userStillExists(session.user.id))) redirect('/dang-nhap?phien=het-han')
   if (!(await profileIsComplete(session.user))) redirect('/hoan-tat-ho-so')
   return session.user
 }

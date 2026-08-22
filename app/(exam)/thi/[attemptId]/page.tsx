@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 import { ExamRoom } from '@/components/exam-room/exam-room'
-import { loadExamRoom } from '@/lib/attempt-service'
+import { loadExamRoom, overdueSeconds } from '@/lib/attempt-service'
 import { prisma } from '@/lib/db'
 import { getIdentity, ownsAttempt } from '@/lib/session'
 import { scoreAttempt } from '@/lib/scoring'
@@ -35,12 +35,10 @@ export default async function ExamRoomPage({ params }: Props) {
   // Không cho làm tiếp, đúng nguyên tắc "hết giờ là nộp".
   //
   // Đây là Server Component chạy một lần cho mỗi request, không phải render phía
-  // client — đọc đồng hồ ở đây chính là điều cần làm, và cũng là nơi duy nhất
-  // xác định được hết giờ hay chưa.
-  // eslint-disable-next-line react-hooks/purity
-  const now = Date.now()
-  if (attempt.mode === 'EXAM' && attempt.expiresAt.getTime() <= now) {
-    await scoreAttempt(attemptId)
+  // client — đọc đồng hồ ở đây chính là điều cần làm. `overdueSeconds` dùng chung
+  // với route sync để hai đường không thể bất đồng về việc "hết giờ chưa".
+  if (overdueSeconds(attempt) > 0) {
+    await scoreAttempt(attemptId, { autoSubmitted: true })
     redirect(`/ket-qua/${attemptId}`)
   }
 

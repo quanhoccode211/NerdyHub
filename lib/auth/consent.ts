@@ -22,19 +22,9 @@ export const CONSENT_META: Record<
     body: 'Lưu bài làm, chấm điểm, khôi phục phiên thi. Bắt buộc để dùng được sản phẩm.',
     required: true,
   },
-  ANALYTICS: {
-    title: 'Phân tích sử dụng',
-    body: 'Thống kê ẩn danh giúp cải thiện chất lượng đề và trải nghiệm phòng thi.',
-    required: false,
-  },
   MARKETING_EMAIL: {
     title: 'Email tiếp thị',
     body: 'Nhận thông báo về đề mới và tính năng mới. Có thể tắt bất cứ lúc nào.',
-    required: false,
-  },
-  LEADERBOARD_PUBLIC: {
-    title: 'Hiện tên trên bảng xếp hạng',
-    body: 'Cho phép hiển thị tên bạn công khai khi so sánh thành tích với người khác.',
     required: false,
   },
   /*
@@ -64,7 +54,7 @@ async function requestContext() {
 }
 
 /** Các mục đích phơi bày dữ liệu ra ngoài — trẻ em cần xác nhận giám hộ trước. */
-const GUARDIAN_GATED: readonly ConsentPurpose[] = ['LEADERBOARD_PUBLIC', 'MARKETING_EMAIL']
+const GUARDIAN_GATED: readonly ConsentPurpose[] = ['MARKETING_EMAIL']
 
 /**
  * Ghi nhận một tập consent. Mỗi mục đích là một bản ghi riêng.

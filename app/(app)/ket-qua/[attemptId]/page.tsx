@@ -46,6 +46,8 @@ export default async function ResultPage({ params }: Props) {
   )
 
   const timeDelta = attempt.timeSpent - result.avgTimeSpent
+  // Một mình thì không có phổ để xếp hạng. Xem computePercentile trong lib/scoring.
+  const isAlone = attempt.cohortSize < 2
 
   return (
     <>
@@ -59,6 +61,18 @@ export default async function ResultPage({ params }: Props) {
           </Link>
         }
       />
+
+      {/* Bài do server tự đóng khi hết giờ — người dùng có quyền biết vì sao họ
+          không bấm nộp mà vẫn có điểm. */}
+      {attempt.autoSubmitted && (
+        <div className="mb-6 flex items-start gap-3 rounded-card bg-amber-soft p-5 text-[15px] leading-relaxed text-amber">
+          <WarningIcon size={18} />
+          <span>
+            Bài này được <strong>tự động nộp khi hết giờ</strong>. Những câu chưa kịp làm
+            được tính 0 điểm.
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div className="flex flex-col gap-6">
@@ -80,19 +94,25 @@ export default async function ResultPage({ params }: Props) {
 
             <div className="rounded-card bg-rose p-7 text-on-tone">
               <p className="text-[14px] font-medium text-on-tone/55">Xếp hạng</p>
+              {/*
+                Rẽ nhánh theo SỐ NGƯỜI ĐÃ LÀM, không theo `percentile > 0`.
+                Phần trăm 0 mang hai nghĩa trái ngược — "chưa có ai để so" và "thấp
+                hơn tất cả mọi người" — nên bản cũ chúc mừng đúng người làm tệ nhất
+                rằng họ là một trong những người đầu tiên.
+              */}
               <p className="mt-3 text-[39px] leading-none font-bold">
-                {attempt.percentile > 0 ? `${Math.round(attempt.percentile)}%` : '—'}
+                {isAlone ? '—' : `${Math.round(attempt.percentile)}%`}
               </p>
               <p className="mt-2 text-[15.5px] leading-relaxed">
-                {attempt.percentile > 0
-                  ? `Bạn cao hơn ${Math.round(attempt.percentile)}% người đã làm đề này.`
-                  : 'Bạn là một trong những người đầu tiên làm đề này.'}
+                {isAlone
+                  ? 'Bạn là người đầu tiên làm đề này — chưa có ai để so sánh.'
+                  : `Bạn cao hơn ${Math.round(attempt.percentile)}% trong ${attempt.cohortSize} người đã làm đề này.`}
               </p>
 
               <div className="mt-5 border-t border-on-tone/15 pt-4">
                 <p className="flex items-center gap-2 text-[14.5px]">
                   <ClockIcon size={16} />
-                  Bạn làm trong {formatClock(attempt.timeSpent)}
+                  <span>Bạn làm trong {formatClock(attempt.timeSpent)}</span>
                 </p>
                 {result.avgTimeSpent > 0 && (
                   <p className="mt-1.5 text-[14px] text-on-tone/60">
@@ -111,7 +131,7 @@ export default async function ResultPage({ params }: Props) {
               <h2 className="mb-5 text-[21px] font-bold">Điểm từng kỹ năng</h2>
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 {result.skillStats.map((s) => (
-                  <div key={s.skill} className="rounded-2xl bg-white p-5">
+                  <div key={s.skill} className="rounded-2xl bg-card p-5">
                     <div className="flex items-baseline justify-between">
                       <span className="text-[16px] font-semibold">
                         {SKILL_LABELS[s.skill as Skill]}
@@ -161,7 +181,7 @@ export default async function ResultPage({ params }: Props) {
 
               <div className="flex flex-col gap-3">
                 {result.wrongQuestions.slice(0, 12).map((q) => (
-                  <div key={q.id} className="rounded-2xl bg-white p-4">
+                  <div key={q.id} className="rounded-2xl bg-card p-4">
                     <div className="flex items-start gap-3">
                       <span className="flex h-7 w-7 flex-none items-center justify-center rounded-lg bg-red-soft text-[14px] font-bold text-red">
                         {q.number}
@@ -203,6 +223,11 @@ export default async function ResultPage({ params }: Props) {
         <aside className="flex flex-col gap-5">
           <section className="rounded-card bg-lime p-7 text-on-tone">
             <h2 className="mb-4 text-[20px] font-bold">Tổng quan</h2>
+            {/*
+              Bốn phần cộng lại đúng bằng `counts.total`. Bản cũ chỉ có ba và
+              "Bỏ trống" đếm theo số dòng answer, nên câu gắn cờ mà bỏ trống rơi
+              nhầm sang "Sai" và vòng tròn không bao giờ cộng lại bằng tổng số câu.
+            */}
             <div className="flex items-center gap-5">
               <DonutChart
                 size={132}
@@ -210,12 +235,16 @@ export default async function ResultPage({ params }: Props) {
                   { label: 'Đúng', value: counts.correct, color: '#B6E5CE' },
                   { label: 'Sai', value: counts.wrong, color: '#F4C4E5' },
                   { label: 'Bỏ trống', value: counts.unanswered, color: '#E6EDCF' },
+                  { label: 'Chưa chấm', value: counts.ungraded, color: '#F3DFC1' },
                 ]}
               />
               <dl className="flex flex-col gap-3 text-[14.5px]">
                 <Legend color="#B6E5CE" label="Đúng" value={counts.correct} />
                 <Legend color="#F4C4E5" label="Sai" value={counts.wrong} />
                 <Legend color="#E6EDCF" label="Bỏ trống" value={counts.unanswered} />
+                {counts.ungraded > 0 && (
+                  <Legend color="#F3DFC1" label="Chưa chấm" value={counts.ungraded} />
+                )}
               </dl>
             </div>
 
@@ -223,7 +252,7 @@ export default async function ResultPage({ params }: Props) {
               <p className="mt-5 flex items-start gap-2 rounded-xl bg-on-tone/10 p-3 text-[13.5px] leading-relaxed">
                 <WarningIcon size={16} />
                 <span>
-                  {counts.ungraded} câu tự luận/nói chưa được chấm tự động và không tính vào tổng
+                  {counts.ungraded} câu tự luận chưa được chấm tự động và không tính vào tổng
                   điểm.
                 </span>
               </p>

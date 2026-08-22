@@ -119,6 +119,26 @@ export const GoetheStrategy = makeStrategy({
   skillMaxScale: 25,
 })
 
+/**
+ * IELTS: band 0–9, KHÔNG phải thang phần trăm.
+ *
+ * `skillMaxScale` cũng là 9 chứ không chia nhỏ: band của từng kỹ năng và band
+ * tổng dùng CHUNG một thang trong IELTS — Reading 6.5 và Overall 6.5 là cùng
+ * một đơn vị. Khác hẳn TOPIK (300 = 3 x 100) hay Goethe (100 = 4 x 25), nơi
+ * điểm kỹ năng là một phần của tổng.
+ */
+export const IeltsStrategy = makeStrategy({
+  examSlug: 'ielts',
+  maxScale: 9,
+  /*
+    Bật chấm từng phần vì dạng "Choose TWO letters" của IELTS là HAI câu, mỗi
+    lựa chọn đúng một điểm — không phải một câu ăn cả ngã cả. Ở đây nó dựng
+    thành MỘT câu MULTI_CHOICE `points: 2`, nên không bật thì thí sinh chọn
+    đúng một trong hai vẫn bị 0, lệch hẳn với đề thật.
+  */
+  partialCreditForMultiChoice: true,
+})
+
 /** Mặc định cho mọi kỳ thi chưa có strategy riêng — thang 0–10 kiểu VN. */
 export const GenericPercentStrategy = makeStrategy({
   examSlug: '*',
@@ -127,6 +147,7 @@ export const GenericPercentStrategy = makeStrategy({
 })
 
 const REGISTRY: ScoringStrategy[] = [
+  IeltsStrategy,
   VstepStrategy,
   TopikStrategy,
   HskStrategy,

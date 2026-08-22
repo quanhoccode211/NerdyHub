@@ -1,134 +1,203 @@
-# Nerdy Hub — Kho đề & Thi thử Trực tuyến
+# Nerdy Hub
 
-Bản dựng theo `SPEC.md`. Giao diện lấy theo bản dựng Dribbble "Online Learning Dashboard"
-(file tham chiếu: `../index.html`).
+Kho đề và phòng thi thử trực tuyến: VSTEP, TOPIK, Goethe, THPT Quốc gia, IELTS. Làm bài có bấm
+giờ như thi thật, chấm tự động, xếp hạng phần trăm.
 
-Đợt build này làm **xương sống F1 → F2 → F3 → F4**: kho đề → phòng thi → chấm điểm →
-kết quả & thống kê. F5 (Calendar), F6 (Auth/NĐ 13), F8 (Admin CMS) chưa làm — xem
-[Chưa có trong đợt này](#chưa-có-trong-đợt-này).
+Next.js 16 · React 19 · Prisma 7 · PostgreSQL · Auth.js v5 · Tailwind 4
 
----
+Xong F1–F6. Chưa có F8 (Admin CMS) — nhập đề qua `prisma/seed-data.ts`.
 
-## Chạy thử
+## Quy ước làm việc
+
+⛔ **Không `git push` nếu chủ dự án không yêu cầu.** Áp dụng cho mọi phiên làm việc,
+mọi người và mọi trợ lý AI đụng vào repo này. Sửa xong thì dừng lại và báo, chờ có
+yêu cầu rõ ràng rồi mới đẩy lên.
+
+Lý do không phải hình thức: nhánh `vers-1.0` nối thẳng với Vercel, nên **push là
+deploy** — không có bước duyệt nào ở giữa (xem [Deploy](#deploy)). Một cú push tự phát
+là một lần đưa bản chưa ai xem lên chạy thật.
+
+Được yêu cầu push một lần **không** có nghĩa là được push ở những lần sửa sau. Mỗi lần
+là một lần xin phép riêng.
+
+## Chạy
+
+Cần một Postgres trước. Tạo ở [Neon](https://neon.com) (free), chép `.env.example` thành
+`.env`, điền `DATABASE_URL`.
 
 ```bash
-npm install
+npm install && npm run setup && npm run dev
 ```
 
-```bash
-npm run setup
-```
+`setup` chạy migration, nạp đề mẫu, sinh audio placeholder. Mở localhost:3000 — không cần
+đăng nhập để làm bài.
 
-```bash
-npm run dev
-```
+Không chạy SQLite được nữa: `provider` của Prisma là hằng trong schema, không đọc từ biến
+môi trường.
 
-Mở http://localhost:3000. Không cần đăng nhập để làm bài.
+## Deploy
 
-`npm run setup` chạy migration, nạp dữ liệu mẫu và sinh file audio placeholder.
+Vercel, nhánh **`vers-1.0`** là bản chạy thật. Bốn biến: `DATABASE_URL`, `AUTH_SECRET`,
+`ENCRYPTION_KEY`, `NEXT_PUBLIC_SITE_URL`. Hai khoá giữa sinh bằng `npm run gen:secrets`.
 
----
+**`vers-1.1-beta`** là nhánh đang làm (đa ngôn ngữ, hiệu ứng chuyển trang, bộ mascot mới).
+Vercel dựng nó thành bản xem thử ở URL riêng, KHÔNG đụng vào bản chạy thật. Muốn đưa lên
+production thì gộp vào `vers-1.0`, hoặc đổi Production Branch trong Settings → Git.
 
-## Khác biệt so với SPEC (có chủ ý)
+Ba thứ đã mất thời gian:
 
-| SPEC | Thực tế | Lý do |
-|---|---|---|
-| PostgreSQL 16 | **SQLite** | Máy dev không có Postgres/Docker. Xem [Đổi sang PostgreSQL](#đổi-sang-postgresql). |
-| Prisma 5 | **Prisma 7.9** | Bản hiện hành. Connection nằm ở `prisma.config.ts` + driver adapter, không còn `url` trong schema. |
-| Next.js 15 | **Next.js 16.3** | Bản hiện hành từ `create-next-app`. `params`/`searchParams` là Promise, Turbopack mặc định. |
-| Redis (percentile, rate limit) | **SQL + in-memory** | Không có Redis. Cùng chữ ký hàm để thay thế sau — xem `lib/rate-limit.ts`, `updatePercentile()`. |
-| Recharts | **SVG tự vẽ** | Biểu đồ đều tĩnh; phong cách thiết kế gốc rất riêng, dựng thẳng nhanh hơn và không gánh thêm JS. |
+- **`build` phải gọi `prisma generate`.** `lib/generated/` nằm trong `.gitignore` nên máy
+  build sạch không có nó. Đặt trong `build` chứ không phải `postinstall` — Vercel cache
+  `node_modules` và có thể bỏ qua postinstall.
+- **Vùng chạy hàm phải khớp vùng database.** Mặc định `iad1` (Mỹ) trong khi Neon ở
+  Singapore nghĩa là mỗi truy vấn vượt Thái Bình Dương hai lượt. Đọc `X-Vercel-Id` để biết
+  đang ở đâu; sửa ở Settings → Functions → Function Region. Đo được: dashboard 650ms →
+  320ms.
+- **`DATABASE_URL` phải có lúc BUILD**, không chỉ lúc chạy. `generateStaticParams` đọc DB
+  để dựng sẵn trang đề.
 
-### Ba chỗ SQLite ép phải đổi schema
-
-1. **Không có `enum`** → dùng `String`, union type ở `lib/enums.ts`, Zod validate ở biên API.
-2. **Không có scalar list** → `String[]`/`Int[]` lưu JSON string, hậu tố `...Json`, đọc/ghi qua `lib/json-fields.ts`.
-3. **Không có `@db.Text`** → bỏ (TEXT là mặc định).
-
-### Đổi sang PostgreSQL
-
-1. `prisma/schema.prisma`: đổi `provider = "postgresql"`, hoàn nguyên 3 điểm trên.
-2. `lib/db.ts`: đổi adapter sang `@prisma/adapter-pg`.
-3. `.env`: trỏ `DATABASE_URL` tới Postgres.
-4. Bỏ `lib/json-fields.ts`, dùng mảng trực tiếp.
-
-Quan hệ giữa các bảng không phải sửa gì.
-
----
+Nút Redeploy dựng lại commit CŨ. Muốn deploy bản mới thì push.
 
 ## Kiến trúc
 
 ```
 app/
-  (marketing)/     Trang công khai, SSR/ISR, có JSON-LD  — F1, F7
-  (app)/           Sau đăng nhập: kết quả, thống kê, cài đặt (dùng AppShell)
-  (exam)/thi/      PHÒNG THI — cố ý KHÔNG có rail điều hướng
-  api/attempts/    Tạo / khôi phục / đồng bộ / nộp bài
+  (marketing)/   Trang công khai, ISR, JSON-LD
+  (app)/         Sau đăng nhập — dùng AppShell
+  (exam)/thi/    PHÒNG THI, cố ý không có rail điều hướng
+  api/attempts/  Tạo / khôi phục / đồng bộ / nộp bài
+  api/favorites/ Sao "quan tâm" — bật/tắt ở cấp đề và cấp kỳ thi
+  api/todos/     To-do list của người đã đăng nhập
 lib/
-  content-filter   ⭐ Chốt chặn canPublish — mọi truy vấn public phải đi qua
-  scoring/         Strategy theo từng kỳ thi + engine chấm dùng chung
-  attempt-service  Nạp nội dung đề, lọc đáp án khi bài chưa nộp
-  queries          Truy vấn nội dung công khai (đã áp content filter)
+  content-filter  Chốt chặn canPublish
+  favorites       Đọc/bật sao, lọc lại qua publicPaperFilter
+  todos           Kiểu chung + phép tính hạn chót (không server-only)
+  exam-clock      GRACE_SEC + overdueSeconds
+  sanitize-html   Lọc HTML đường GHI — KHÔNG import từ route (kéo theo jsdom)
+  scoring/        Strategy theo kỳ thi + engine chung
+  auth/           Session, tuổi, consent (NĐ 13/2023)
+  calendar/google freeBusy, chỉ đọc
+  i18n/           config, messages (vi/en/de), server.getT()
 components/
-  exam-room/       Store, sync 3 lớp, highlight engine, timer, review
+  exam-room/      Store, sync 3 lớp, highlight, timer
+  exams/          FavoriteStar — ngôi sao trên thẻ đề, chạy sau hydrate
+  todos/          Kho to-do dùng chung, pill nhắc, bảng chỉnh lời nhắc
+  shell/          AppShell, nav, hiệu ứng chuyển trang
+  game/           Tầng game — client thuần, không chạm DB
+  i18n/           LocaleProvider — đọc locale ở client
 ```
 
-### Hai bất biến quan trọng nhất
+## Ba ngôn ngữ
 
-**1. Không lộ nội dung không được phép.** `provenance.canPublish = false` chặn ở mọi lối
-ra, kể cả khi `status = PUBLISHED`. Seed cố tình có một đề như vậy để kiểm chứng:
+Tiếng Việt · English · Deutsch. Đổi trong menu tài khoản, lưu ở cookie `locale`.
+
+**Không phải bản địa hoá để bán ra nước ngoài.** Người đọc là người Việt đang học ngoại
+ngữ — đổi giao diện sang tiếng Anh hoặc Đức là một cách tự đặt mình vào môi trường ngôn
+ngữ đích trong lúc luyện đề. Điều đó đổi cách chọn từ, và ba nguyên tắc đi kèm ghi ở đầu
+`lib/i18n/messages.ts`: chuẩn mực hơn là bản xứ, nhất quán hơn là phong phú, câu trọn vẹn
+hơn là nhãn rút gọn. Tiếng Đức xưng "du" xuyên suốt.
+
+**Tiếng Việt là mặc định cứng.** Không đoán theo `Accept-Language`: máy cài tiếng Anh vẫn
+thấy tiếng Việt cho tới khi chủ máy tự đổi.
+
+**Nội dung đề KHÔNG dịch.** Đề, câu hỏi, đáp án, giải thích, tên chứng chỉ — giữ nguyên,
+đó là nội dung học thuật.
+
+Thiếu một chuỗi ở `en` hay `de` là **lỗi biên dịch**, không phải lỗi người dùng phát hiện
+hộ: hai bản đó khai là `Record<MessageKey, string>` với `MessageKey` suy từ bản tiếng Việt.
+
+Ngoại lệ DUY NHẤT: **câu nhắc của pill to-do chỉ có tiếng Việt**, và cố ý nằm ngoài
+`messages.ts` (`components/todos/todo-nudge.tsx`). Chúng được đặt hàng bằng đúng một thứ
+tiếng; nhét vào từ điển nghĩa là phải bịa hai bản dịch để qua được trình biên dịch. Khi
+nào cần ba ngôn ngữ thì chuyển sang, và lúc đó dịch cho tử tế.
+
+Đổi ngôn ngữ chạy `router.refresh()` chứ không `location.reload()` — một phần chữ do
+server render bằng `getT()`, nên phải dựng lại thật, nhưng `reload()` thì vẽ lại từ nền
+trắng và cắt đứt hiệu ứng. Chi tiết trong `components/i18n/locale-provider.tsx`.
+
+⛔ **Đừng gọi `getT()` trong `app/(marketing)/de-thi/**`.** Nhóm đó là SSG/ISR dựng sẵn từ
+database; `cookies()` ép cả route sang render động và xoá sạch phần tĩnh.
+
+### Đã dịch / chưa dịch
+
+| Xong | Chưa |
+|---|---|
+| Khung: rail, cụm nút phải, menu tài khoản | **Kho đề** — xem kế hoạch dưới |
+| Trang giới thiệu (nút đăng nhập) | Phòng thi, Bài đã làm, trang Kết quả |
+| Đăng nhập, đăng ký | Cài đặt → **Dữ liệu & quyền riêng tư** (trang con) |
+| Tổng quan + cả 5 widget | Form đăng ký: phần ô đồng ý bên trong |
+| Tab Tiện ích | Ba trang trò chơi trong tab Tiện ích |
+| Thống kê, Lịch ôn (cả lưới tuần), Cài đặt | |
+
+Nhãn thứ trong tuần của lưới Lịch ôn đi theo `locale`, nhưng GIỜ thì không:
+`buildWeekGrid` giữ `vi-VN` 24h. `en-US` sinh AM/PM, dài hơn và phá cả bề rộng
+khối lẫn nhãn "07:00–09:00" — đó là định dạng của thiết kế, không phải của ngôn
+ngữ.
+
+### Kế hoạch dịch Kho đề — CHƯA CHỐT
+
+Đây là phần khó nhất và đang để ngỏ có chủ ý. Hai vấn đề chồng lên nhau:
+
+**1. Mô tả kỳ thi nằm trong DATABASE, không nằm trong code.** `Exam.description`,
+`Exam.fullName`, tên cấp độ — tất cả seed từ `prisma/seed-data.ts`. Dịch chúng không phải
+là thêm khoá vào `messages.ts`. Ba hướng:
+
+| Hướng | Được | Mất |
+|---|---|---|
+| Bảng dịch trong code, khoá theo slug | Nhanh, không đụng schema | Tách khỏi nguồn; F8 nhập đề mới sẽ không có bản dịch |
+| Thêm cột `descriptionEn` / `descriptionDe` | Đúng chỗ, F8 nhập được luôn | Một đợt migration |
+| Bảng `Translation` riêng | Linh hoạt nhất | Nặng nhất, thêm join ở mọi truy vấn |
+
+**2. `/de-thi` đang là SSG/ISR.** Dịch ở server là mất phần tĩnh cùng lợi thế SEO của
+SPEC F7. Giữ được cả hai bằng cách dịch ở CLIENT như phần khung: trang vẫn tĩnh, bot vẫn
+đọc bản tiếng Việt, người dùng đổi ngôn ngữ thì chữ đổi sau khi hydrate.
+
+Nghiêng về **hướng 1 + dịch ở client**, nhưng chưa quyết. Ai làm tiếp thì đọc lại hai
+ràng buộc trên trước khi gõ dòng đầu tiên.
+
+## Hai bất biến
+
+**Không lộ nội dung không được phép.** `provenance.canPublish = false` chặn ở mọi lối ra,
+kể cả khi `status = PUBLISHED`. Seed cố tình có một đề như vậy.
 
 ```bash
 npm run check:content-filter
 ```
 
-Kiểm tra 4 lối vào: trang chi tiết, gọi thẳng `POST /api/attempts`, sitemap, danh sách đề.
+Cụ thể nó chặn cái gì: **đề trong sách luyện thi thương mại** — Cambridge IELTS, Actual
+Test, ETS — là nội dung có bản quyền, không phải "đề trôi nổi trên mạng". Chép chúng vào
+`seed-data.ts` rồi để `canPublish: true` là đưa nguyên phần thân của một cuốn sách đang
+bán lên web công khai. Nhập vào để dùng nội bộ thì gắn `RESTRICTED` + `canPublish: false`
+như đề mẫu đã có sẵn trong seed.
 
-**2. Không lộ đáp án khi đang làm bài.** `loadExamRoom()` chỉ đính `isCorrect` /
-`explanation` / `transcript` khi attempt **thực sự** đã `SUBMITTED` — tham số `revealAnswers`
-truyền vào không đủ để mở khoá.
+Đề của cơ quan nhà nước (đề minh hoạ THPT QG, đề mẫu VSTEP của Bộ GD&ĐT) thì khác — đó là
+lý do chúng mang `license: 'GOV_PUBLISHED'`.
 
----
+**Không lộ đáp án khi đang làm bài.** `loadExamRoom()` chỉ đính `isCorrect` /
+`explanation` / `transcript` khi attempt thực sự `SUBMITTED`.
 
-## Phòng thi (F2)
+```bash
+npm run check:exam-flow
+```
 
-- **Đồng hồ tính ở server.** `expiresAt` lưu trong DB; client đếm bằng `performance.now()`
-  (đồng hồ đơn điệu) nên đổi giờ hệ thống không kéo dài được thời gian. Mỗi lần sync
-  thành công, mốc được đặt lại theo server.
-- **Chống mất bài 3 lớp.** Ghi `sessionStorage` tức thì → debounce 3s POST batch →
-  khôi phục từ server khi vào lại, hợp nhất với bản nháp cục bộ. Mất mạng thì batch nằm
-  lại hàng đợi và tự gửi khi có `online`.
-- **Audio `ONCE_NO_SEEK`.** Không render thanh tua, và mọi sự kiện `seeking` bị hoàn tác
-  về mốc đang phát — bấm phím tắt hay gọi từ console cũng không tua được.
-- **Highlight neo theo offset ký tự** trên `textContent`, không theo cấu trúc DOM, nên
-  vẫn đúng vị trí sau khi thẻ `<mark>` được chèn/gỡ, sau reload và sau khi nộp.
-- **Bốn trạng thái câu hỏi phân biệt bằng cả màu lẫn hình dạng** (nền đặc / viền / icon cờ
-  / ring), không chỉ bằng màu.
+9 khẳng định về luồng chấm điểm, dựng thẳng trong DB rồi tự dọn. Xem
+[docs/kiem-tra-phong-thi.md](docs/kiem-tra-phong-thi.md).
 
----
+## Phòng thi
 
-## Chưa có trong đợt này
-
-| | Ghi chú |
-|---|---|
-| F5 — Kế hoạch ôn + Google Calendar | Bảng `StudyPlan`, `Reminder`, `CalendarConnection` đã có trong schema. Thiếu OAuth, mã hoá token AES-256-GCM, cron. |
-| F6 — Auth.js, xác minh tuổi, consent | Bảng `User`, `Consent` đã có. Hiện chạy ở chế độ khách qua cookie `guest_id`. |
-| F8 — Admin CMS | Chưa có. Nhập đề hiện qua `prisma/seed-data.ts`. |
-| Chấm ESSAY / SPEAKING | Ngoài phạm vi v1 theo SPEC. Đánh `isCorrect = null`, loại khỏi tổng điểm, hiển thị rõ. |
-| Test tự động (Vitest/Playwright) | Chưa viết. Đã verify thủ công end-to-end qua trình duyệt. |
-
-Audio trong `public/audio/` là **file tone placeholder** do `scripts/make-placeholder-audio.mjs`
-sinh ra, không phải bản ghi thật — đủ để kiểm chứng hành vi phát một lần / không tua.
-
-Nội dung câu hỏi trong seed là **tự biên soạn theo định dạng** của từng kỳ thi, không sao
-chép đề thi thật.
-
----
+- **Đồng hồ ở server, và server cưỡng chế hạn chót.** `/sync` phát hiện quá hạn thì tự
+  chấm ngay trong request đó và trả 409 cho mọi lần sau. Đổi giờ máy hay gọi thẳng bằng
+  curl đều không ghi thêm được. `GRACE_SEC = 30` chỉ để hấp thụ độ trễ mạng.
+- **Audio "nghe một lần" là trạng thái của SERVER**, cột trên `Attempt`. Tải lại trang
+  không đưa nút "Bắt đầu nghe" quay lại.
+- **Chống mất bài 3 lớp:** sessionStorage → debounce 3s POST batch → khôi phục từ server.
+  Mất mạng thì batch nằm lại hàng đợi và tự gửi khi có `online`.
+- **Highlight neo theo offset ký tự** trên `textContent`, không theo cấu trúc DOM.
 
 ## Lệnh hay dùng
 
 ```bash
-npm run typecheck
+npm run typecheck && npm run lint
 ```
 
 ```bash
@@ -139,4 +208,208 @@ npm run db:peek
 npm run db:reset-attempts
 ```
 
-`db:reset-attempts` xoá hết lượt làm bài nhưng giữ nguyên nội dung đề — tiện khi test lại luồng.
+`db:reset-attempts` xoá lượt làm bài, giữ nguyên đề. `db:seed` nạp lại nội dung và giữ tài
+khoản; thêm `RESET_USERS=1` để xoá sạch.
+
+```bash
+npm run sanitize:passages
+```
+
+**Chạy sau mỗi lần nạp đề mới.** Lọc HTML của mọi passage đang nằm trong database, ghi đè
+tại chỗ — phòng thi không lọc lại lúc đọc nữa (xem "Bẫy đã mất thời gian"). Idempotent,
+thêm `--dry` để xem trước mà không ghi.
+
+```bash
+npx prisma migrate deploy
+```
+
+**`migrate deploy`, KHÔNG phải `migrate dev`.** `.env` ở máy phát triển trỏ thẳng vào Neon
+production, mà `migrate dev` có nhánh đòi reset database. Sinh file SQL bằng
+`npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`
+rồi mới `deploy`. **Đổi schema xong phải khởi động lại `next dev`** — xem "Bẫy đã mất thời
+gian".
+
+## Chưa có
+
+| | |
+|---|---|
+| F8 Admin CMS | Nhập đề qua `prisma/seed-data.ts` |
+| Kỹ năng NÓI | **Bỏ hẳn**, không phải "làm sau". Chấm nói cần giám khảo. `SKILLS` không có `SPEAKING`. |
+| Chấm ESSAY | Ngoài phạm vi v1. `isCorrect = null`, loại khỏi tổng điểm. |
+| Cron nhắc lịch ôn | Bảng `Reminder` đã chạy, thiếu tiến trình định kỳ |
+| Dọn to-do quá hạn | Việc "Hằng ngày" đã xong được dọn ở đường ĐỌC (`GET /api/todos`) vì chưa có tiến trình định kỳ nào |
+| Test tự động | Chưa có runner. Thay bằng hai script `check:*` ở trên. |
+| Dịch Kho đề | Chưa chốt hướng — xem "Ba ngôn ngữ" ở trên |
+| IELTS — Nghe / Viết | Mới có Reading. Xem "IELTS" ở dưới. |
+
+`plan.md` ghi một lỗi **chưa sửa**: danh sách "Bài đã làm" có thể trống khi tải lại trang.
+Sáu chỗ đọc dữ liệu dùng mẫu `userId ? {userId} : {guestId}` loại trừ nhau.
+
+### IELTS
+
+Có năm đề, đều 3 passage, 40 điểm, 60 phút:
+
+| Đề | Nguồn | Ra ngoài được không |
+|---|---|---|
+| **Academic Reading — Practice Test 1** | Tự biên soạn | Có — `SELF_AUTHORED`, `canPublish: true` |
+| **Practice C1 → C4** | Sách luyện thi quốc tế | **Có** — `RESTRICTED`, `canPublish: true`, `status: PUBLISHED` |
+
+**Tên nhà xuất bản KHÔNG ra UI.** Bốn đề trên từng mang tên "Cambridge Test N" ở cả tiêu
+đề lẫn đường dẫn; nay là `Practice C1–C4` và `/de-thi/ielts/academic-reading-practice-cN`.
+`sourceName` và `attribution` cũng đã trung tính hoá. Nguồn thật vẫn ghi đủ ở
+`provenance.notes` — trường đó không render ở đâu cả. Đổi tên đề đã nằm trong DB thì chạy
+`npx tsx scripts/rename-ielts-practice.ts --write` (chạy không cờ để xem trước).
+
+## Thay đổi gần đây
+
+- **To-do list: hạn chót, lưu ở server, pill nhắc.** Nhập mục tiêu xong hỏi thêm một bước:
+  chưa đăng nhập thì mời đăng nhập (không đăng nhập là mất khi dọn trình duyệt), đã đăng
+  nhập thì hỏi hạn — "Hằng ngày", hoặc ngày/tháng. **Không hỏi năm**: mặc định năm hiện
+  tại, ngày đã qua thì tự đẩy sang năm sau. Hạn đóng dấu 12h trưa giờ local, không phải
+  00:00 — cột là `TIMESTAMP` nên 00:00 giờ VN là 17:00 UTC *hôm trước*.
+  Bảng `Todo` chỉ cho người đã đăng nhập; khách vẫn dùng được nhưng nằm ở localStorage, và
+  danh sách gõ lúc còn là khách được đẩy lên server ngay sau khi đăng nhập.
+  Pill nhắc ở góc trên phải (`components/todos/todo-nudge.tsx`): nền `#0000FF`, chữ trắng,
+  Helvetica Bold. Nhịp nhắc chỉnh ở Cài đặt (5/10/30/60 phút hoặc tự nhập), kèm nút "Thử
+  ngay" hiện pill lập tức mà không đụng vào hẹn giờ thật.
+- **Favorite (ngôi sao) ở hai cấp.** Bảng `Favorite`, đánh sao được cả từng đề lẫn cả kỳ
+  thi. Widget Tiến độ chỉ hiện kỳ thi có sao; chưa đánh sao gì thì đổi sang chế độ đề cử
+  (3 kỳ thi nhiều lượt làm nhất) và giấu thanh %. Mẫu số đổi nghĩa: sao ở ĐỀ thì % tính
+  trên riêng mấy đề đó, sao ở KỲ THI thì tính trên toàn bộ đề công khai.
+- **Bỏ hai mục đích đồng ý.** `ANALYTICS` (thống kê ẩn danh, gộp theo đám đông — không
+  phải dữ liệu cá nhân theo NĐ 13) và `LEADERBOARD_PUBLIC` (sản phẩm không có bảng xếp
+  hạng). `CALENDAR_ACCESS` vẫn được ghi nhận nhưng rời khỏi danh sách công tắc ở Cài đặt —
+  nó hỏi và thu hồi ngay tại Lịch ôn, cùng chỗ bấm kết nối. Hàng `Consent` cũ KHÔNG bị
+  xoá; mọi đường đọc lọc qua `CONSENT_PURPOSES` nên chúng nằm im.
+- **Nhãn tên chức năng khi rê chuột.** `.nav-tip` từng chờ 2 giây mới hiện — mà 2 giây thì
+  coi như không có, người dò tab chỉ lướt qua. Nay hiện ngay. Nhưng lỗi thật nằm chỗ khác:
+  `.nav-rail` mang `overflow-x: auto`, và theo đặc tả CSS thì trục còn lại tự thành `auto`
+  theo, nên nhãn nằm dưới pill bị chính thanh nav xén sạch. Nay `md:overflow-visible` từ
+  768px trở lên (dưới mốc đó cuộn quan trọng hơn, mà cảm ứng thì không có chuột để rê), và
+  `<nav>` thêm `relative z-40` — cùng bẫy stacking-context đã ghi ở cụm nút bên phải.
+- **Đổi tên bốn đề IELTS chép từ sách** thành `Practice C1–C4`, đổi cả slug. Xem mục IELTS.
+- **Kỳ thi quốc gia lên trước chứng chỉ ngoại ngữ** ở `/de-thi` — thứ tự đọc từ
+  `EXAM_CATEGORIES`, mảng đó *là* bố cục trang chứ không phải một danh sách hằng.
+
+- **Mở khóa 4 đề IELTS chép từ sách:** Đã chuyển `canPublish: true` trong các file seed (`prisma/seed.ts` và `scripts/seed-ielts.ts`) và đặt `status: 'PUBLISHED'` trong `prisma/seed-data.ts`. (Tên đề sau đó đổi thành `Practice C1–C4` — xem mục IELTS.)
+- **Ẩn thông tin Giấy phép trên UI:** Đã xóa dòng hiển thị "Giấy phép" (License) trên trang chi tiết đề thi (`app/(marketing)/de-thi/[examSlug]/[paperSlug]/page.tsx`) và dọn dẹp các truy vấn liên quan trong `lib/queries.ts`.
+- **Giữ nguyên cấu trúc gộp câu:** 4 đề Cambridge (Đề 2, 3) có 38 câu trên giao diện nhưng vẫn đủ 40 điểm do gom các câu hỏi "Choose TWO letters" thành 1 câu Multi-choice mang `points: 2` để đảm bảo tính chính xác của thuật toán chấm điểm. Mặc định không thay đổi.
+- **Seed Đề thi THPT Quốc gia 2025:** Đã tạo thêm 3 đề thi (Hóa Học, Vật Lý, Tiếng Anh) cho kỳ thi THPT Quốc gia 2025. Cấu trúc chia 2 cửa sổ: Đề bài (Markdown) bên trái, các câu hỏi tương tác dạng 4 lựa chọn (SINGLE_CHOICE) bên phải. (Đã loại bỏ đề Tiếng Anh bản minh họa cũ).
+- **Tích hợp KaTeX:** Đã cài đặt thư viện `katex` ở client-side (`passage-view.tsx`, `question-view.tsx`) để tự động render các công thức Toán, Hóa, Lý (bọc bằng `$` hoặc `$$`) trước khi bộ đánh dấu (highlight) hoạt động, tránh lỗi xê dịch highlight.
+- **Render bảng Markdown:** Tích hợp bộ phân tích bảng Markdown vào các script seed để tự động tạo mã HTML tương thích với giao diện, đồng thời nâng cấp bộ lọc bảo mật `DOMPurify` cho phép hiển thị các thẻ bảng và thuộc tính `class` để giữ lại cấu trúc viền cột.
+- **Cập nhật đề thi 2026:** Đã seed đề Toán, Vật Lý và Hoá 2026 (`scripts/seed-*-2026.ts`), thiết lập mặc định sắp xếp danh sách đề thi theo "Mới nhất" (Newest) ở trang danh mục — và "Mới nhất" nay xếp theo `year` trước, `publishedAt` sau, vì đề 2026 seed sau nhưng đề cũ có thể được nạp lại muộn hơn.
+- **Lọc HTML chuyển sang đường ghi:** `DOMPurify` từng chạy ở mỗi lần đọc trong `lib/attempt-service.ts`. Nó kéo theo jsdom, và jsdom không nạp được trong hàm serverless của Vercel — phòng thi trả 500 trên bản deploy trong khi localhost vẫn chạy. Nay lọc nằm ở `lib/sanitize-html.ts`, gọi từ `npm run sanitize:passages`; đường đọc không lọc lại. Xem "Bẫy đã mất thời gian".
+
+Bốn đề Cambridge hiển thị công khai trong Kho đề. Giá trị `canPublish: true` và `status: PUBLISHED`
+của bộ đề này **không thay đổi** — đây là trạng thái đã được duyệt.
+
+Nội dung của bốn đề đó nằm riêng ở
+[prisma/seed-data-ielts-cambridge.ts](prisma/seed-data-ielts-cambridge.ts) chứ không
+trộn vào `seed-data.ts`. Mọi thứ có bản quyền của bên thứ ba gom vào đúng một chỗ thì
+gỡ ra là xoá một file, không phải đi dò từng đoạn. Thêm đề chép từ sách nào khác thì
+cũng thêm vào đó.
+
+Ranh giới giữa hai nhóm chính là ranh giới của bất biến số 1: **định dạng thì dùng
+thoải mái — định dạng không được bảo hộ; nội dung đề của Cambridge, IDP hay British
+Council thì không.** Đề đầu tự viết theo định dạng nên phát hành được; bốn đề kia là
+nội dung của họ nên không.
+
+Hai chỗ đề Cambridge lệch khỏi khuôn của đề tự biên soạn:
+
+- **Số câu có lỗ.** Dạng "Choose TWO letters" chiếm hai số trong đề gốc (ví dụ
+  Questions 20–21) nhưng ở đây là MỘT câu `MULTI_CHOICE` mang `number: 20`,
+  `points: 2` — câu kế tiếp là 22. Tổng vẫn đúng 40 điểm, chỉ dãy số là đứt.
+- **`IeltsStrategy` bật `partialCreditForMultiChoice`** chính vì những câu đó: đề thật
+  cho 1 điểm mỗi lựa chọn đúng, nên chọn được một nửa phải còn nửa điểm chứ không phải
+  mất trắng.
+
+Cấu trúc **đề tự biên soạn**, theo đúng thứ tự dạng câu và độ khó tăng dần của đề thật:
+
+| Passage | Câu | Dạng |
+|---|---|---|
+| The world's appetite for sand | 1–13 | TRUE/FALSE/NOT GIVEN ×6, sentence completion ×4, short answer ×3 |
+| Songs with an accent | 14–26 | Matching Headings ×6, multiple choice ×4, summary completion ×3 |
+| The ideas an organisation asks for and then refuses | 27–40 | YES/NO/NOT GIVEN ×6, multiple choice ×4, summary completion ×4 |
+
+Ba điểm sẽ vướng nếu viết thêm đề:
+
+- **Mỗi câu 1 điểm, tổng phải đúng 40.** Bảng band trong `SEED_SCORE_CONVERSIONS` tính
+  theo phần trăm của 40 câu — mỗi câu 2,5%, 30/40 = 75% = band 7.0. Thêm hay bớt một câu
+  là toàn bộ band lệch.
+- **Passage 3 dùng YES / NO / NOT GIVEN**, không phải TRUE / FALSE. Đó là quy ước IELTS
+  cho bài nghị luận: hỏi về quan điểm người viết chứ không phải sự việc. Về kỹ thuật vẫn
+  là `TRUE_FALSE_NOTGIVEN`, chỉ đổi nhãn lựa chọn.
+- **Matching Headings dựng bằng `SINGLE_CHOICE`**, danh sách i–viii lặp lại ở từng câu.
+  Phòng thi render mỗi câu độc lập, không có chỗ nào hiện được một bảng heading dùng chung
+  ở đầu nhóm — hoặc lặp, hoặc thí sinh không nhìn thấy danh sách. Mọi dạng "chọn từ một
+  danh sách dùng chung" đều vướng chỗ này: đề Cambridge lặp lại danh sách A–G (matching
+  information, sentence endings) và A–C (matching people) ở từng câu vì đúng lý do đó.
+
+`IeltsStrategy` để `skillMaxScale` bằng luôn `maxScale` (9): band kỹ năng và band tổng
+trong IELTS là cùng một đơn vị, khác TOPIK (300 = 3 × 100) hay Goethe (100 = 4 × 25) nơi
+điểm kỹ năng là một phần của tổng.
+
+Chưa có Listening và Writing. Listening cần file nghe có quyền phát hành; Writing thì
+engine v1 không chấm ESSAY (xem "Chưa có").
+
+#### Nạp riêng một kỳ thi, không xoá gì
+
+```bash
+npx tsx scripts/seed-ielts.ts
+```
+
+`db:seed` mở đầu bằng một loạt `deleteMany()` rồi dựng lại toàn bộ nội dung. Chạy nó lên
+database mà bản chạy thật đang đọc là xoá đề của mọi kỳ thi khác cùng mọi lượt làm bài trỏ
+tới chúng — và `.env` ở máy phát triển đang trỏ thẳng vào Neon production. Script trên chỉ
+THÊM: tìm trước rồi mới tạo nên chạy lại nhiều lần không nhân bản, riêng bảng band thì xoá
+đúng dòng `examSlug = 'ielts'` rồi nạp lại.
+
+```bash
+npx tsx scripts/seed-ielts.ts --undo
+```
+
+Gỡ ra. Từ chối chạy nếu đã có ai làm bài trên đề — xoá đề khi đã có lượt làm là xoá luôn
+bài của họ.
+
+**Nạp xong thì chạy `npm run sanitize:passages`.** Phòng thi không lọc HTML lúc đọc nữa,
+nên nội dung phải sạch từ lúc nằm trong database.
+
+**Thêm đề mới thì phải build lại.** `/de-thi/[examSlug]/[paperSlug]` dựng bằng
+`generateStaticParams` lúc build, nên một đề vừa nạp vào database chưa có đường dẫn trên
+bản đã deploy. Push hoặc redeploy là đủ.
+
+## Trước khi phát hành
+
+⚠️ **Font Helvetica Neue trong `app/fonts/` không có giấy phép webfont.** Đây là bản việt
+hoá lưu hành tự do, không phải bản Monotype. Chạy nội bộ thì được; ra ngoài phải mua giấy
+phép hoặc thay bằng Inter / Be Vietnam Pro / Archivo.
+
+⚠️ **Ảnh tầng game là hotlink bên thứ ba** (`components/game/image-manifest.json`).
+
+Cờ quốc gia (`public/fonts/TwemojiCountryFlags.woff2`) thì sạch: CC-BY-4.0 từ Twemoji, cho
+dùng thương mại, chỉ cần giữ dòng credit trong `globals.css`.
+
+## Bẫy đã mất thời gian
+
+- **Đừng import `isomorphic-dompurify` (hay bất cứ thứ gì kéo jsdom) từ code chạy trong
+  route.** Turbopack externalize jsdom thành `require("jsdom-<hash>")`, và alias đó không
+  nạp được trong hàm serverless của Vercel: mọi route chạm tới nó trả 500 *"Failed to load
+  external module"* trong khi `next start` ở máy vẫn chạy — vì máy có sẵn `node_modules`,
+  còn Vercel chỉ đóng gói theo trace. Đã sập phòng thi đúng kiểu này. Lọc HTML nay ở đường
+  GHI (`lib/sanitize-html.ts` + `npm run sanitize:passages`), không ở đường đọc.
+- **Đổi schema Prisma thì khởi động lại `next dev`.** `migrate dev` sinh lại client trên
+  đĩa nhưng tiến trình đang chạy vẫn giữ module cũ. Triệu chứng: 500 "Unknown field" trong
+  khi `typecheck` sạch.
+- **`ECONNREFUSED` từ script `tsx` thường là thiếu `.env`, không phải DB sập.** Next tự nạp
+  `.env`, script chạy ngoài Next thì không.
+- **Đừng chạy `npx prettier`.** Repo không có config nên nó chạy mặc định và định dạng
+  ngược hoàn toàn với văn phong đang dùng. `npm run lint` mới đúng.
+- **Đừng thêm hay bớt viền theo trạng thái, chỉ đổi màu.** `box-sizing: border-box` nên nội
+  dung xê dịch 1px. Dùng `border: 1px solid transparent`.
+- **`bg-card`, không phải `bg-white`.** Đi qua token là điều kiện để đổi bảng màu một chỗ.
+- **Trong flex container, chữ phải nằm trong đúng một phần tử.** Mỗi đoạn text và mỗi thẻ
+  inline là một flex item riêng, `gap` sẽ chèn khoảng trắng vào giữa câu.
+
+Chi tiết của hiệu ứng chuyển trang, thang chữ và tầng game nằm trong comment ở
+`globals.css`, `nav-slide.tsx` và `components/game/`. Chúng dài vì mỗi con số ở đó đều
+từng sai một lần.

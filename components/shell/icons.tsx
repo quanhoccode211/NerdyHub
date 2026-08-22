@@ -19,18 +19,42 @@ const S = (p: IconProps) => ({
   'aria-hidden': true,
 })
 
-export function LogoMark({ size = 34 }: IconProps) {
+/**
+ * Chiều cao con dấu ở góc trái trên, dùng chung cho trang giới thiệu và cho
+ * AppShell. Là hằng số chứ không phải con số gõ ở mỗi nơi: hai khung này nằm
+ * kề nhau khi chuyển trang nên lệch vài px là mắt bắt được ngay — mà đó đúng
+ * là chuyện đã xảy ra khi mỗi bên tự khai một cỡ (34 với 30).
+ *
+ * Đây là CHIỀU CAO; bề ngang tự ra 1,5 lần theo `aspect-ratio` của .logo-mark,
+ * nên 48 nghĩa là con dấu chiếm 48×70px.
+ *
+ * Trần trên của số này là `--brand-row-height` (72px, xem globals.css): con dấu
+ * cao hơn hàng nav thì nó tự nống header của AppShell lên và hai khung lại lệch
+ * nhau, vì bên trang giới thiệu không có gì để nống theo.
+ */
+export const BRAND_LOGO_SIZE = 48
+
+/**
+ * Con dấu thương hiệu — cặp kính, nạp từ `public/logo-glasses.svg`.
+ *
+ * `size` là CHIỀU CAO, không phải cạnh của một ô vuông: cặp kính rộng gấp rưỡi
+ * chiều cao, ép nó vào ô vuông thì hoặc méo hoặc thừa một khoảng trống hai bên
+ * mà mắt vẫn tính là phần của logo — cụm logo + chữ sẽ trông lệch.
+ *
+ * Vẽ bằng CSS mask chứ không nhúng thẳng SVG vào JSX: file là bản trace nên
+ * riêng dữ liệu path đã 20KB, nhúng inline là 20KB đó lặp lại trong HTML của
+ * MỌI trang. Mask thì trình duyệt tải một lần rồi dùng lại từ cache.
+ *
+ * Mask lấy màu từ `currentColor` nên con dấu khớp màu với chữ "Nerdy Hub"
+ * bên cạnh.
+ */
+export function LogoMark({ size = 34, className }: IconProps) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" aria-hidden="true">
-      <circle cx="20" cy="20" r="19" fill="#DDF5F0" stroke="#A5E5D9" strokeWidth="1.5" />
-      <path
-        d="M13 15.5h7.5M13 20h9M13 24.5h5.5"
-        stroke="#17191E"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <circle cx="27.5" cy="24" r="3" fill="#17191E" />
-    </svg>
+    <span
+      aria-hidden="true"
+      className={className ? `logo-mark ${className}` : 'logo-mark'}
+      style={{ height: size }}
+    />
   )
 }
 
@@ -109,23 +133,6 @@ export function BellIcon(p: IconProps) {
     <svg {...S(p)}>
       <path d="M6.5 10a5.5 5.5 0 0 1 11 0c0 3 .8 4.6 1.5 5.5.4.5 0 1.3-.7 1.3H5.7c-.7 0-1.1-.8-.7-1.3.7-.9 1.5-2.5 1.5-5.5Z" />
       <path d="M10.2 20a2.1 2.1 0 0 0 3.6 0" />
-    </svg>
-  )
-}
-
-export function SunIcon(p: IconProps) {
-  return (
-    <svg {...S(p)}>
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4" />
-    </svg>
-  )
-}
-
-export function MoonIcon(p: IconProps) {
-  return (
-    <svg {...S(p)}>
-      <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" />
     </svg>
   )
 }
@@ -308,6 +315,23 @@ export function SparkIcon(p: IconProps) {
   return (
     <svg {...S(p)}>
       <path d="M12 3.5l2 5.5 5.5 2-5.5 2-2 5.5-2-5.5L4.5 11l5.5-2 2-5.5Z" />
+    </svg>
+  )
+}
+
+/**
+ * Ngôi sao "quan tâm" — Kho đề.
+ *
+ * `filled` TÔ ĐẶC bằng `currentColor` chứ không đổi màu nét: trạng thái bật/tắt
+ * phải đọc được cả khi mắt chỉ liếc qua, mà hai ngôi sao viền cùng cỡ chỉ khác
+ * sắc độ thì phải nhìn kỹ mới thấy. Nét vẫn giữ nguyên ở cả hai trạng thái nên
+ * hình không đổi kích thước — cùng lý do với luật "đừng thêm bớt viền" ở
+ * globals.css.
+ */
+export function StarIcon(p: IconProps & { filled?: boolean }) {
+  return (
+    <svg {...S(p)} fill={p.filled ? 'currentColor' : 'none'}>
+      <path d="M12 3.6l2.6 5.27 5.82.85-4.21 4.1.99 5.79L12 16.87l-5.2 2.74.99-5.79-4.21-4.1 5.82-.85L12 3.6Z" />
     </svg>
   )
 }

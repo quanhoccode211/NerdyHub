@@ -1,8 +1,11 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import type { RoomQuestion } from '@/lib/attempt-service'
 import { CheckIcon, FlagIcon, XIcon } from '../shell/icons'
 import { useExamStore } from './store'
+// @ts-expect-error KaTeX lacks type defs for mjs contrib
+import renderMathInElement from 'katex/dist/contrib/auto-render.mjs'
 
 /**
  * Hiển thị một câu hỏi và thu đáp án.
@@ -29,13 +32,38 @@ export function QuestionView({
   const selected = answer?.selectedChoiceIds ?? []
   const isMulti = question.type === 'MULTI_CHOICE'
   const isText = question.type === 'FILL_BLANK' || question.type === 'SHORT_ANSWER'
-  const isEssay = question.type === 'ESSAY' || question.type === 'SPEAKING'
+  const isEssay = question.type === 'ESSAY'
   const correctIds = question.correctChoiceIds ?? []
+
+  const containerRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!containerRef.current) return
+    renderMathInElement(containerRef.current, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '$', right: '$', display: false },
+        { left: '\\(', right: '\\)', display: false },
+        { left: '\\[', right: '\\]', display: true }
+      ],
+      throwOnError: false,
+    })
+  }, [question.content])
+
+  // Bỏ trống thì không tô màu đúng/sai — trung tính, để nhãn "Bỏ trống" nói thay
+  const blank = (answer?.textAnswer ?? '').trim() === ''
+  const textAnswerRing = blank
+    ? ''
+    : result?.isCorrect === true
+      ? 'ring-2 ring-green'
+      : result?.isCorrect === false
+        ? 'ring-2 ring-red'
+        : ''
 
   return (
     <article
+      ref={containerRef}
       id={`question-${question.id}`}
-      className="scroll-mt-24 rounded-card bg-white p-5 ring-1 ring-line md:p-6"
+      className="scroll-mt-24 rounded-card bg-card p-5 ring-1 ring-line md:p-6"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
@@ -85,8 +113,14 @@ export function QuestionView({
             onChange={(e) => setText(question.id, e.target.value)}
             readOnly={review}
             placeholder="Nhập đáp án…"
+            /*
+              Ba trạng thái, không phải hai. Bản cũ là `isCorrect ? xanh : đỏ` nên
+              cả câu CHƯA CHẤM (`null`) lẫn câu BỎ TRỐNG (không có dòng answer) đều
+              bị vẽ viền đỏ như thể người dùng trả lời sai — trong khi họ không trả
+              lời gì cả.
+            */
             className={`w-full rounded-xl bg-soft px-4 py-3 text-[16px] outline-none placeholder:text-muted ${
-              review ? (result?.isCorrect ? 'ring-2 ring-green' : 'ring-2 ring-red') : ''
+              review ? textAnswerRing : ''
             }`}
           />
           {review && question.correctText && question.correctText.length > 0 && (
@@ -106,8 +140,42 @@ export function QuestionView({
 
             return (
               <li key={choice.id}>
+                {/*
+                  Viền focus vẽ trên <label> qua `has-[:focus-visible]`, không phải
+                  trên <input>. Input là `sr-only` — bị cắt còn 1×1 px — nên
+                  `:focus-visible` toàn cục ở globals.css có vẽ cũng không ai thấy,
+                  và Tab qua một câu hỏi là mất dấu con trỏ hoàn toàn. Dùng `has-*`
+                  thay `peer-*` vì phần tử cần vẽ là CHA của input, không phải anh em.
+                */}
                 <label
-                  className={`flex cursor-pointer items-start gap-3 rounded-2xl p-3.5 transition-colors ${
+                  /*
+                    BỎ CHỌN xử lý ở ĐÂY, việc chọn để `onChange` của input lo.
+
+                    Tách đôi như vậy vì mỗi cú bấm vào label sinh ra HAI sự kiện
+                    click trên input: một của chính cú bấm, một do label tự dispatch
+                    xuống. Gộp cả hai việc vào một handler `onClick` thì mỗi lần bấm
+                    toggle hai lượt và triệt tiêu nhau — nhìn ra ngoài đúng như nút
+                    bỏ chọn không tồn tại.
+
+                    Ở đây chỉ chạy khi ô ĐÃ được chọn, mà lúc đó `onChange` không
+                    bắn (radio đã checked thì bấm lại không đổi trạng thái) — nên
+                    hai đường không bao giờ chồng nhau. `preventDefault` chặn label
+                    dispatch tiếp xuống input.
+                  */
+                  onClick={(e) => {
+                    if (review || isMulti || !isSelected) return
+                    e.preventDefault()
+                    toggleChoice(question.id, choice.id, isMulti)
+                  }}
+                  /*
+                    `relative` KHÔNG phải để trang trí: `sr-only` của Tailwind là
+                    `position: absolute`, nên nếu không có tổ tiên nào định vị thì
+                    khối chứa của nó là cả VIEWPORT. Cái input ẩn 1×1 px khi đó nằm
+                    ngoài khung cuộn, thoát khỏi `overflow` của khung, và kéo dài
+                    chiều cao cuộn của cả tài liệu tới tận đáy danh sách câu hỏi —
+                    người dùng cuộn xuống thấy một mảng nền trống mênh mông.
+                  */
+                  className={`relative flex cursor-pointer items-start gap-3 rounded-2xl p-3.5 transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--color-accent)] ${
                     showAsCorrect
                       ? 'bg-green-soft ring-2 ring-green'
                       : showAsWrong
@@ -117,6 +185,11 @@ export function QuestionView({
                           : 'bg-soft hover:bg-purple-soft/60'
                   } ${review ? 'cursor-default' : ''}`}
                 >
+                  {/*
+                    `onChange` lo việc CHỌN — và cũng là đường mà bàn phím đi qua
+                    (mũi tên di chuyển giữa các radio sẽ bắn change chứ không bắn
+                    click). Việc bỏ chọn nằm ở `onClick` của label bên trên.
+                  */}
                   <input
                     type={isMulti ? 'checkbox' : 'radio'}
                     name={`q-${question.id}`}
@@ -135,7 +208,7 @@ export function QuestionView({
                           ? 'bg-red text-white'
                           : isSelected
                             ? 'bg-purple text-white'
-                            : 'bg-white text-muted-strong ring-1 ring-line'
+                            : 'bg-card text-muted-strong ring-1 ring-line'
                     }`}
                   >
                     {showAsCorrect ? (

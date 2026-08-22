@@ -8,8 +8,14 @@
  * được nhận diện qua `User.termsVersion` để xin đồng ý lại.
  */
 
-export const TERMS_VERSION = '2026-08-15b'
-export const TERMS_EFFECTIVE_DATE = '15/08/2026'
+/*
+  Tăng lên 'c' vì mục 4 là NỘI DUNG MỚI và nó mở rộng phạm vi đồng ý: hai mục
+  đích trước đây hỏi bằng ô tích riêng nay nằm trong chính điều khoản. Người đã
+  đồng ý bản 'b' chưa hề đọc phần đó, nên `User.termsVersion` phải phân biệt
+  được để còn xin đồng ý lại.
+*/
+export const TERMS_VERSION = '2026-08-17c'
+export const TERMS_EFFECTIVE_DATE = '17/08/2026'
 
 export type TermsSection = {
   id: string
@@ -52,11 +58,12 @@ export const TERMS_SECTIONS: TermsSection[] = [
     id: 'du-lieu',
     heading: '3. Dữ liệu cá nhân của bạn',
     paragraphs: [
-      'Chúng tôi xử lý dữ liệu cá nhân theo Nghị định 13/2023/NĐ-CP. Sự đồng ý được xin RIÊNG cho từng mục đích — bạn bật hoặc tắt từng mục, không có ô tích gộp.',
+      'Chúng tôi xử lý dữ liệu cá nhân theo Nghị định 13/2023/NĐ-CP. Mỗi mục đích được ghi nhận riêng và bạn bật hoặc tắt được từng mục bất cứ lúc nào trong phần Cài đặt.',
     ],
     bullets: [
       'Bắt buộc: dữ liệu phục vụ vận hành dịch vụ (lưu bài làm, chấm điểm, khôi phục phiên thi). Không có mục này thì dịch vụ không hoạt động được.',
-      'Tuỳ chọn: phân tích sử dụng, email tiếp thị, hiển thị tên trên bảng xếp hạng, kết nối Google Calendar. Mặc định TẮT.',
+      'Hỏi riêng trên form đăng ký: email tiếp thị. Mặc định TẮT.',
+      'Hỏi đúng lúc dùng: kết nối Google Calendar. Chỉ được ghi nhận khi bạn tự bấm kết nối trong mục Lịch ôn và cấp quyền ở màn hình của Google.',
       'Bạn có quyền xuất toàn bộ dữ liệu cá nhân của mình dưới dạng tệp JSON bất cứ lúc nào.',
       'Bạn có quyền yêu cầu xoá tài khoản. Tài khoản bị vô hiệu ngay lập tức và toàn bộ dữ liệu bị xoá vĩnh viễn sau 48 giờ. Trong 48 giờ đó bạn có thể đổi ý.',
       'Bạn có quyền rút lại sự đồng ý cho từng mục đích tuỳ chọn bất cứ lúc nào trong phần Cài đặt.',
@@ -65,8 +72,21 @@ export const TERMS_SECTIONS: TermsSection[] = [
       'Chúng tôi không bán dữ liệu cá nhân của bạn cho bên thứ ba và không hiển thị quảng cáo.',
   },
   {
+    id: 'dong-y-kem-dieu-khoan',
+    heading: '4. Hai mục đích bạn đồng ý khi chấp nhận điều khoản này',
+    paragraphs: [
+      'Ngoài các mục đích ở phần 3, việc bấm đồng ý với điều khoản này đồng thời là sự đồng ý cho hai mục đích dưới đây. Chúng được mô tả tại đây thay vì hỏi bằng ô tích riêng trên form đăng ký.',
+    ],
+    bullets: [
+      'Phân tích sử dụng: chúng tôi thống kê cách sản phẩm được dùng — đề nào hay được làm, câu nào nhiều người sai, phòng thi bị bỏ dở ở đâu — để cải thiện chất lượng đề và trải nghiệm. Số liệu này ở dạng tổng hợp, không dùng để nhận dạng cá nhân bạn và không được chia sẻ ra ngoài.',
+      'Hiển thị tên trên bảng xếp hạng: tên bạn có thể xuất hiện công khai khi hệ thống so sánh thành tích giữa những người cùng làm một đề. Chỉ hiển thị tên bạn đã đặt trong hồ sơ — không hiển thị email, ngày sinh hay bài làm chi tiết.',
+    ],
+    callout:
+      'Bạn TẮT được cả hai mục này bất cứ lúc nào trong Cài đặt mà vẫn dùng dịch vụ bình thường — chúng không phải điều kiện để có tài khoản. Người dùng dưới 16 tuổi chưa có xác nhận của người giám hộ thì mục hiển thị tên công khai luôn ở trạng thái tắt, kể cả khi đã đồng ý điều khoản.',
+  },
+  {
     id: 'noi-dung',
-    heading: '4. Nội dung đề thi và bản quyền',
+    heading: '5. Nội dung đề thi và bản quyền',
     bullets: [
       'Mỗi bộ đề trên hệ thống đều ghi rõ nguồn gốc và giấy phép sử dụng. Nguồn được hiển thị công khai ngay trên trang của đề đó.',
       'Đề do cơ quan nhà nước công bố công khai, nội dung thuộc phạm vi công cộng, hoặc nội dung do chúng tôi tự biên soạn — bạn được sử dụng để ôn luyện cá nhân.',
@@ -78,7 +98,7 @@ export const TERMS_SECTIONS: TermsSection[] = [
   },
   {
     id: 'phong-thi',
-    heading: '5. Quy tắc phòng thi',
+    heading: '6. Quy tắc phòng thi',
     bullets: [
       'Thời gian làm bài được tính ở máy chủ. Thay đổi giờ trên thiết bị của bạn không kéo dài được thời gian thi.',
       'Ở chế độ Thi thật, phần nghe chỉ phát một lần và không tua được — đúng như điều kiện thi thật. Chọn chế độ Luyện tập nếu bạn muốn nghe lại.',
@@ -89,7 +109,7 @@ export const TERMS_SECTIONS: TermsSection[] = [
   },
   {
     id: 'gioi-han',
-    heading: '6. Giới hạn trách nhiệm',
+    heading: '7. Giới hạn trách nhiệm',
     bullets: [
       'Điểm số trên hệ thống là kết quả luyện tập mang tính tham khảo. Đây KHÔNG phải điểm thi chính thức và không có giá trị thay thế kết quả của kỳ thi thật.',
       'Chúng tôi cố gắng bảo đảm nội dung chính xác nhưng không cam kết đề thi trên hệ thống trùng khớp với đề thi thật.',
@@ -99,7 +119,7 @@ export const TERMS_SECTIONS: TermsSection[] = [
   },
   {
     id: 'thay-doi',
-    heading: '7. Thay đổi điều khoản',
+    heading: '8. Thay đổi điều khoản',
     paragraphs: [
       'Khi điều khoản thay đổi ở mức ảnh hưởng tới quyền lợi của bạn, chúng tôi sẽ thông báo và xin lại sự đồng ý trước khi bạn tiếp tục sử dụng dịch vụ. Mỗi bản điều khoản đều có số phiên bản và ngày hiệu lực ghi ở đầu tài liệu.',
       'Bạn có thể ngừng sử dụng dịch vụ và xoá tài khoản bất cứ lúc nào nếu không đồng ý với bản cập nhật.',

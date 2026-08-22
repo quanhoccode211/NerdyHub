@@ -21,7 +21,7 @@ export type SubmittedAnswer = {
 /** Kết quả chấm từng câu. */
 export type GradedAnswer = {
   questionId: string
-  /** null = chưa chấm tự động (ESSAY / SPEAKING) */
+  /** null = chưa chấm tự động (ESSAY) */
   isCorrect: boolean | null
   pointsEarned: number
   pointsPossible: number
@@ -38,7 +38,7 @@ export type SectionBreakdown = {
 export type RawResult = {
   answers: GradedAnswer[]
   earnedPoints: number
-  /** Chỉ tính các câu chấm được — câu ESSAY/SPEAKING không nằm trong mẫu số */
+  /** Chỉ tính các câu chấm được — câu ESSAY không nằm trong mẫu số */
   totalPoints: number
   percent: number
   correctCount: number

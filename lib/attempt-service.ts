@@ -1,7 +1,6 @@
 import 'server-only'
-import DOMPurify from 'isomorphic-dompurify'
 import { prisma } from './db'
-import { assertPublishable } from './content-filter'
+import { assertPublishable, publicQuestionFilter } from './content-filter'
 import { parseStringArray } from './json-fields'
 import type { AnnotationType, AttemptMode, AttemptStatus, AudioPlayMode, HighlightColor, QuestionType, Skill } from './enums'
 
@@ -13,14 +12,24 @@ import type { AnnotationType, AttemptMode, AttemptStatus, AudioPlayMode, Highlig
  * chứ không dựa vào client ẩn đi.
  */
 
-const ALLOWED_TAGS = ['p', 'br', 'strong', 'em', 'u', 'b', 'i', 'h3', 'h4', 'ul', 'ol', 'li', 'blockquote', 'span']
+/*
+  KHÔNG sanitize ở đây nữa — nội dung đã sạch từ lúc GHI vào database.
 
-function sanitize(html: string): string {
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS,
-    ALLOWED_ATTR: [], // không cho attribute nào — passage là văn bản thuần
-  })
-}
+  DOMPurify kéo theo jsdom, mà Turbopack externalize jsdom thành
+  `require("jsdom-<hash>")`; alias đó không nạp được trong hàm serverless của
+  Vercel, nên MỌI route đi qua file này (phòng thi, trang xem lại, và
+  /api/attempts/[id]) trả 500 "Failed to load external module" trên bản deploy
+  trong khi localhost chạy bình thường. Bỏ nó ra cũng cắt ~11MB và ~1s cold
+  start khỏi đường vào phòng thi.
+
+  Lọc nay nằm ở lib/sanitize-html.ts, gọi từ script seed và
+  scripts/sanitize-passages.ts.
+
+  ponytail: nội dung đề hiện 100% do người viết repo seed từ prisma/seed-data*.ts,
+  nên đường ghi là chốt chặn đủ. Khi F8 (Admin CMS) cho nhập đề qua web thì
+  route nhập BẮT BUỘC gọi sanitizeHtml() trước khi ghi — đó là lúc đường ghi có
+  đầu vào không tin được.
+*/
 
 export type RoomChoice = { id: string; label: string; content: string }
 
@@ -58,6 +67,14 @@ export type RoomSection = {
   sortOrder: number
   audioUrl: string | null
   audioPlayMode: AudioPlayMode
+  /**
+   * Đã bắt đầu phát audio của phần này chưa — do SERVER trả lời.
+   *
+   * Cam kết "nghe một lần" chỉ có giá trị khi nó sống sót qua F5. Trước đây trạng
+   * thái này là `useState` trong AudioPlayer, nên tải lại trang là hiện lại nút
+   * "Bắt đầu nghe" và nghe lại được bao nhiêu lần tuỳ thích.
+   */
+  audioStarted: boolean
   /** Chỉ lộ sau khi nộp bài (SPEC F2.3) */
   transcript: string | null
   passages: RoomPassage[]
@@ -98,6 +115,14 @@ export type ExamRoomData = {
     /** Giây còn lại, tính từ server tại thời điểm request */
     remainingSeconds: number
     timeSpent: number
+    /**
+     * Lần cuối server nhận được batch đồng bộ, ISO string.
+     *
+     * Dùng để quyết định bản nháp trong sessionStorage có MỚI HƠN dữ liệu server
+     * hay không. Thiếu mốc này thì bước merge lúc hydrate chạy theo kiểu "ai ghi
+     * sau thắng", và tab mở lâu ngày sẽ đè bản nháp cũ lên đáp án mới của tab kia.
+     */
+    lastSyncAt: string
   }
   paper: {
     id: string
@@ -134,7 +159,11 @@ export async function loadExamRoom(
             orderBy: { sortOrder: 'asc' },
             include: {
               passages: { orderBy: { sortOrder: 'asc' } },
+              // Câu hỏi mang provenance RIÊNG: một đề hợp lệ vẫn có thể chứa câu
+              // bị hạn chế. Bộ lọc này phải khớp với lib/scoring và lib/results —
+              // xem ghi chú ở scoreAttempt.
               questions: {
+                where: publicQuestionFilter(),
                 orderBy: { number: 'asc' },
                 include: { choices: { orderBy: { sortOrder: 'asc' } } },
               },
@@ -159,6 +188,8 @@ export async function loadExamRoom(
     Math.floor((attempt.expiresAt.getTime() - now) / 1000),
   )
 
+  const audioPlayed = new Set(parseStringArray(attempt.audioPlayedSectionIdsJson))
+
   const sections: RoomSection[] = attempt.paper.sections.map((s) => ({
     id: s.id,
     skill: s.skill as Skill,
@@ -169,11 +200,12 @@ export async function loadExamRoom(
     audioUrl: s.audioUrl,
     // Ở chế độ PRACTICE cho phép tua kể cả khi đề đặt ONCE_NO_SEEK (SPEC F1/F2.3)
     audioPlayMode: (attempt.mode === 'PRACTICE' ? 'FREE' : s.audioPlayMode) as AudioPlayMode,
+    audioStarted: audioPlayed.has(s.id),
     transcript: reveal ? s.transcript : null,
     passages: s.passages.map((p) => ({
       id: p.id,
       title: p.title,
-      content: sanitize(p.content),
+      content: p.content,
       sortOrder: p.sortOrder,
     })),
     questions: s.questions.map((q) => ({
@@ -208,6 +240,7 @@ export async function loadExamRoom(
       currentSectionId: attempt.currentSectionId,
       remainingSeconds,
       timeSpent: attempt.timeSpent,
+      lastSyncAt: attempt.lastSyncAt.toISOString(),
     },
     paper: {
       id: attempt.paper.id,
@@ -242,14 +275,5 @@ export async function loadExamRoom(
   }
 }
 
-/** Hết giờ mà chưa nộp -> đánh dấu EXPIRED rồi chấm (F2.2: hết giờ tự nộp). */
-export async function expireIfNeeded(attemptId: string): Promise<boolean> {
-  const attempt = await prisma.attempt.findUnique({
-    where: { id: attemptId },
-    select: { status: true, expiresAt: true, mode: true },
-  })
-  if (!attempt) return false
-  // PRACTICE đếm giờ lên, không tự nộp
-  if (attempt.mode === 'PRACTICE') return false
-  return attempt.status === 'IN_PROGRESS' && attempt.expiresAt.getTime() <= Date.now()
-}
+/** Đồng hồ sống ở lib/exam-clock.ts — thuần, không kéo theo server-only/DOMPurify. */
+export { GRACE_SEC, overdueSeconds } from './exam-clock'

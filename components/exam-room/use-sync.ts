@@ -116,7 +116,10 @@ export function useSync(attemptId: string, enabled: boolean, callbacks: SyncCall
       if (store.submitted || store.locked) return { kind: 'idle' }
 
       const pending =
-        store.dirtyAnswers.size + store.dirtyAnnotations.size + store.deletedAnnotations.size
+        store.dirtyAnswers.size +
+        store.dirtyAnnotations.size +
+        store.deletedAnnotations.size +
+        (store.dirtyAudio ? 1 : 0)
       if (pending === 0 && !force) return { kind: 'idle' }
 
       const batch = store.takeDirtyBatch()
@@ -147,6 +150,11 @@ export function useSync(attemptId: string, enabled: boolean, callbacks: SyncCall
           ...batch.deleted.map((id) => ({ id, deleted: true as const })),
         ],
         currentSectionId: store.currentSectionId || null,
+        // Rỗng thì bỏ hẳn khỏi payload: route hợp nhất, và một mảng rỗng không mang
+        // thông tin gì ngoài việc làm payload to thêm.
+        audioPlayedSectionIds: batch.audioPlayedSectionIds.length
+          ? batch.audioPlayedSectionIds
+          : undefined,
         /*
           PRACTICE đếm giờ ở client và chỉ có sync mới ghi được xuống DB. Bản cũ
           không bao giờ gửi trường này dù schema và route đều đã hỗ trợ, nên đồng

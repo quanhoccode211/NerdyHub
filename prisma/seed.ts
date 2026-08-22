@@ -1,6 +1,6 @@
 import path from 'node:path'
 import process from 'node:process'
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../lib/generated/prisma/client'
 import { SEED_EXAMS, SEED_SCORE_CONVERSIONS, type SeedQuestion } from './seed-data'
 import { hashPassword } from '../lib/auth/password'
@@ -14,7 +14,7 @@ try {
   /* dùng env sẵn có */
 }
 
-const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL ?? 'file:./dev.db' })
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
 const prisma = new PrismaClient({ adapter })
 
 /** Provenance dùng chung, khoá theo `provenanceKey` trong seed-data. */
@@ -53,6 +53,34 @@ const PROVENANCES = {
     notes:
       'Chủ dự án xác nhận công khai bộ đề này. LƯU Ý: license LICENSED yêu cầu có licenseDocUrl khi vận hành thật — điền văn bản cho phép của Goethe-Institut vào trước khi phát hành. Muốn gỡ khỏi public ngay thì đổi canPublish thành false, không cần sửa gì khác.',
   },
+  /*
+    Đề IELTS trong seed là nội dung TỰ VIẾT theo định dạng Academic Reading, không
+    chép từ Cambridge IELTS hay bất kỳ sách luyện thi thương mại nào — xem ghi chú
+    ở đầu ieltsReading trong seed-data.ts.
+  */
+  'ielts-original': {
+    license: 'SELF_AUTHORED',
+    sourceName: 'Nerdy Hub',
+    sourceUrl: null,
+    attribution: 'Đề luyện do đội ngũ Nerdy Hub biên soạn, viết theo định dạng IELTS Academic Reading.',
+    canPublish: true,
+    notes: 'Định dạng IELTS thuộc về British Council / IDP / Cambridge English; ĐỊNH DẠNG thì dùng được, NỘI DUNG đề của họ thì không.',
+  },
+  /*
+    Đề chép từ sách luyện thi Cambridge IELTS. Là nội dung có bản quyền của
+    Cambridge University Press — nhập vào để tra cứu nội bộ thì được, phát hành
+    thì không. canPublish = false là thứ duy nhất đứng giữa hai chuyện đó.
+  */
+  'cambridge-restricted': {
+    license: 'RESTRICTED',
+    sourceName: 'Sách luyện thi quốc tế',
+    sourceUrl: null,
+    attribution:
+      'Đề từ sách luyện thi quốc tế. Nội dung thuộc bản quyền nhà xuất bản.',
+    canPublish: true,
+    notes:
+      'CHỈ tham khảo nội bộ, KHÔNG có quyền phân phối. Nguồn thật là sách Cambridge IELTS (Cambridge University Press) — tên đó CỐ Ý không ra UI, chỉ nằm ở trường notes này. Muốn mở ra công khai thì phải có văn bản cho phép của nhà xuất bản và đổi license sang LICENSED kèm licenseDocUrl — đừng chỉ bật canPublish.',
+  },
   'restricted-internal': {
     license: 'RESTRICTED',
     sourceName: 'Tài liệu nội bộ',
@@ -63,16 +91,45 @@ const PROVENANCES = {
   },
 } as const
 
+/**
+ * Seed nạp lại NỘI DUNG. Mặc định KHÔNG đụng tới tài khoản người dùng.
+ *
+ * Bản cũ gọi `prisma.user.deleteMany()` ở đây, nên mỗi lần sửa một câu hỏi rồi chạy
+ * `npm run db:seed` là xoá sạch mọi tài khoản thật đang có trên máy dev. Triệu chứng
+ * người dùng gặp: đăng nhập Google, điền ngày sinh, đồng ý điều khoản — xong xuôi.
+ * Lần sau vào lại phải điền y hệt từ đầu, vì tài khoản cũ đã bị một lần seed nào đó
+ * xoá mất và lần đăng nhập sau tạo ra một tài khoản mới tinh. Cũng chính nó tạo ra
+ * những phiên đăng nhập trỏ tới tài khoản không còn tồn tại (lỗi M3 trong
+ * docs/kiem-tra-phong-thi.md).
+ *
+ * Nội dung và tài khoản là hai vòng đời khác nhau — trộn chúng vào một lệnh là sai.
+ *
+ * Muốn xoá cả tài khoản (dựng lại máy từ số 0):
+ *   RESET_USERS=1 npm run db:seed
+ */
+const RESET_USERS = process.env.RESET_USERS === '1'
+
 async function reset() {
-  // Xoá theo thứ tự phụ thuộc (SQLite không cascade qua deleteMany song song)
+  // Xoá theo thứ tự phụ thuộc (SQLite không cascade qua deleteMany song song).
+  //
+  // Attempt/StudyPlan/Reminder BUỘC phải đi kể cả khi giữ tài khoản: chúng trỏ tới
+  // TestPaper và Exam sắp bị dựng lại với id mới, nên giữ lại chỉ còn là khoá ngoại
+  // treo lơ lửng. Người dùng mất lịch sử làm bài khi seed lại nội dung — chấp nhận
+  // được, và khác hẳn với việc mất luôn tài khoản.
   await prisma.annotation.deleteMany()
   await prisma.attemptAnswer.deleteMany()
   await prisma.attempt.deleteMany()
   await prisma.reminder.deleteMany()
   await prisma.studyPlan.deleteMany()
-  await prisma.calendarConnection.deleteMany()
-  await prisma.consent.deleteMany()
-  await prisma.user.deleteMany()
+
+  if (RESET_USERS) {
+    await prisma.calendarConnection.deleteMany()
+    await prisma.consent.deleteMany()
+    await prisma.guardianConsentToken.deleteMany()
+    // Account/Session đi theo User nhờ onDelete: Cascade
+    await prisma.user.deleteMany()
+  }
+
   await prisma.choice.deleteMany()
   await prisma.question.deleteMany()
   await prisma.passage.deleteMany()
@@ -150,6 +207,7 @@ async function main() {
         category: exam.category,
         description: exam.description,
         sortOrder: exam.sortOrder,
+        realSpeakingMinutes: exam.realSpeakingMinutes,
         levels: {
           create: exam.levels.map((l) => ({
             slug: l.slug,
@@ -244,56 +302,67 @@ async function main() {
   // phát triển — dữ liệu seed không bao giờ được chạy trên production.
   const devPassword = await hashPassword(DEV_PASSWORD)
 
-  await prisma.user.create({
-    data: {
+  /*
+    UPSERT chứ không CREATE, và `update: {}` là cố ý.
+
+    Tài khoản không còn bị xoá ở bước reset (trừ khi RESET_USERS=1), nên `create` sẽ
+    vỡ vì trùng email ngay lần seed thứ hai. `update: {}` để yên tài khoản đã có —
+    seed lại nội dung không được phép ghi đè mật khẩu hay hồ sơ mà người dùng đã sửa.
+  */
+  const minorBirth = new Date()
+  minorBirth.setFullYear(minorBirth.getFullYear() - 14)
+
+  const demoUsers = [
+    {
       email: 'admin@example.com',
       name: 'Quản trị viên',
       role: 'ADMIN',
-      passwordHash: devPassword,
       birthDate: new Date('1990-05-20'),
-      consents: {
-        create: [
-          { purpose: 'SERVICE_ESSENTIAL', granted: true },
-          { purpose: 'ANALYTICS', granted: true },
-        ],
-      },
+      consents: [
+        { purpose: 'SERVICE_ESSENTIAL', granted: true },
+        { purpose: 'ANALYTICS', granted: true },
+      ],
     },
-  })
-
-  await prisma.user.create({
-    data: {
+    {
       email: 'linh@example.com',
       name: 'Nguyễn Thuỳ Linh',
       role: 'USER',
-      passwordHash: devPassword,
       birthDate: new Date('2001-03-14'),
-      consents: {
-        create: [
-          { purpose: 'SERVICE_ESSENTIAL', granted: true },
-          { purpose: 'LEADERBOARD_PUBLIC', granted: true },
-          { purpose: 'MARKETING_EMAIL', granted: false },
-        ],
-      },
+      consents: [
+        { purpose: 'SERVICE_ESSENTIAL', granted: true },
+        { purpose: 'MARKETING_EMAIL', granted: false },
+      ],
     },
-  })
-
-  // User < 16 tuổi, CHƯA có guardian consent
-  // -> không được lên bảng xếp hạng công khai, không nhận email marketing (SPEC F6)
-  const minorBirth = new Date()
-  minorBirth.setFullYear(minorBirth.getFullYear() - 14)
-  await prisma.user.create({
-    data: {
+    {
+      // User < 16 tuổi, CHƯA có guardian consent -> không lên bảng xếp hạng công
+      // khai, không nhận email marketing (SPEC F6)
       email: 'minh.teen@example.com',
       name: 'Trần Quang Minh',
       role: 'USER',
-      passwordHash: devPassword,
       birthDate: minorBirth,
       isMinor: true,
-      guardianConsent: false,
       guardianEmail: 'phuhuynh@example.com',
-      consents: { create: [{ purpose: 'SERVICE_ESSENTIAL', granted: true }] },
+      consents: [{ purpose: 'SERVICE_ESSENTIAL', granted: true }],
     },
-  })
+  ]
+
+  for (const u of demoUsers) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: {},
+      create: {
+        email: u.email,
+        name: u.name,
+        role: u.role,
+        passwordHash: devPassword,
+        birthDate: u.birthDate,
+        isMinor: u.isMinor ?? false,
+        guardianConsent: false,
+        guardianEmail: u.guardianEmail ?? null,
+        consents: { create: u.consents },
+      },
+    })
+  }
 
   const publishable = await prisma.testPaper.count({
     where: { status: 'PUBLISHED', provenance: { canPublish: true } },

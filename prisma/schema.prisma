@@ -14,8 +14,19 @@ generator client {
 }
 
 // Prisma 7: connection URL nằm ở prisma.config.ts, không còn ở đây.
+//
+// POSTGRES từ đợt chuyển lên Vercel. SQLite là file trên đĩa, mà Vercel chạy
+// serverless — mỗi lần gọi là một máy khác và đĩa thì mất sau mỗi request.
+//
+// Ba thoả hiệp SQLite ghi ở đầu file VẪN GIỮ NGUYÊN, cố ý:
+//   - String thay cho enum
+//   - JSON string thay cho scalar list (hậu tố ...Json)
+// Postgres làm được cả hai kiểu gốc, nhưng hoàn nguyên chúng nghĩa là sửa
+// lib/json-fields.ts cùng mọi chỗ đọc/ghi — một đợt thay máu không liên quan gì
+// tới việc đưa web lên mạng. Chạy tốt như hiện tại; muốn dọn thì tách thành
+// việc riêng, đừng gộp vào lần deploy đầu.
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // ============ KỲ THI & ĐỀ ============
@@ -29,8 +40,15 @@ model Exam {
   category    String // ExamCategory: LANGUAGE_CERT NATIONAL_EXAM APTITUDE
   description String
 
+  /// Phần NÓI của bài thi THẬT dài bao nhiêu phút. null = kỳ thi vốn không có phần nói.
+  /// Sản phẩm không dựng phần nói; trường này để trang đề nói rõ phần còn thiếu và
+  /// thời gian cộng thêm, thay vì để thí sinh ước lượng sai ngày thi thật.
+  /// Xem ghi chú ở `SeedExam.realSpeakingMinutes` (prisma/seed-data.ts).
+  realSpeakingMinutes Int?
+
   levels     ExamLevel[]
   papers     TestPaper[]
+  favorites  Favorite[]
   studyPlans StudyPlan[]
 
   isActive  Boolean  @default(true)
@@ -90,6 +108,7 @@ model TestPaper {
   totalDuration Int // tổng thời gian, giây
   sections      Section[]
   attempts      Attempt[]
+  favorites     Favorite[]
 
   status      String    @default("DRAFT") // ContentStatus
   publishedAt DateTime?
@@ -210,6 +229,8 @@ model User {
 
   consents     Consent[]
   attempts     Attempt[]
+  favorites    Favorite[]
+  todos        Todo[]
   studyPlans   StudyPlan[]
   calendarConn CalendarConnection?
   role         String              @default("USER") // Role
@@ -323,6 +344,15 @@ model Attempt {
   expiresAt   DateTime
   timeSpent   Int       @default(0)
 
+  /// Bài bị SERVER tự nộp khi hết giờ, không phải người dùng bấm nộp.
+  /// Phân biệt được hai đường này thì trang kết quả mới nói đúng chuyện đã xảy ra.
+  autoSubmitted Boolean @default(false)
+
+  /// String[] -> JSON. Section id đã BẮT ĐẦU phát audio ONCE_NO_SEEK.
+  /// Nguồn sự thật cho cam kết "nghe một lần": state của component không sống sót
+  /// qua F5, nên trước đây tải lại trang là nghe lại được bao nhiêu lần tuỳ thích.
+  audioPlayedSectionIdsJson String @default("[]")
+
   // Kết quả
   rawScore    Float?
   scaledScore Float?
@@ -351,7 +381,7 @@ model AttemptAnswer {
   /// String[] -> JSON
   selectedChoiceIdsJson String  @default("[]")
   textAnswer            String?
-  isCorrect             Boolean? // null = chưa chấm (ESSAY/SPEAKING)
+  isCorrect             Boolean? // null = chưa chấm (ESSAY)
   pointsEarned          Float    @default(0)
 
   isFlagged    Boolean @default(false)
@@ -436,4 +466,61 @@ model CalendarConnection {
   syncEnabled Boolean   @default(true)
   lastSyncAt  DateTime?
   createdAt   DateTime  @default(now())
+}
+
+/// Đề người dùng đánh dấu "quan tâm" — ngôi sao ở Kho đề.
+///
+/// Chủ sở hữu theo đúng khuôn của `Attempt`: một trong hai, không bao giờ cả
+/// hai. Khách vãng lai đánh sao được, và `claimGuestData` gộp về tài khoản khi
+/// họ đăng nhập — nếu không thì đăng nhập xong là mất sạch danh sách quan tâm.
+model Favorite {
+  id      String    @id @default(cuid())
+  userId  String? // null = khách vãng lai
+  user    User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guestId String?
+  /// Đúng MỘT trong hai có giá trị: sao trên một đề, hoặc sao trên cả kỳ thi.
+  /// Hai cấp cùng một bảng vì chúng cùng một khái niệm ("quan tâm") và cùng một
+  /// chủ sở hữu — tách bảng là chép lại nguyên bộ quy tắc chủ sở hữu lần thứ hai.
+  paperId String?
+  paper   TestPaper? @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  examId  String?
+  exam    Exam?      @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  /// Hai unique RIÊNG, không phải một unique ba cột: `@@unique([userId, guestId,
+  /// paperId])` cho phép cùng một người đánh sao hai lần một đề, vì trong SQL
+  /// hai NULL không bằng nhau nên (null, 'g1', 'p') và (null, 'g1', 'p') vẫn
+  /// lọt. Tách ra thì mỗi phía tự chặn trùng trên đúng cột không null của mình.
+  @@unique([userId, paperId])
+  @@unique([guestId, paperId])
+  @@unique([userId, examId])
+  @@unique([guestId, examId])
+  @@index([paperId])
+  @@index([examId])
+}
+
+/// Mục tiêu trong To-do list. CHỈ của người đã đăng nhập.
+///
+/// Khách vãng lai vẫn dùng được widget, nhưng danh sách của họ nằm ở
+/// localStorage và mất khi dọn trình duyệt — đó chính là lý do ô gợi ý đăng
+/// nhập tồn tại. Không dựng đường guestId như `Attempt` hay `Favorite`: bài làm
+/// là thứ mất đi thì không lấy lại được, còn một dòng việc thì gõ lại mất ba
+/// giây, không đáng thêm một nhánh chủ sở hữu nữa vào codebase.
+model Todo {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  text String
+  done Boolean @default(false)
+
+  /// null = việc trong NGÀY (chọn "Hằng ngày"). Có giá trị = mục tiêu dài hạn
+  /// có hạn chót. Lưu lúc 12h trưa giờ local chứ không phải 00:00 — xem
+  /// `dueDateFromDayMonth` trong lib/todos.ts.
+  dueDate DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, done])
 }

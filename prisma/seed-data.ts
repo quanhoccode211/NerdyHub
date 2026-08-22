@@ -1,4 +1,11 @@
 import type { AudioPlayMode, Difficulty, QuestionType, Skill } from '../lib/enums'
+// Nội dung có bản quyền của bên thứ ba nằm riêng một file — xem ghi chú ở đầu file đó.
+import {
+  ieltsCambridgeTest1,
+  ieltsCambridgeTest2,
+  ieltsCambridgeTest3,
+  ieltsCambridgeTest4,
+} from './seed-data-ielts-cambridge'
 
 /**
  * Dữ liệu seed khai báo — SPEC mục 7.
@@ -59,6 +66,19 @@ export type SeedExam = {
   sortOrder: number
   levels: { slug: string; name: string; cefr?: string; sortOrder: number }[]
   papers: SeedPaper[]
+
+  /**
+   * Phần NÓI của bài thi THẬT dài bao nhiêu phút. `null` = kỳ thi này vốn không có
+   * phần nói (TOPIK II, THPT Quốc gia môn Tiếng Anh…).
+   *
+   * BẮT BUỘC KHAI, cố ý không cho optional. Sản phẩm không dựng phần nói (xem
+   * `SKILLS` ở lib/enums.ts), nhưng bỏ trong im lặng thì người dùng luyện với đề 65
+   * phút rồi bước vào phòng thi thật 80 phút. Để trường này optional nghĩa là người
+   * thêm kỳ thi mới quên là xong — không ai báo gì cả. Là trường bắt buộc thì
+   * TypeScript chặn ngay lúc biên dịch, buộc phải TRẢ LỜI câu hỏi "kỳ này có phần
+   * nói không", kể cả khi câu trả lời là `null`.
+   */
+  realSpeakingMinutes: number | null
 }
 
 // helper: tạo nhanh 4 lựa chọn A-D với chỉ số đáp án đúng
@@ -68,6 +88,574 @@ function mc(a: string, b: string, c: string, d: string, correctIndex: number) {
     content: [a, b, c, d][i],
     isCorrect: i === correctIndex,
   }))
+}
+
+// ============================================================================
+// IELTS
+// ============================================================================
+
+/**
+ * NỘI DUNG TỰ BIÊN SOẠN, không phải đề thi thật và không chép từ sách luyện thi.
+ *
+ * Viết theo ĐỊNH DẠNG Academic Reading: 3 passage, 40 câu, 60 phút, thứ tự dạng
+ * câu và độ khó tăng dần đúng như đề thật. Passage 3 dùng YES / NO / NOT GIVEN
+ * thay cho TRUE / FALSE / NOT GIVEN vì bài là văn nghị luận — đó là quy ước của
+ * IELTS, không phải hai kiểu câu khác nhau về mặt kỹ thuật (cùng dùng
+ * TRUE_FALSE_NOTGIVEN, chỉ đổi nhãn lựa chọn).
+ *
+ * MỖI CÂU 1 ĐIỂM, tổng đúng 40 — bảng quy đổi band trong SEED_SCORE_CONVERSIONS
+ * tính theo tỉ lệ phần trăm của 40 câu, nên thêm/bớt câu là band lệch.
+ *
+ * Matching Headings dựng bằng SINGLE_CHOICE với danh sách i–viii lặp lại ở mỗi
+ * câu: phòng thi render mỗi câu độc lập, không có chỗ nào hiện được một "bảng
+ * heading" dùng chung ở đầu nhóm.
+ */
+const ieltsReading: SeedSection = {
+  skill: 'READING',
+  title: 'Academic Reading — Passages 1–3',
+  instructions:
+    'You should spend about 20 minutes on each passage. Answer all questions. Spelling must be correct; answers are marked exactly as written.',
+  duration: 60 * 60,
+  passages: [
+    {
+      title: "The world's appetite for sand",
+      content: `<p>Sand is so ordinary that it is easy to forget how much of modern life is built out of it. After water, it is the most heavily extracted raw material on Earth. It forms the bulk of concrete, it is melted into window glass, it is packed into asphalt, and, after a great deal of refining, it becomes the silicon at the heart of a computer chip. An average family house contains something in the order of two hundred tonnes of it. A kilometre of motorway swallows many times that.</p>
+<p>Because sand is cheap and extremely heavy, it is almost never carried far. Nearly every city sits at the centre of a small ring of quarries, pits and dredging sites that keep its builders supplied. That local dependence is what makes the material politically awkward. The cost of extraction falls on whoever happens to live beside the river or the coast being dug, while the benefit — a new district of apartment towers — usually appears somewhere else entirely.</p>
+<p>Not all sand will do the job. The grains that make good concrete have to be angular, so that they lock against one another once cement binds them. Desert sand, rolled by the wind for thousands of years, is too smooth and too rounded to grip. This is why several of the driest countries on Earth import sand from abroad while dunes drift against the edges of their cities: for the purposes of construction, the sand they already have is the wrong shape. The sand that works comes from rivers, lakes, floodplains and the sea floor — which are precisely the places where taking it away does the most harm.</p>
+<p>The harm takes more than one form. Strip sand from a riverbed and the bed deepens; the banks above it lose their footing and collapse, sometimes taking fields and houses with them. A deeper channel also lets salt water push further upstream, which spoils drinking water and farmland far from any pit. Deltas are especially exposed. A delta only stays above sea level because the river keeps delivering fresh sediment to replace what the sea carries off, and a delta that stops being fed begins, slowly, to sink.</p>
+<p>Most countries regulate extraction on paper. Enforcement is another matter. Sand is bulky, low in value and, unlike ivory or tropical timber, impossible to identify once it has been moved: there is no test that distinguishes a legally dredged grain from a stolen one. Barges work at night, licences cover one stretch of river while the digging happens along the next, and the officials responsible are often the least well paid in the chain. The result is a trade that is substantial, widely documented and very rarely prosecuted.</p>
+<p>Alternatives exist. Rock can be crushed into what the industry calls manufactured sand, which is already the standard material in parts of Europe and Asia. Concrete from demolished buildings can be broken up and used again as aggregate. Buildings can also be designed to use less concrete in the first place — a change that removes the demand rather than relocating it. None of these is a straightforward substitute. Crushing rock takes energy and leaves quarries of its own; recycled aggregate is weaker and is usually kept out of load-bearing structures; and in most places the river is still, by a wide margin, the cheapest option available to a contractor working to a deadline.</p>
+<p>What all this suggests is that the shortage is not really geological. The planet is not running out of rock, and it never will on any timescale that matters to a builder. The mismatch is between where usable sand happens to sit and how fast cities want to be built, and it is a mismatch that pricing, not geology, will have to settle.</p>`,
+      questions: [
+        {
+          number: 1,
+          type: 'TRUE_FALSE_NOTGIVEN',
+          content: 'Sand is the most heavily extracted raw material on Earth.',
+          choices: [
+            { label: 'A', content: 'TRUE' },
+            { label: 'B', content: 'FALSE', isCorrect: true },
+            { label: 'C', content: 'NOT GIVEN' },
+          ],
+          difficulty: 'EASY',
+          tags: ['true-false-notgiven'],
+          explanation: 'Đoạn 1: "After water, it is the most heavily extracted" — nước đứng trên, nên khẳng định này SAI chứ không phải NOT GIVEN.',
+        },
+        {
+          number: 2,
+          type: 'TRUE_FALSE_NOTGIVEN',
+          content: 'Sand is normally carried a long way from where it is dug to where it is used.',
+          choices: [
+            { label: 'A', content: 'TRUE' },
+            { label: 'B', content: 'FALSE', isCorrect: true },
+            { label: 'C', content: 'NOT GIVEN' },
+          ],
+          difficulty: 'EASY',
+          tags: ['true-false-notgiven'],
+          explanation: 'Đoạn 2: "it is almost never carried far".',
+        },
+        {
+          number: 3,
+          type: 'TRUE_FALSE_NOTGIVEN',
+          content: 'Desert sand cannot be used in concrete because its grains are too rounded.',
+          choices: [
+            { label: 'A', content: 'TRUE', isCorrect: true },
+            { label: 'B', content: 'FALSE' },
+            { label: 'C', content: 'NOT GIVEN' },
+          ],
+          difficulty: 'EASY',
+          tags: ['true-false-notgiven'],
+          explanation: 'Đoạn 3: gió mài tròn hạt cát sa mạc nên chúng không bám vào nhau.',
+        },
+        {
+          number: 4,
+          type: 'TRUE_FALSE_NOTGIVEN',
+          content: 'Gulf states pay more for imported sand than they would for sand dug locally.',
+          choices: [
+            { label: 'A', content: 'TRUE' },
+            { label: 'B', content: 'FALSE' },
+            { label: 'C', content: 'NOT GIVEN', isCorrect: true },
+          ],
+          difficulty: 'HARD',
+          tags: ['true-false-notgiven'],
+          explanation: 'Bài có nói các nước khô hạn phải nhập cát, nhưng KHÔNG so sánh giá. Không suy ra được.',
+        },
+        {
+          number: 5,
+          type: 'TRUE_FALSE_NOTGIVEN',
+          content: 'Taking sand from a riverbed can let salt water move further inland.',
+          choices: [
+            { label: 'A', content: 'TRUE', isCorrect: true },
+            { label: 'B', content: 'FALSE' },
+            { label: 'C', content: 'NOT GIVEN' },
+          ],
+          difficulty: 'MEDIUM',
+          tags: ['true-false-notgiven'],
+          explanation: 'Đoạn 4: "A deeper channel also lets salt water push further upstream".',
+        },
+        {
+          number: 6,
+          type: 'TRUE_FALSE_NOTGIVEN',
+          content: 'Illegally extracted sand is easier to trace than illegally cut timber.',
+          choices: [
+            { label: 'A', content: 'TRUE' },
+            { label: 'B', content: 'FALSE', isCorrect: true },
+            { label: 'C', content: 'NOT GIVEN' },
+          ],
+          difficulty: 'MEDIUM',
+          tags: ['true-false-notgiven'],
+          explanation: 'Đoạn 5: cát "unlike ivory or tropical timber, impossible to identify once it has been moved" — ngược lại.',
+        },
+        {
+          number: 7,
+          type: 'FILL_BLANK',
+          content: 'Complete the sentence with ONE WORD ONLY from the passage. Grains used in concrete have to be ________ so that they lock against one another.',
+          correctText: ['angular'],
+          difficulty: 'EASY',
+          tags: ['sentence-completion'],
+          explanation: 'Đoạn 3: "have to be angular, so that they lock against one another".',
+        },
+        {
+          number: 8,
+          type: 'FILL_BLANK',
+          content: 'Complete the sentence with ONE WORD ONLY from the passage. A delta starts to sink once the river stops delivering fresh ________.',
+          correctText: ['sediment'],
+          difficulty: 'MEDIUM',
+          tags: ['sentence-completion'],
+          explanation: 'Đoạn 4: "keeps delivering fresh sediment".',
+        },
+        {
+          number: 9,
+          type: 'FILL_BLANK',
+          content: 'Complete the sentence with ONE WORD ONLY from the passage. Sand produced by crushing rock is called ________ sand.',
+          correctText: ['manufactured'],
+          difficulty: 'MEDIUM',
+          tags: ['sentence-completion'],
+          explanation: 'Đoạn 6: "what the industry calls manufactured sand".',
+        },
+        {
+          number: 10,
+          type: 'FILL_BLANK',
+          content: 'Complete the sentence with ONE WORD ONLY from the passage. Recycled aggregate is usually kept out of ________ structures.',
+          correctText: ['load-bearing', 'load bearing', 'loadbearing'],
+          difficulty: 'HARD',
+          tags: ['sentence-completion'],
+          explanation: 'Đoạn 6: "is usually kept out of load-bearing structures".',
+        },
+        {
+          number: 11,
+          type: 'SHORT_ANSWER',
+          content: 'Answer with NO MORE THAN TWO WORDS from the passage. What is refined from sand to make computer chips?',
+          correctText: ['silicon'],
+          difficulty: 'EASY',
+          tags: ['short-answer'],
+          explanation: 'Đoạn 1: "it becomes the silicon at the heart of a computer chip".',
+        },
+        {
+          number: 12,
+          type: 'SHORT_ANSWER',
+          content: 'Answer with NO MORE THAN TWO WORDS from the passage. Which source of sand is still the cheapest for most contractors?',
+          correctText: ['the river', 'river', 'rivers'],
+          difficulty: 'MEDIUM',
+          tags: ['short-answer'],
+          explanation: 'Đoạn 6: "the river is still, by a wide margin, the cheapest option".',
+        },
+        {
+          number: 13,
+          type: 'SHORT_ANSWER',
+          content: 'Answer with NO MORE THAN TWO WORDS from the passage. According to the writer, what rather than geology will have to settle the problem?',
+          correctText: ['pricing', 'price'],
+          difficulty: 'HARD',
+          tags: ['short-answer'],
+          explanation: 'Đoạn cuối: "a mismatch that pricing, not geology, will have to settle".',
+        },
+      ],
+    },
+    {
+      title: 'Songs with an accent',
+      content: `<p><strong>A</strong>&nbsp; Drive an hour along the coast north of San Francisco, stopping now and then to listen, and a patient ear will notice something odd. The white-crowned sparrows singing at one end of the drive do not sound quite like the ones at the other. The species is the same and the general shape of the song is the same, but the closing trill is built differently, and the change happens over a few kilometres rather than gradually across the whole coast. Biologists borrowed a word from linguistics for this and called them dialects.</p>
+<p><strong>B</strong>&nbsp; The reason a bird has an accent at all is that it is not born knowing its song. A young male hears adults singing during a limited window early in life and stores what he hears. Months later he begins to produce a rambling, unstable version of it, full of false starts, which researchers compare to the babbling of a human infant. Over several weeks he trims this down until it matches the memory, and once it matches, it sets. From that point the song changes very little, no matter what he hears afterwards.</p>
+<p><strong>C</strong>&nbsp; A dialect survives because the birds that learn it tend not to go far. Many young males settle within a short distance of the territory where they were tutored, so the local version is copied again the following spring by the next generation of learners. There is evidence that females raised in an area respond more readily to the song they grew up with, which would add a second pressure in the same direction. A pattern that begins as an accident of geography is, in this way, reinforced every year.</p>
+<p><strong>D</strong>&nbsp; Whether this matters for the species as a whole is disputed. One view holds that dialect boundaries act as soft barriers, discouraging birds from breeding across them and allowing populations on either side to drift apart genetically. The competing view is that the boundaries are audible to researchers but largely irrelevant to the birds, which cross them whenever a territory becomes vacant. Genetic surveys have supported both readings at different sites, and the argument has now run for decades without a decisive result.</p>
+<p><strong>E</strong>&nbsp; Cities complicate the picture further. Traffic produces a wall of low-frequency noise, and a song pitched down in that range is simply lost. Urban sparrows sing at a higher minimum frequency than rural ones, deliver their notes more slowly, and narrow the range of pitches they use. Each of those adjustments makes the song easier to hear beside a road, and each of them also makes it a less impressive display, because the range a male can cover is one of the things a female appears to be judging.</p>
+<p><strong>F</strong>&nbsp; In the spring of 2020 the traffic stopped. Researchers who had been recording sparrows in the Bay Area for years suddenly had a city running at a fraction of its usual volume, and they recorded through it. The birds responded within weeks: they sang more quietly, since there was less to compete with, and at the same time widened their range of pitches, recovering part of the display that noise had been costing them. It was the kind of experiment nobody would be permitted to run deliberately, and it arrived without warning.</p>
+<p><strong>G</strong>&nbsp; The other way to watch a song change is to look backwards. Recordings made in the 1960s and 1970s, archived at the time for no particular purpose, can be compared directly with recordings made at the same sites today. Some dialects have shifted their boundaries; a few have disappeared, and in nearly every case the disappearance follows a fall in the number of birds rather than any change in the song itself. A dialect, it turns out, is a fragile thing — it needs a population large enough to keep teaching it.</p>`,
+      questions: [
+        {
+          number: 14,
+          type: 'SINGLE_CHOICE',
+          content: 'Choose the correct heading for Paragraph B from the list below.',
+          choices: [
+            { label: 'i', content: 'Reasons a local version keeps being copied' },
+            { label: 'ii', content: 'An opportunity created by an unexpected event' },
+            { label: 'iii', content: 'How a young male acquires his song', isCorrect: true },
+            { label: 'iv', content: 'Evidence drawn from decades-old recordings' },
+            { label: 'v', content: 'A comparison between birdsong and human grammar' },
+            { label: 'vi', content: 'Adjustments made in order to be heard' },
+            { label: 'vii', content: 'An argument that remains unsettled' },
+            { label: 'viii', content: 'The commercial value of birdsong research' },
+          ],
+          difficulty: 'MEDIUM',
+          tags: ['matching-headings', 'birdsong'],
+          explanation: 'Đoạn B tả toàn bộ quá trình học hát của chim non: nghe, lưu lại, tập, rồi chốt.',
+        },
+        {
+          number: 15,
+          type: 'SINGLE_CHOICE',
+          content: 'Choose the correct heading for Paragraph C from the list below.',
+          choices: [
+            { label: 'i', content: 'Reasons a local version keeps being copied', isCorrect: true },
+            { label: 'ii', content: 'An opportunity created by an unexpected event' },
+            { label: 'iii', content: 'How a young male acquires his song' },
+            { label: 'iv', content: 'Evidence drawn from decades-old recordings' },
+            { label: 'v', content: 'A comparison between birdsong and human grammar' },
+            { label: 'vi', content: 'Adjustments made in order to be heard' },
+            { label: 'vii', content: 'An argument that remains unsettled' },
+            { label: 'viii', content: 'The commercial value of birdsong research' },
+          ],
+          difficulty: 'MEDIUM',
+          tags: ['matching-headings', 'birdsong'],
+          explanation: 'Đoạn C giải thích vì sao giọng địa phương được chép lại mỗi mùa xuân.',
+        },
+        {
+          number: 16,
+          type: 'SINGLE_CHOICE',
+          content: 'Choose the correct heading for Paragraph D from the list below.',
+          choices: [
+            { label: 'i', content: 'Reasons a local version keeps being copied' },
+            { label: 'ii', content: 'An opportunity created by an unexpected event' },
+            { label: 'iii', content: 'How a young male acquires his song' },
+            { label: 'iv', content: 'Evidence drawn from decades-old recordings' },
+            { label: 'v', content: 'A comparison between birdsong and human grammar' },
+            { label: 'vi', content: 'Adjustments made in order to be heard' },
+            { label: 'vii', content: 'An argument that remains unsettled', isCorrect: true },
+            { label: 'viii', content: 'The commercial value of birdsong research' },
+          ],
+          difficulty: 'MEDIUM',
+          tags: ['matching-headings', 'birdsong'],
+          explanation: 'Đoạn D: hai luồng quan điểm, tranh luận hàng chục năm chưa ngã ngũ.',
+        },
+        {
+          number: 17,
+          type: 'SINGLE_CHOICE',
+          content: 'Choose the correct heading for Paragraph E from the list below.',
+          choices: [
+            { label: 'i', content: 'Reasons a local version keeps being copied' },
+            { label: 'ii', content: 'An opportunity created by an unexpected event' },
+            { label: 'iii', content: 'How a young male acquires his song' },
+            { label: 'iv', content: 'Evidence drawn from decades-old recordings' },
+            { label: 'v', content: 'A comparison between birdsong and human grammar' },
+            { label: 'vi', content: 'Adjustments made in order to be heard', isCorrect: true },
+            { label: 'vii', content: 'An argument that remains unsettled' },
+            { label: 'viii', content: 'The commercial value of birdsong research' },
+          ],
+          difficulty: 'MEDIUM',
+          tags: ['matching-headings', 'birdsong'],
+          explanation: 'Đoạn E: chim thành phố nâng cao độ, hát chậm lại để nghe được cạnh đường.',
+        },
+        {
+          number: 18,
+          type: 'SINGLE_CHOICE',
+          content: 'Choose the correct heading for Paragraph F from the list below.',
+          choices: [
+            { label: 'i', content: 'Reasons a local version keeps being copied' },
+            { label: 'ii', content: 'An opportunity created by an unexpected event', isCorrect: true },
+            { label: 'iii', content: 'How a young male acquires his song' },
+            { label: 'iv', content: 'Evidence drawn from decades-old recordings' },
+            { label: 'v', content: 'A comparison between birdsong and human grammar' },
+            { label: 'vi', content: 'Adjustments made in order to be heard' },
+            { label: 'vii', content: 'An argument that remains unsettled' },
+            { label: 'viii', content: 'The commercial value of birdsong research' },
+          ],
+          difficulty: 'MEDIUM',
+          tags: ['matching-headings', 'birdsong'],
+          explanation: 'Đoạn F: giao thông ngừng năm 2020 tạo ra một thí nghiệm không ai xin phép chạy được.',
+        },
+        {
+          number: 19,
+          type: 'SINGLE_CHOICE',
+          content: 'Choose the correct heading for Paragraph G from the list below.',
+          choices: [
+            { label: 'i', content: 'Reasons a local version keeps being copied' },
+            { label: 'ii', content: 'An opportunity created by an unexpected event' },
+            { label: 'iii', content: 'How a young male acquires his song' },
+            { label: 'iv', content: 'Evidence drawn from decades-old recordings', isCorrect: true },
+            { label: 'v', content: 'A comparison between birdsong and human grammar' },
+            { label: 'vi', content: 'Adjustments made in order to be heard' },
+            { label: 'vii', content: 'An argument that remains unsettled' },
+            { label: 'viii', content: 'The commercial value of birdsong research' },
+          ],
+          difficulty: 'MEDIUM',
+          tags: ['matching-headings', 'birdsong'],
+          explanation: 'Đoạn G: so băng ghi thập niên 1960–70 với băng ghi hôm nay.',
+        },
+        {
+          number: 20,
+          type: 'SINGLE_CHOICE',
+          content: 'What happens to a male sparrow\'s song once it matches the stored memory?',
+          choices: [
+            { label: 'A', content: 'It stops changing for the rest of his life.', isCorrect: true },
+            { label: 'B', content: 'It is retaught to him each spring.' },
+            { label: 'C', content: 'It gradually becomes longer.' },
+            { label: 'D', content: 'It is replaced by the song of a neighbour.' },
+          ],
+          difficulty: 'MEDIUM',
+          tags: ['multiple-choice'],
+          explanation: 'Đoạn B: "once it matches, it sets" và về sau gần như không đổi.',
+        },
+        {
+          number: 21,
+          type: 'SINGLE_CHOICE',
+          content: 'Why do urban sparrows use a narrower range of pitches?',
+          choices: [
+            { label: 'A', content: 'Their territories are smaller than rural ones.' },
+            { label: 'B', content: 'It keeps the song audible beside traffic.', isCorrect: true },
+            { label: 'C', content: 'Females in cities prefer shorter songs.' },
+            { label: 'D', content: 'They have fewer adults to learn from.' },
+          ],
+          difficulty: 'HARD',
+          tags: ['multiple-choice'],
+          explanation: 'Đoạn E: mỗi điều chỉnh đều nhằm nghe được cạnh đường, dù đánh đổi bằng phần trình diễn.',
+        },
+        {
+          number: 22,
+          type: 'SINGLE_CHOICE',
+          content: 'What does the writer emphasise about the 2020 recordings?',
+          choices: [
+            { label: 'A', content: 'They were made by volunteers.' },
+            { label: 'B', content: 'The birds took several years to respond.' },
+            { label: 'C', content: 'The change in the birds came quickly.', isCorrect: true },
+            { label: 'D', content: 'They disproved the idea of dialects.' },
+          ],
+          difficulty: 'MEDIUM',
+          tags: ['multiple-choice'],
+          explanation: 'Đoạn F: "The birds responded within weeks".',
+        },
+        {
+          number: 23,
+          type: 'SINGLE_CHOICE',
+          content: 'What does the writer conclude about dialects that have disappeared?',
+          choices: [
+            { label: 'A', content: 'They were never properly recorded.' },
+            { label: 'B', content: 'They vanished when bird numbers fell.', isCorrect: true },
+            { label: 'C', content: 'They merged with neighbouring dialects.' },
+            { label: 'D', content: 'They were driven out by city noise.' },
+          ],
+          difficulty: 'HARD',
+          tags: ['multiple-choice'],
+          explanation: 'Đoạn G: mất giọng đi sau khi số lượng chim giảm, chứ không phải do bản thân bài hát đổi.',
+        },
+        {
+          number: 24,
+          type: 'FILL_BLANK',
+          content: 'Complete the summary with ONE WORD ONLY from the passage. A young male first produces an unstable song that researchers compare to the ________ of a human infant.',
+          correctText: ['babbling'],
+          difficulty: 'MEDIUM',
+          tags: ['summary-completion'],
+          explanation: 'Đoạn B: "compare to the babbling of a human infant".',
+        },
+        {
+          number: 25,
+          type: 'FILL_BLANK',
+          content: 'Complete the summary with ONE WORD ONLY from the passage. Females appear to respond more readily to the ________ version of the song.',
+          correctText: ['local'],
+          difficulty: 'EASY',
+          tags: ['summary-completion'],
+          explanation: 'Đoạn C: "respond more readily to the song they grew up with" — bản địa phương.',
+        },
+        {
+          number: 26,
+          type: 'FILL_BLANK',
+          content: 'Complete the summary with ONE WORD ONLY from the passage. With the traffic gone, the birds sang more ________ and widened their range of pitches.',
+          correctText: ['quietly', 'softly'],
+          difficulty: 'MEDIUM',
+          tags: ['summary-completion'],
+          explanation: 'Đoạn F: "they sang more quietly".',
+        },
+      ],
+    },
+    {
+      title: 'The ideas an organisation asks for and then refuses',
+      content: `<p>Almost every large organisation runs some version of an innovation programme. There is a suggestion system, or an internal competition, or a week set aside for staff to work on whatever they like. The programmes are usually popular and they usually work, in the narrow sense that ideas arrive. What happens next is the interesting part, because the great majority of those ideas are never adopted, and the reasons have very little to do with their quality.</p>
+<p>The first thing to notice is that generating an idea and adopting one are entirely different activities, requiring different things from the organisation. Generating is cheap, pleasant and reversible. Adopting means someone must stop doing something else, reassign a budget that is already committed, and accept responsibility if the new approach fails. An organisation can be extremely good at the first while being structurally incapable of the second, and it will still describe itself, honestly enough, as innovative.</p>
+<p>Underneath this sits an asymmetry that is rarely stated out loud. A manager who approves a new method and watches it fail has made a visible, attributable mistake, and it will be attached to their name at the next review. A manager who quietly declines the same method, and thereby forfeits a gain nobody ever measures, has made no mistake at all — there is no record of the thing that did not happen. Given those odds, refusing is not timidity but arithmetic, and it is what any careful person would do. The organisation then holds workshops asking why its managers are risk-averse.</p>
+<p>The pilot project is where this logic does its neatest work. A pilot looks like a decision to proceed, and it costs almost nothing to authorise. It runs in one department, produces a report, and then simply ends. Scaling would require the real decision — the reassigned budget, the abandoned process — so the pilot is renewed, or replaced by a second pilot in a different department, and the appearance of movement is maintained for years. Staff learn to read this quickly. Once they have watched two or three of their own ideas enter the pilot stage and evaporate, they stop submitting, and the suggestion box that management installed with such enthusiasm falls silent for reasons that are never investigated.</p>
+<p>Status distorts the picture as well. The same proposal carries different weight depending on who says it, and seniority is not the only variable — distance matters too. It is a common and slightly humiliating experience for a team to see an outside consultant present, at considerable expense, the recommendation they themselves made two years earlier, and to see it accepted this time. The consultant has not had a better idea. The consultant has provided something the internal team could not: an external name to attach to the decision, so that the manager who approves it is no longer the only person exposed if it goes wrong.</p>
+<p>The usual remedy offered is cultural. Leaders are urged to celebrate failure, to run blameless post-mortems, to make it safe to speak up. Some of this genuinely helps, and the research on psychological safety is more solid than most management fashions. But culture is downstream of incentives, and an instruction to be brave does not survive contact with a promotion process that rewards an unblemished record. If the review form still counts visible failures and cannot count invisible ones, the workshop will change what people say and not what they approve.</p>
+<p>The alternative is duller and harder: change the cost of saying yes. Give managers a budget explicitly earmarked for things that may not work, so that spending it is compliance rather than exposure. Set an expected failure rate for that budget and treat an unspent one as the anomaly requiring explanation. Record the decision not to proceed, with a name against it, so that refusing is at least as visible as approving. Move the authority to scale a successful pilot away from the department whose budget it would consume. None of this is inspiring, and none of it will be the subject of a keynote. It is, however, the only part of the problem that an organisation can actually reach.</p>`,
+      questions: [
+        {
+          number: 27,
+          type: 'TRUE_FALSE_NOTGIVEN',
+          content: 'Innovation programmes usually fail to produce any ideas.',
+          choices: [
+            { label: 'A', content: 'YES' },
+            { label: 'B', content: 'NO', isCorrect: true },
+            { label: 'C', content: 'NOT GIVEN' },
+          ],
+          difficulty: 'EASY',
+          tags: ['yes-no-notgiven'],
+          explanation: 'Đoạn 1: các chương trình đó "usually work, in the narrow sense that ideas arrive".',
+        },
+        {
+          number: 28,
+          type: 'TRUE_FALSE_NOTGIVEN',
+          content: 'Producing ideas and adopting them make the same demands on an organisation.',
+          choices: [
+            { label: 'A', content: 'YES' },
+            { label: 'B', content: 'NO', isCorrect: true },
+            { label: 'C', content: 'NOT GIVEN' },
+          ],
+          difficulty: 'MEDIUM',
+          tags: ['yes-no-notgiven'],
+          explanation: 'Đoạn 2: hai việc "entirely different activities, requiring different things".',
+        },
+        {
+          number: 29,
+          type: 'TRUE_FALSE_NOTGIVEN',
+          content: 'A manager who turns down a good proposal rarely leaves any record of having done so.',
+          choices: [
+            { label: 'A', content: 'YES', isCorrect: true },
+            { label: 'B', content: 'NO' },
+            { label: 'C', content: 'NOT GIVEN' },
+          ],
+          difficulty: 'MEDIUM',
+          tags: ['yes-no-notgiven'],
+          explanation: 'Đoạn 3: "there is no record of the thing that did not happen".',
+        },
+        {
+          number: 30,
+          type: 'TRUE_FALSE_NOTGIVEN',
+          content: 'Managers who refuse new methods are behaving irrationally.',
+          choices: [
+            { label: 'A', content: 'YES' },
+            { label: 'B', content: 'NO', isCorrect: true },
+            { label: 'C', content: 'NOT GIVEN' },
+          ],
+          difficulty: 'HARD',
+          tags: ['yes-no-notgiven'],
+          explanation: 'Đoạn 3: tác giả nói ngược lại — "refusing is not timidity but arithmetic".',
+        },
+        {
+          number: 31,
+          type: 'TRUE_FALSE_NOTGIVEN',
+          content: 'Consultants tend to have better ideas than the staff already inside the organisation.',
+          choices: [
+            { label: 'A', content: 'YES' },
+            { label: 'B', content: 'NO', isCorrect: true },
+            { label: 'C', content: 'NOT GIVEN' },
+          ],
+          difficulty: 'MEDIUM',
+          tags: ['yes-no-notgiven'],
+          explanation: 'Đoạn 5: "The consultant has not had a better idea".',
+        },
+        {
+          number: 32,
+          type: 'TRUE_FALSE_NOTGIVEN',
+          content: 'Most organisations now keep a written record of decisions not to proceed.',
+          choices: [
+            { label: 'A', content: 'YES' },
+            { label: 'B', content: 'NO' },
+            { label: 'C', content: 'NOT GIVEN', isCorrect: true },
+          ],
+          difficulty: 'HARD',
+          tags: ['yes-no-notgiven'],
+          explanation: 'Tác giả ĐỀ XUẤT ghi lại ở đoạn cuối, nhưng không nói nơi nào đang làm vậy.',
+        },
+        {
+          number: 33,
+          type: 'SINGLE_CHOICE',
+          content: 'According to the writer, why is a pilot project attractive to managers?',
+          choices: [
+            { label: 'A', content: 'It produces better evidence than a full rollout.' },
+            { label: 'B', content: 'It costs little and postpones the real decision.', isCorrect: true },
+            { label: 'C', content: 'It is usually suggested by consultants.' },
+            { label: 'D', content: 'It gives junior staff experience of leadership.' },
+          ],
+          difficulty: 'MEDIUM',
+          tags: ['multiple-choice'],
+          explanation: 'Đoạn 4: "costs almost nothing to authorise" và tránh được quyết định thật.',
+        },
+        {
+          number: 34,
+          type: 'SINGLE_CHOICE',
+          content: 'What does the writer say happens after staff watch their proposals end at the pilot stage?',
+          choices: [
+            { label: 'A', content: 'They submit the same idea again later.' },
+            { label: 'B', content: 'They take the idea to a competitor.' },
+            { label: 'C', content: 'They stop submitting ideas at all.', isCorrect: true },
+            { label: 'D', content: 'They ask for the programme to be redesigned.' },
+          ],
+          difficulty: 'EASY',
+          tags: ['multiple-choice'],
+          explanation: 'Đoạn 4: "they stop submitting", và hộp góp ý im lặng.',
+        },
+        {
+          number: 35,
+          type: 'SINGLE_CHOICE',
+          content: 'What does an external consultant provide that internal staff cannot?',
+          choices: [
+            { label: 'A', content: 'Experience of other industries' },
+            { label: 'B', content: 'A name to share the risk of the decision', isCorrect: true },
+            { label: 'C', content: 'A lower cost than internal work' },
+            { label: 'D', content: 'Access to more detailed data' },
+          ],
+          difficulty: 'HARD',
+          tags: ['multiple-choice'],
+          explanation: 'Đoạn 5: "an external name to attach to the decision" để người duyệt không đứng một mình.',
+        },
+        {
+          number: 36,
+          type: 'SINGLE_CHOICE',
+          content: 'What is the writer\'s view of research on psychological safety?',
+          choices: [
+            { label: 'A', content: 'It is well supported but not sufficient on its own.', isCorrect: true },
+            { label: 'B', content: 'It is a management fashion with no evidence.' },
+            { label: 'C', content: 'It has been disproved by recent studies.' },
+            { label: 'D', content: 'It matters more than any change to incentives.' },
+          ],
+          difficulty: 'HARD',
+          tags: ['multiple-choice'],
+          explanation: 'Đoạn 6: "more solid than most management fashions", nhưng "culture is downstream of incentives".',
+        },
+        {
+          number: 37,
+          type: 'FILL_BLANK',
+          content: 'Complete the summary with ONE WORD ONLY from the passage. The writer argues that culture sits downstream of ________.',
+          correctText: ['incentives'],
+          difficulty: 'MEDIUM',
+          tags: ['summary-completion'],
+          explanation: 'Đoạn 6: "culture is downstream of incentives".',
+        },
+        {
+          number: 38,
+          type: 'FILL_BLANK',
+          content: 'Complete the summary with ONE WORD ONLY from the passage. Managers should hold a budget earmarked for things that may not ________.',
+          correctText: ['work'],
+          difficulty: 'EASY',
+          tags: ['summary-completion'],
+          explanation: 'Đoạn cuối: "a budget explicitly earmarked for things that may not work".',
+        },
+        {
+          number: 39,
+          type: 'FILL_BLANK',
+          content: 'Complete the summary with ONE WORD ONLY from the passage. A budget of that kind left unspent should be treated as the ________ that has to be explained.',
+          correctText: ['anomaly'],
+          difficulty: 'HARD',
+          tags: ['summary-completion'],
+          explanation: 'Đoạn cuối: "treat an unspent one as the anomaly requiring explanation".',
+        },
+        {
+          number: 40,
+          type: 'FILL_BLANK',
+          content: 'Complete the summary with ONE WORD ONLY from the passage. The power to scale a pilot should be moved away from the ________ whose budget would pay for it.',
+          correctText: ['department'],
+          difficulty: 'MEDIUM',
+          tags: ['summary-completion'],
+          explanation: 'Đoạn cuối: "away from the department whose budget it would consume".',
+        },
+      ],
+    },
+  ],
 }
 
 // ============================================================================
@@ -820,9 +1408,9 @@ const thptReading: SeedSection = {
 //  1. Tranh minh hoạ ở Hören Teil 1 (giá áo len, mặt đồng hồ, đĩa thức ăn…).
 //     Phương án trả lời đã ghi rõ bằng chữ ("Dreißig Euro", "15 Uhr", "Pommes")
 //     nên bỏ tranh không làm mất thông tin để giải — đáp án nằm ở file nghe.
-//  2. Thẻ từ / thẻ tranh của Sprechen: đề gốc là thi nói theo nhóm, không chấm
-//     tự động được. Giữ lại nguyên đề bài dưới dạng câu SPEAKING để người học
-//     tự luyện; engine đánh isCorrect = null và loại khỏi tổng điểm.
+//  2. TOÀN BỘ phần Sprechen. Sản phẩm không định hướng kỹ năng nói: đề gốc là thi
+//     nói theo nhóm, cần giám khảo, không có cách nào chấm hay luyện tử tế trong
+//     một phòng thi trên trình duyệt. Đề vì vậy chỉ còn Hören / Lesen / Schreiben.
 // ============================================================================
 
 /** Hai lựa chọn Richtig/Falsch — dạng câu chiếm phần lớn đề A1/A2. */
@@ -1338,53 +1926,90 @@ const sd1Schreiben: SeedSection = {
   ],
 }
 
-const sd1Sprechen: SeedSection = {
-  skill: 'SPEAKING',
-  title: 'Sprechen',
-  instructions:
-    'Dieser Test hat drei Teile. Die mündliche Prüfung ist eine Gruppenprüfung mit maximal vier Teilnehmenden. Hier zum Selbstüben: sprechen Sie Ihre Antworten laut oder nehmen Sie sie auf. Diese Teile werden nicht automatisch bewertet.',
-  duration: 15 * 60,
-  questions: [
-    {
-      number: 1,
-      type: 'SPEAKING',
-      content:
-        'Teil 1 — Sich vorstellen. Erzählen Sie: Wer sind Sie? Nutzen Sie die Stichwörter: Name? Alter? Land? Wohnort? Sprachen? Beruf? Hobby?',
-      difficulty: 'EASY',
-      tags: ['sprechen', 'teil-1', 'vorstellung'],
-    },
-    {
-      number: 2,
-      type: 'SPEAKING',
-      content:
-        'Teil 2 — Um Informationen bitten und Informationen geben. Thema: Essen & Trinken. Bilden Sie zu jedem Stichwort eine Frage und beantworten Sie sie: Frühstück · Lieblingsessen · Sonntag · Bier · Fleisch · Brot.',
-      difficulty: 'MEDIUM',
-      tags: ['sprechen', 'teil-2', 'essen-trinken'],
-    },
-    {
-      number: 3,
-      type: 'SPEAKING',
-      content:
-        'Teil 2 — Um Informationen bitten und Informationen geben. Thema: Einkaufen. Bilden Sie zu jedem Stichwort eine Frage und beantworten Sie sie: Zeitung · Kasse · Obst · Schuhe · Buch · Stadtplan.',
-      difficulty: 'MEDIUM',
-      tags: ['sprechen', 'teil-2', 'einkaufen'],
-    },
-    {
-      number: 4,
-      type: 'SPEAKING',
-      content:
-        'Teil 3 — Bitten formulieren und darauf reagieren. Formulieren Sie zu jedem Bild eine Bitte und reagieren Sie darauf. Die Bildkarten zeigen: Autoschlüssel · Buch · Anzug/Jacke · Bleistift · Tisch und Stuhl · Uhr/Kette · Apfel · Messer und Gabel · Glas Wasser · Rauchverbot · Aktentasche · Radio.',
-      difficulty: 'MEDIUM',
-      tags: ['sprechen', 'teil-3', 'bitten'],
-    },
-  ],
-}
-
 // ============================================================================
 // EXPORT
 // ============================================================================
 
 export const SEED_EXAMS: SeedExam[] = [
+  {
+    /*
+      IELTS — kỳ thi đã dựng xong phần khung, CHƯA có đề.
+
+      `papers: []` là trạng thái có chủ ý, không phải thiếu sót: bảng quy đổi
+      band, cấp độ và strategy đều đã sẵn, chỉ còn phần nội dung đang chờ một
+      nguồn có quyền phát hành. Thêm đề vào đây là xong, không phải sửa gì khác.
+
+      ĐỪNG chép đề từ sách Cambridge IELTS (hay bất kỳ sách luyện thi thương mại
+      nào) vào đây. Đó là nội dung có bản quyền; nếu vì lý do nào đó vẫn nhập
+      vào thì provenance PHẢI là RESTRICTED với canPublish = false — xem
+      lib/content-filter.ts.
+    */
+    slug: 'ielts',
+    name: 'IELTS',
+    fullName: 'International English Language Testing System',
+    language: 'EN',
+    category: 'LANGUAGE_CERT',
+    description:
+      'Kỳ thi tiếng Anh quốc tế do British Council, IDP và Cambridge English đồng tổ chức. Bản Academic dùng để xét tuyển đại học và định cư, chấm theo band 0–9 cho từng kỹ năng Nghe, Đọc, Viết, Nói.',
+    sortOrder: 1,
+    // Speaking 11–14 phút, phỏng vấn trực tiếp với giám khảo
+    realSpeakingMinutes: 14,
+    levels: [
+      { slug: 'academic', name: 'Academic', sortOrder: 1 },
+      { slug: 'general-training', name: 'General Training', sortOrder: 2 },
+    ],
+    papers: [
+      {
+        slug: 'academic-reading-practice-1',
+        title: 'IELTS Academic Reading — Practice Test 1',
+        levelSlug: 'academic',
+        year: 2026,
+        totalDuration: 60 * 60,
+        status: 'PUBLISHED',
+        provenanceKey: 'ielts-original',
+        sections: [ieltsReading],
+      },
+      /*
+        BỐN ĐỀ CÓ BẢN QUYỀN — status DRAFT *và* provenance canPublish = false.
+
+        Hai khoá độc lập của content-filter (xem lib/content-filter.ts) đều đóng,
+        cố ý: mấy đề này nhập vào để tra cứu nội bộ, không để phát hành. Gỡ một
+        trong hai khoá vẫn chưa lộ ra ngoài — phải gỡ cả hai, và việc đó cần giấy
+        phép của Cambridge University Press trước.
+
+        Dựng bằng map chứ không viết tay bốn lần: bốn đề chỉ khác nhau ở SỐ. Viết
+        tay thì sớm muộn có một đề bị sửa `status` hay `provenanceKey` lệch khỏi
+        ba đề còn lại mà không ai thấy — mà chính hai trường đó là thứ giữ nội
+        dung có bản quyền không ra ngoài.
+      */
+      ...(
+        [
+          [1, ieltsCambridgeTest1],
+          [2, ieltsCambridgeTest2],
+          [3, ieltsCambridgeTest3],
+          [4, ieltsCambridgeTest4],
+        ] as const
+      ).map(([n, section]) => ({
+        /*
+          KHÔNG có chữ "Cambridge" ở slug lẫn tiêu đề — theo yêu cầu của chủ dự
+          án: tên nhà xuất bản không ra UI, mà đường dẫn cũng là UI. Nguồn thật
+          vẫn ghi đủ ở `notes` của provenance `cambridge-restricted`.
+
+          Đổi slug là đổi đường dẫn công khai của bốn đề này. Đề đã nằm trong
+          database thì phải đổi bằng `scripts/rename-ielts-practice.ts`, seed
+          chỉ lo lần nạp mới.
+        */
+        slug: `academic-reading-practice-c${n}`,
+        title: `IELTS Academic Reading — Practice C${n}`,
+        levelSlug: 'academic',
+        year: 2026,
+        totalDuration: 60 * 60,
+        status: 'PUBLISHED' as const,
+        provenanceKey: 'cambridge-restricted',
+        sections: [section],
+      })),
+    ],
+  },
   {
     slug: 'vstep',
     name: 'VSTEP',
@@ -1392,8 +2017,10 @@ export const SEED_EXAMS: SeedExam[] = [
     language: 'EN',
     category: 'LANGUAGE_CERT',
     description:
-      'Kỳ thi đánh giá năng lực tiếng Anh theo Khung năng lực ngoại ngữ 6 bậc dùng cho Việt Nam. VSTEP.3-5 đánh giá từ bậc 3 (B1) đến bậc 5 (C1), gồm 4 kỹ năng Nghe, Nói, Đọc, Viết.',
+      'Kỳ thi đánh giá năng lực tiếng Anh theo Khung năng lực ngoại ngữ 6 bậc dùng cho Việt Nam. VSTEP.3-5 đánh giá từ bậc 3 (B1) đến bậc 5 (C1), gồm các kỹ năng Nghe, Đọc, Viết.',
     sortOrder: 1,
+    // VSTEP.3-5 có phần Nói 12 phút, 3 phần thi (Bộ GD&ĐT)
+    realSpeakingMinutes: 12,
     levels: [
       { slug: 'b1', name: 'Bậc 3 (B1)', cefr: 'B1', sortOrder: 1 },
       { slug: 'b2', name: 'Bậc 4 (B2)', cefr: 'B2', sortOrder: 2 },
@@ -1421,6 +2048,8 @@ export const SEED_EXAMS: SeedExam[] = [
     description:
       'Kỳ thi năng lực tiếng Hàn do Viện Giáo dục Quốc tế Quốc gia Hàn Quốc (NIIED) tổ chức. TOPIK II đánh giá từ cấp 3 đến cấp 6 qua hai kỹ năng Nghe và Đọc, cùng phần Viết.',
     sortOrder: 2,
+    // TOPIK II chỉ có Nghe, Viết, Đọc — không có phần Nói
+    realSpeakingMinutes: null,
     levels: [
       { slug: 'topik-1', name: 'TOPIK I (Cấp 1–2)', sortOrder: 1 },
       { slug: 'topik-2', name: 'TOPIK II (Cấp 3–6)', sortOrder: 2 },
@@ -1447,6 +2076,8 @@ export const SEED_EXAMS: SeedExam[] = [
     description:
       'Chứng chỉ tiếng Đức của Goethe-Institut, công nhận trên toàn thế giới và bám theo Khung tham chiếu châu Âu (CEFR). Mỗi đề gồm bốn phần Hören, Lesen, Schreiben và Sprechen. Đề trong kho là Modellsatz và Übungssatz chính thức do Goethe-Institut phát hành.',
     sortOrder: 4,
+    // Start Deutsch 1: Sprechen thi theo nhóm, khoảng 15 phút (Goethe-Institut)
+    realSpeakingMinutes: 15,
     levels: [
       { slug: 'a1', name: 'A1 — Start Deutsch 1', cefr: 'A1', sortOrder: 1 },
       { slug: 'a2', name: 'A2', cefr: 'A2', sortOrder: 2 },
@@ -1458,10 +2089,12 @@ export const SEED_EXAMS: SeedExam[] = [
         title: 'Goethe-Zertifikat A1 — Start Deutsch 1, Modellsatz',
         levelSlug: 'a1',
         year: 2024,
-        totalDuration: 80 * 60,
+        // Hören 20 + Lesen 25 + Schreiben 20. Bản in là 80 phút vì có thêm
+        // Sprechen 15 phút — phần đó đã bỏ khỏi sản phẩm, nên thời gian phải bỏ theo.
+        totalDuration: 65 * 60,
         status: 'PUBLISHED',
         provenanceKey: 'goethe-institut',
-        sections: [sd1Hoeren, sd1Lesen, sd1Schreiben, sd1Sprechen],
+        sections: [sd1Hoeren, sd1Lesen, sd1Schreiben],
       },
     ],
   },
@@ -1474,6 +2107,8 @@ export const SEED_EXAMS: SeedExam[] = [
     description:
       'Kỳ thi tốt nghiệp THPT do Bộ Giáo dục và Đào tạo tổ chức, đồng thời là căn cứ xét tuyển đại học. Đề minh hoạ được Bộ công bố công khai hằng năm.',
     sortOrder: 3,
+    // Môn Tiếng Anh THPT Quốc gia thi trên giấy, không có phần Nói
+    realSpeakingMinutes: null,
     levels: [
       { slug: 'tieng-anh', name: 'Môn Tiếng Anh', sortOrder: 1 },
       { slug: 'toan', name: 'Môn Toán', sortOrder: 2 },
@@ -1549,6 +2184,50 @@ export const SEED_SCORE_CONVERSIONS: {
   { examSlug: 'topik', levelSlug: 'topik-2', minRaw: 60, maxRaw: 74.99, scaled: 200, label: '5급' },
   { examSlug: 'topik', levelSlug: 'topik-2', minRaw: 75, maxRaw: 89.99, scaled: 250, label: '6급' },
   { examSlug: 'topik', levelSlug: 'topik-2', minRaw: 90, maxRaw: 100, scaled: 290, label: '6급' },
+
+  /*
+    IELTS Academic Reading: bảng quy đổi raw/40 -> band do IELTS công bố.
+
+    Bảng gốc tính theo SỐ CÂU ĐÚNG, còn convert() ở lib/scoring/strategies.ts
+    làm việc trên PHẦN TRĂM, nên mỗi mốc ở đây là số câu / 40 * 100 (mỗi câu =
+    2,5%). Ví dụ 30/40 = 75% -> band 7.0.
+
+    HỆ QUẢ PHẢI BIẾT: đề ít hơn 40 câu vẫn quy đổi được, nhưng band khi đó là
+    ƯỚC LƯỢNG chứ không phải band thật — bảng của IELTS chỉ định nghĩa cho đúng
+    một đề đủ 40 câu. Đề luyện từng passage nên đọc con số này như tham khảo.
+  */
+  { examSlug: 'ielts', skill: 'READING', minRaw: 0, maxRaw: 9.99, scaled: 2.0 },
+  { examSlug: 'ielts', skill: 'READING', minRaw: 10, maxRaw: 14.99, scaled: 2.5 },
+  { examSlug: 'ielts', skill: 'READING', minRaw: 15, maxRaw: 19.99, scaled: 3.0 },
+  { examSlug: 'ielts', skill: 'READING', minRaw: 20, maxRaw: 24.99, scaled: 3.5 },
+  { examSlug: 'ielts', skill: 'READING', minRaw: 25, maxRaw: 32.49, scaled: 4.0 },
+  { examSlug: 'ielts', skill: 'READING', minRaw: 32.5, maxRaw: 37.49, scaled: 4.5 },
+  { examSlug: 'ielts', skill: 'READING', minRaw: 37.5, maxRaw: 47.49, scaled: 5.0 },
+  { examSlug: 'ielts', skill: 'READING', minRaw: 47.5, maxRaw: 57.49, scaled: 5.5 },
+  { examSlug: 'ielts', skill: 'READING', minRaw: 57.5, maxRaw: 67.49, scaled: 6.0 },
+  { examSlug: 'ielts', skill: 'READING', minRaw: 67.5, maxRaw: 74.99, scaled: 6.5 },
+  { examSlug: 'ielts', skill: 'READING', minRaw: 75, maxRaw: 82.49, scaled: 7.0 },
+  { examSlug: 'ielts', skill: 'READING', minRaw: 82.5, maxRaw: 87.49, scaled: 7.5 },
+  { examSlug: 'ielts', skill: 'READING', minRaw: 87.5, maxRaw: 92.49, scaled: 8.0 },
+  { examSlug: 'ielts', skill: 'READING', minRaw: 92.5, maxRaw: 97.49, scaled: 8.5 },
+  { examSlug: 'ielts', skill: 'READING', minRaw: 97.5, maxRaw: 100, scaled: 9.0 },
+
+  // Band tổng: đề Reading-only nên tổng bằng chính band Reading.
+  { examSlug: 'ielts', minRaw: 0, maxRaw: 9.99, scaled: 2.0, label: 'Band 2.0' },
+  { examSlug: 'ielts', minRaw: 10, maxRaw: 14.99, scaled: 2.5, label: 'Band 2.5' },
+  { examSlug: 'ielts', minRaw: 15, maxRaw: 19.99, scaled: 3.0, label: 'Band 3.0' },
+  { examSlug: 'ielts', minRaw: 20, maxRaw: 24.99, scaled: 3.5, label: 'Band 3.5' },
+  { examSlug: 'ielts', minRaw: 25, maxRaw: 32.49, scaled: 4.0, label: 'Band 4.0' },
+  { examSlug: 'ielts', minRaw: 32.5, maxRaw: 37.49, scaled: 4.5, label: 'Band 4.5' },
+  { examSlug: 'ielts', minRaw: 37.5, maxRaw: 47.49, scaled: 5.0, label: 'Band 5.0' },
+  { examSlug: 'ielts', minRaw: 47.5, maxRaw: 57.49, scaled: 5.5, label: 'Band 5.5' },
+  { examSlug: 'ielts', minRaw: 57.5, maxRaw: 67.49, scaled: 6.0, label: 'Band 6.0' },
+  { examSlug: 'ielts', minRaw: 67.5, maxRaw: 74.99, scaled: 6.5, label: 'Band 6.5' },
+  { examSlug: 'ielts', minRaw: 75, maxRaw: 82.49, scaled: 7.0, label: 'Band 7.0' },
+  { examSlug: 'ielts', minRaw: 82.5, maxRaw: 87.49, scaled: 7.5, label: 'Band 7.5' },
+  { examSlug: 'ielts', minRaw: 87.5, maxRaw: 92.49, scaled: 8.0, label: 'Band 8.0' },
+  { examSlug: 'ielts', minRaw: 92.5, maxRaw: 97.49, scaled: 8.5, label: 'Band 8.5' },
+  { examSlug: 'ielts', minRaw: 97.5, maxRaw: 100, scaled: 9.0, label: 'Band 9.0' },
 
   // THPT Quốc gia: thang 0–10
   { examSlug: 'thpt-quoc-gia', minRaw: 0, maxRaw: 100, scaled: 0, label: 'Theo tỉ lệ' },

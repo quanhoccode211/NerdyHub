@@ -59,9 +59,9 @@ export async function getPapersForExam(examId: string, filters: PaperFilters) {
   // Lọc theo kỹ năng: đề phải chứa ít nhất một section thuộc kỹ năng đó
   if (filters.skill) where.sections = { some: { skill: filters.skill } }
 
-  const orderBy: Prisma.TestPaperOrderByWithRelationInput =
+  const orderBy: Prisma.TestPaperOrderByWithRelationInput | Prisma.TestPaperOrderByWithRelationInput[] =
     filters.sort === 'newest'
-      ? { publishedAt: 'desc' }
+      ? [{ year: 'desc' }, { publishedAt: 'desc' }]
       : filters.sort === 'duration'
         ? { totalDuration: 'asc' }
         : { attemptCount: 'desc' }
@@ -71,7 +71,7 @@ export async function getPapersForExam(examId: string, filters: PaperFilters) {
     orderBy,
     include: {
       level: true,
-      provenance: { select: { attribution: true, sourceName: true, license: true } },
+      provenance: { select: { attribution: true, sourceName: true } },
       sections: { select: { skill: true, duration: true }, orderBy: { sortOrder: 'asc' } },
       _count: { select: { sections: true } },
     },
