@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import Link from 'next/link'
-import type { ExamProgress } from '@/lib/dashboard'
+import type { ExamProgressResult } from '@/lib/dashboard'
 import { LANGUAGE_FLAGS, languageStripe, type Language } from '@/lib/enums'
 import { CardHeader } from '../shell/app-shell'
 import { vi as MESSAGES_VI, type MessageKey } from '@/lib/i18n/messages'
@@ -23,7 +23,7 @@ import {
 
 /* Nhãn ngôn ngữ giờ nằm trong từ điển (`lang.*`) — xem hàm dịch bên dưới. */
 
-export function TestProgress({ exams }: { exams: ExamProgress[] }) {
+export function TestProgress({ exams, mode }: ExamProgressResult) {
   const scroller = useRef<HTMLDivElement>(null)
   const [atStart, setAtStart] = useState(true)
   const [atEnd, setAtEnd] = useState(false)
@@ -47,13 +47,23 @@ export function TestProgress({ exams }: { exams: ExamProgress[] }) {
     scroller.current?.scrollBy({ left: dir * 280, behavior: 'smooth' })
   }
 
-  const remaining = exams.reduce((s, e) => s + Math.max(0, e.totalPapers - e.donePapers), 0)
+  /*
+    CHẾ ĐỘ ĐỀ CỬ: người dùng chưa đánh sao đề nào, các thẻ dưới đây là gợi ý chứ
+    không phải tiến độ của họ. Mọi con số tiến độ đều là 0 nên thanh %, dòng
+    "0/N đề" và pill "+N đề" đều bị giấu — hiện chúng ra là vẽ một tiến độ
+    không có thật rồi bắt người đọc tự hiểu là nó không thật.
+  */
+  const recommending = mode === 'recommended'
+
+  const remaining = recommending
+    ? 0
+    : exams.reduce((s, e) => s + Math.max(0, e.totalPapers - e.donePapers), 0)
 
   return (
     <section className="card p-5 md:p-6">
       <CardHeader
         icon={<TargetIcon size={17} />}
-        title={t('progress.title')}
+        title={recommending ? t('progress.recommendTitle') : t('progress.title')}
         meta={
           remaining > 0 ? (
             <span className="pill bg-accent text-[var(--color-accent-fg)]">{t('progress.remaining', { count: remaining })}</span>
@@ -85,6 +95,12 @@ export function TestProgress({ exams }: { exams: ExamProgress[] }) {
           </>
         }
       />
+
+      {recommending && (
+        <p className="mb-4 text-[15px] leading-relaxed text-muted-strong">
+          {t('progress.recommendLead')}
+        </p>
+      )}
 
       {exams.length === 0 ? (
         <p className="panel p-8 text-center text-[15px] text-muted">
@@ -168,19 +184,26 @@ export function TestProgress({ exams }: { exams: ExamProgress[] }) {
                 </div>
 
                 <div className="mt-auto pt-6">
-                  <div className="h-2 overflow-hidden rounded-pill bg-soft">
-                    <div
-                      className="h-full rounded-pill bg-accent transition-[width] duration-500"
-                      style={{ width: `${Math.max(exam.percent, 3)}%` }}
-                    />
-                  </div>
+                  {!recommending && (
+                    <>
+                      <div className="h-2 overflow-hidden rounded-pill bg-soft">
+                        <div
+                          className="h-full rounded-pill bg-accent transition-[width] duration-500"
+                          style={{ width: `${Math.max(exam.percent, 3)}%` }}
+                        />
+                      </div>
 
-                  <div className="mt-2.5 flex items-center justify-between text-[14px]">
-                    <span className="font-medium text-muted-strong">
-                      {t('progress.doneOf', { done: exam.donePapers, total: exam.totalPapers })}
-                    </span>
-                    <span className="font-bold">{exam.percent}%</span>
-                  </div>
+                      <div className="mt-2.5 flex items-center justify-between text-[14px]">
+                        <span className="font-medium text-muted-strong">
+                          {t('progress.doneOf', {
+                            done: exam.donePapers,
+                            total: exam.totalPapers,
+                          })}
+                        </span>
+                        <span className="font-bold">{exam.percent}%</span>
+                      </div>
+                    </>
+                  )}
 
                   <Link
                     href={
@@ -191,11 +214,13 @@ export function TestProgress({ exams }: { exams: ExamProgress[] }) {
                     className="mt-3.5 flex w-full items-center justify-center gap-2 rounded-pill bg-accent py-2.5 text-[14px] font-semibold text-[var(--color-accent-fg)] transition-opacity hover:opacity-88"
                   >
                     <PlayIcon size={12} />
-                    {exam.inProgressAttemptId
-                      ? t('progress.continue')
-                      : started
-                        ? t('progress.nextPaper')
-                        : t('progress.start')}
+                    {recommending
+                      ? t('progress.recommendCta')
+                      : exam.inProgressAttemptId
+                        ? t('progress.continue')
+                        : started
+                          ? t('progress.nextPaper')
+                          : t('progress.start')}
                   </Link>
                 </div>
               </article>

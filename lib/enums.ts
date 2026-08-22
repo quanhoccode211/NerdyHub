@@ -140,7 +140,15 @@ export function languageStripe(language: Language, deg: 90 | 180 = 180): string 
   return `linear-gradient(${deg}deg, ${stops.join(', ')})`
 }
 
-export const EXAM_CATEGORIES = ['LANGUAGE_CERT', 'NATIONAL_EXAM', 'APTITUDE'] as const
+/**
+ * THỨ TỰ Ở ĐÂY LÀ THỨ TỰ HIỆN TRÊN /de-thi — `app/(marketing)/de-thi/page.tsx`
+ * duyệt đúng mảng này để dựng từng nhóm. Đổi chỗ hai phần tử là đổi bố cục
+ * trang, không phải chỉ đổi một danh sách hằng.
+ *
+ * Kỳ thi quốc gia đứng TRƯỚC chứng chỉ ngoại ngữ: người đọc là học sinh Việt
+ * Nam, và kỳ thi tốt nghiệp THPT là thứ gần họ nhất.
+ */
+export const EXAM_CATEGORIES = ['NATIONAL_EXAM', 'LANGUAGE_CERT', 'APTITUDE'] as const
 export type ExamCategory = (typeof EXAM_CATEGORIES)[number]
 
 export const EXAM_CATEGORY_LABELS: Record<ExamCategory, string> = {
@@ -169,11 +177,24 @@ export type HighlightColor = (typeof HIGHLIGHT_COLORS)[number]
 export const ROLES = ['USER', 'TEACHER', 'REVIEWER', 'ADMIN'] as const
 export type Role = (typeof ROLES)[number]
 
+/*
+  BỎ `ANALYTICS` và `LEADERBOARD_PUBLIC` (theo yêu cầu chủ dự án):
+
+    • ANALYTICS — thống kê là số liệu ẩn danh, gộp lại theo đám đông, không tách
+      ra được một người cụ thể. Không phải "dữ liệu cá nhân" theo NĐ 13 nên
+      không cần một sự đồng ý riêng. Ngày nào thống kê chạm tới thứ nhận dạng
+      được người dùng thì phải trả mục đích này về danh sách.
+    • LEADERBOARD_PUBLIC — sản phẩm không có bảng xếp hạng. Xin đồng ý cho một
+      việc mình không làm là hỏi thừa, và làm loãng đúng bốn dòng người ta thật
+      sự cần đọc.
+
+  Hàng cũ trong bảng `Consent` KHÔNG bị xoá — mọi đường đọc đều lọc qua hằng số
+  này (xem `readConsents`) nên chúng nằm im, và vẫn còn đó nếu cần chứng minh
+  lịch sử đồng ý.
+*/
 export const CONSENT_PURPOSES = [
   'SERVICE_ESSENTIAL', // bắt buộc để dùng dịch vụ
-  'ANALYTICS',
   'MARKETING_EMAIL',
-  'LEADERBOARD_PUBLIC',
   'CALENDAR_ACCESS',
 ] as const
 export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number]
@@ -191,13 +212,16 @@ export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number]
 export const CONSENT_FORM_PURPOSES = ['SERVICE_ESSENTIAL', 'MARKETING_EMAIL'] as const
 
 /**
- * Nằm trong nội dung Điều khoản sử dụng — bấm đồng ý điều khoản là đồng ý luôn.
+ * Hiện thành công tắc ở trang Cài đặt và Dữ liệu & quyền riêng tư.
  *
- * Chỉ gộp được vì Điều khoản là BẮT BUỘC ở cả hai luồng tạo tài khoản (đăng ký
- * bằng mật khẩu và hoàn tất hồ sơ sau khi đăng nhập Google), nên không có đường
- * nào tạo được tài khoản mà chưa đọc tới phần mô tả hai mục này.
+ * `CALENDAR_ACCESS` cố ý KHÔNG có mặt: nó được hỏi đúng lúc bấm kết nối ở
+ * /lich-on và rút lại bằng nút ngắt kết nối ngay tại đó. Bày thêm một công tắc
+ * ở Cài đặt thì có hai chỗ nói về cùng một thứ, mà tắt ở đây lại không thu hồi
+ * được token đang nằm trong `CalendarConnection` — một công tắc nói dối.
+ *
+ * Quyền rút lại theo NĐ 13 vì thế vẫn nguyên: chỉ khác chỗ bấm.
  */
-export const CONSENT_TERMS_PURPOSES = ['ANALYTICS', 'LEADERBOARD_PUBLIC'] as const
+export const CONSENT_SETTINGS_PURPOSES = ['SERVICE_ESSENTIAL', 'MARKETING_EMAIL'] as const
 
 /*
   CALENDAR_ACCESS KHÔNG nằm trong nhóm nào ở trên, và đó là chủ ý.

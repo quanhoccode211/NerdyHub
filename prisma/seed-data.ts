@@ -1990,8 +1990,17 @@ export const SEED_EXAMS: SeedExam[] = [
           [4, ieltsCambridgeTest4],
         ] as const
       ).map(([n, section]) => ({
-        slug: `academic-reading-cambridge-test-${n}`,
-        title: `IELTS Academic Reading — Cambridge Test ${n}`,
+        /*
+          KHÔNG có chữ "Cambridge" ở slug lẫn tiêu đề — theo yêu cầu của chủ dự
+          án: tên nhà xuất bản không ra UI, mà đường dẫn cũng là UI. Nguồn thật
+          vẫn ghi đủ ở `notes` của provenance `cambridge-restricted`.
+
+          Đổi slug là đổi đường dẫn công khai của bốn đề này. Đề đã nằm trong
+          database thì phải đổi bằng `scripts/rename-ielts-practice.ts`, seed
+          chỉ lo lần nạp mới.
+        */
+        slug: `academic-reading-practice-c${n}`,
+        title: `IELTS Academic Reading — Practice C${n}`,
         levelSlug: 'academic',
         year: 2026,
         totalDuration: 60 * 60,

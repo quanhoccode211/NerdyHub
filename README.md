@@ -66,8 +66,12 @@ app/
   (app)/         Sau đăng nhập — dùng AppShell
   (exam)/thi/    PHÒNG THI, cố ý không có rail điều hướng
   api/attempts/  Tạo / khôi phục / đồng bộ / nộp bài
+  api/favorites/ Sao "quan tâm" — bật/tắt ở cấp đề và cấp kỳ thi
+  api/todos/     To-do list của người đã đăng nhập
 lib/
   content-filter  Chốt chặn canPublish
+  favorites       Đọc/bật sao, lọc lại qua publicPaperFilter
+  todos           Kiểu chung + phép tính hạn chót (không server-only)
   exam-clock      GRACE_SEC + overdueSeconds
   sanitize-html   Lọc HTML đường GHI — KHÔNG import từ route (kéo theo jsdom)
   scoring/        Strategy theo kỳ thi + engine chung
@@ -76,6 +80,8 @@ lib/
   i18n/           config, messages (vi/en/de), server.getT()
 components/
   exam-room/      Store, sync 3 lớp, highlight, timer
+  exams/          FavoriteStar — ngôi sao trên thẻ đề, chạy sau hydrate
+  todos/          Kho to-do dùng chung, pill nhắc, bảng chỉnh lời nhắc
   shell/          AppShell, nav, hiệu ứng chuyển trang
   game/           Tầng game — client thuần, không chạm DB
   i18n/           LocaleProvider — đọc locale ở client
@@ -99,6 +105,11 @@ thấy tiếng Việt cho tới khi chủ máy tự đổi.
 
 Thiếu một chuỗi ở `en` hay `de` là **lỗi biên dịch**, không phải lỗi người dùng phát hiện
 hộ: hai bản đó khai là `Record<MessageKey, string>` với `MessageKey` suy từ bản tiếng Việt.
+
+Ngoại lệ DUY NHẤT: **câu nhắc của pill to-do chỉ có tiếng Việt**, và cố ý nằm ngoài
+`messages.ts` (`components/todos/todo-nudge.tsx`). Chúng được đặt hàng bằng đúng một thứ
+tiếng; nhét vào từ điển nghĩa là phải bịa hai bản dịch để qua được trình biên dịch. Khi
+nào cần ba ngôn ngữ thì chuyển sang, và lúc đó dịch cho tử tế.
 
 Đổi ngôn ngữ chạy `router.refresh()` chứ không `location.reload()` — một phần chữ do
 server render bằng `getT()`, nên phải dựng lại thật, nhưng `reload()` thì vẽ lại từ nền
@@ -208,6 +219,16 @@ npm run sanitize:passages
 tại chỗ — phòng thi không lọc lại lúc đọc nữa (xem "Bẫy đã mất thời gian"). Idempotent,
 thêm `--dry` để xem trước mà không ghi.
 
+```bash
+npx prisma migrate deploy
+```
+
+**`migrate deploy`, KHÔNG phải `migrate dev`.** `.env` ở máy phát triển trỏ thẳng vào Neon
+production, mà `migrate dev` có nhánh đòi reset database. Sinh file SQL bằng
+`npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`
+rồi mới `deploy`. **Đổi schema xong phải khởi động lại `next dev`** — xem "Bẫy đã mất thời
+gian".
+
 ## Chưa có
 
 | | |
@@ -216,6 +237,7 @@ thêm `--dry` để xem trước mà không ghi.
 | Kỹ năng NÓI | **Bỏ hẳn**, không phải "làm sau". Chấm nói cần giám khảo. `SKILLS` không có `SPEAKING`. |
 | Chấm ESSAY | Ngoài phạm vi v1. `isCorrect = null`, loại khỏi tổng điểm. |
 | Cron nhắc lịch ôn | Bảng `Reminder` đã chạy, thiếu tiến trình định kỳ |
+| Dọn to-do quá hạn | Việc "Hằng ngày" đã xong được dọn ở đường ĐỌC (`GET /api/todos`) vì chưa có tiến trình định kỳ nào |
 | Test tự động | Chưa có runner. Thay bằng hai script `check:*` ở trên. |
 | Dịch Kho đề | Chưa chốt hướng — xem "Ba ngôn ngữ" ở trên |
 | IELTS — Nghe / Viết | Mới có Reading. Xem "IELTS" ở dưới. |
@@ -230,12 +252,46 @@ Có năm đề, đều 3 passage, 40 điểm, 60 phút:
 | Đề | Nguồn | Ra ngoài được không |
 |---|---|---|
 | **Academic Reading — Practice Test 1** | Tự biên soạn | Có — `SELF_AUTHORED`, `canPublish: true` |
-| **Cambridge Test 1 → 4** | Sách Cambridge IELTS | **Có** — `RESTRICTED`, `canPublish: true`, `status: PUBLISHED` |
+| **Practice C1 → C4** | Sách luyện thi quốc tế | **Có** — `RESTRICTED`, `canPublish: true`, `status: PUBLISHED` |
+
+**Tên nhà xuất bản KHÔNG ra UI.** Bốn đề trên từng mang tên "Cambridge Test N" ở cả tiêu
+đề lẫn đường dẫn; nay là `Practice C1–C4` và `/de-thi/ielts/academic-reading-practice-cN`.
+`sourceName` và `attribution` cũng đã trung tính hoá. Nguồn thật vẫn ghi đủ ở
+`provenance.notes` — trường đó không render ở đâu cả. Đổi tên đề đã nằm trong DB thì chạy
+`npx tsx scripts/rename-ielts-practice.ts --write` (chạy không cờ để xem trước).
 
 ## Thay đổi gần đây
 
-- **Mở khóa 4 đề Cambridge IELTS:** Đã chuyển `canPublish: true` trong các file seed (`prisma/seed.ts` và `scripts/seed-ielts.ts`) và đặt `status: 'PUBLISHED'` trong `prisma/seed-data.ts`.
-- **Cập nhật hiển thị đề Cambridge:** Xóa hậu tố "(nội bộ)" khỏi tên đề, đồng thời thêm thuộc tính `attribution` để giải thích nguồn gốc ("Đề từ sách Cambridge IELTS...").
+- **To-do list: hạn chót, lưu ở server, pill nhắc.** Nhập mục tiêu xong hỏi thêm một bước:
+  chưa đăng nhập thì mời đăng nhập (không đăng nhập là mất khi dọn trình duyệt), đã đăng
+  nhập thì hỏi hạn — "Hằng ngày", hoặc ngày/tháng. **Không hỏi năm**: mặc định năm hiện
+  tại, ngày đã qua thì tự đẩy sang năm sau. Hạn đóng dấu 12h trưa giờ local, không phải
+  00:00 — cột là `TIMESTAMP` nên 00:00 giờ VN là 17:00 UTC *hôm trước*.
+  Bảng `Todo` chỉ cho người đã đăng nhập; khách vẫn dùng được nhưng nằm ở localStorage, và
+  danh sách gõ lúc còn là khách được đẩy lên server ngay sau khi đăng nhập.
+  Pill nhắc ở góc trên phải (`components/todos/todo-nudge.tsx`): nền `#0000FF`, chữ trắng,
+  Helvetica Bold. Nhịp nhắc chỉnh ở Cài đặt (5/10/30/60 phút hoặc tự nhập), kèm nút "Thử
+  ngay" hiện pill lập tức mà không đụng vào hẹn giờ thật.
+- **Favorite (ngôi sao) ở hai cấp.** Bảng `Favorite`, đánh sao được cả từng đề lẫn cả kỳ
+  thi. Widget Tiến độ chỉ hiện kỳ thi có sao; chưa đánh sao gì thì đổi sang chế độ đề cử
+  (3 kỳ thi nhiều lượt làm nhất) và giấu thanh %. Mẫu số đổi nghĩa: sao ở ĐỀ thì % tính
+  trên riêng mấy đề đó, sao ở KỲ THI thì tính trên toàn bộ đề công khai.
+- **Bỏ hai mục đích đồng ý.** `ANALYTICS` (thống kê ẩn danh, gộp theo đám đông — không
+  phải dữ liệu cá nhân theo NĐ 13) và `LEADERBOARD_PUBLIC` (sản phẩm không có bảng xếp
+  hạng). `CALENDAR_ACCESS` vẫn được ghi nhận nhưng rời khỏi danh sách công tắc ở Cài đặt —
+  nó hỏi và thu hồi ngay tại Lịch ôn, cùng chỗ bấm kết nối. Hàng `Consent` cũ KHÔNG bị
+  xoá; mọi đường đọc lọc qua `CONSENT_PURPOSES` nên chúng nằm im.
+- **Nhãn tên chức năng khi rê chuột.** `.nav-tip` từng chờ 2 giây mới hiện — mà 2 giây thì
+  coi như không có, người dò tab chỉ lướt qua. Nay hiện ngay. Nhưng lỗi thật nằm chỗ khác:
+  `.nav-rail` mang `overflow-x: auto`, và theo đặc tả CSS thì trục còn lại tự thành `auto`
+  theo, nên nhãn nằm dưới pill bị chính thanh nav xén sạch. Nay `md:overflow-visible` từ
+  768px trở lên (dưới mốc đó cuộn quan trọng hơn, mà cảm ứng thì không có chuột để rê), và
+  `<nav>` thêm `relative z-40` — cùng bẫy stacking-context đã ghi ở cụm nút bên phải.
+- **Đổi tên bốn đề IELTS chép từ sách** thành `Practice C1–C4`, đổi cả slug. Xem mục IELTS.
+- **Kỳ thi quốc gia lên trước chứng chỉ ngoại ngữ** ở `/de-thi` — thứ tự đọc từ
+  `EXAM_CATEGORIES`, mảng đó *là* bố cục trang chứ không phải một danh sách hằng.
+
+- **Mở khóa 4 đề IELTS chép từ sách:** Đã chuyển `canPublish: true` trong các file seed (`prisma/seed.ts` và `scripts/seed-ielts.ts`) và đặt `status: 'PUBLISHED'` trong `prisma/seed-data.ts`. (Tên đề sau đó đổi thành `Practice C1–C4` — xem mục IELTS.)
 - **Ẩn thông tin Giấy phép trên UI:** Đã xóa dòng hiển thị "Giấy phép" (License) trên trang chi tiết đề thi (`app/(marketing)/de-thi/[examSlug]/[paperSlug]/page.tsx`) và dọn dẹp các truy vấn liên quan trong `lib/queries.ts`.
 - **Giữ nguyên cấu trúc gộp câu:** 4 đề Cambridge (Đề 2, 3) có 38 câu trên giao diện nhưng vẫn đủ 40 điểm do gom các câu hỏi "Choose TWO letters" thành 1 câu Multi-choice mang `points: 2` để đảm bảo tính chính xác của thuật toán chấm điểm. Mặc định không thay đổi.
 - **Seed Đề thi THPT Quốc gia 2025:** Đã tạo thêm 3 đề thi (Hóa Học, Vật Lý, Tiếng Anh) cho kỳ thi THPT Quốc gia 2025. Cấu trúc chia 2 cửa sổ: Đề bài (Markdown) bên trái, các câu hỏi tương tác dạng 4 lựa chọn (SINGLE_CHOICE) bên phải. (Đã loại bỏ đề Tiếng Anh bản minh họa cũ).

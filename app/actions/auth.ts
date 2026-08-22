@@ -13,7 +13,6 @@ import { guardianConsentEmail, sendEmail } from '@/lib/email'
 import { TERMS_VERSION } from '@/lib/legal/terms'
 import {
   CONSENT_FORM_PURPOSES,
-  CONSENT_TERMS_PURPOSES,
   type ConsentPurpose,
 } from '@/lib/enums'
 
@@ -24,30 +23,25 @@ const GUARDIAN_TOKEN_DAYS = 7
 /**
  * Đọc lựa chọn đồng ý từ form đăng ký / hoàn tất hồ sơ.
  *
- * Hai nguồn, và chúng khác nhau về bản chất:
+ * Chỉ còn MỘT nguồn: `CONSENT_FORM_PURPOSES` — người dùng tự tích, không tích
+ * thì false.
  *
- *   • `CONSENT_FORM_PURPOSES` — người dùng tự tích. Không tích thì false.
- *   • `CONSENT_TERMS_PURPOSES` — nằm trong nội dung Điều khoản sử dụng, nên
- *     được đặt true. CHỈ đúng vì cả hai luồng gọi hàm này đều đã chặn cứng
- *     `termsAccepted !== 'yes'` trước đó — không có đường nào tới đây mà chưa
- *     đồng ý điều khoản. Ai bỏ chốt chặn kia thì phải sửa luôn chỗ này, nếu
- *     không hệ thống sẽ ghi nhận một sự đồng ý chưa từng được đưa ra.
+ * Trước đây còn `CONSENT_TERMS_PURPOSES` gộp ANALYTICS và LEADERBOARD_PUBLIC
+ * vào Điều khoản sử dụng. Hai mục đó đã bỏ hẳn (xem `CONSENT_PURPOSES`), nên
+ * không còn sự đồng ý nào được suy ra từ một cú bấm khác nữa — mọi mục đích ở
+ * đây đều do người dùng tự tích, đúng tinh thần "tách bạch từng mục đích".
  *
- * CALENDAR_ACCESS không nằm trong cả hai: nó được ghi lúc người dùng bấm kết
- * nối và cấp quyền ở màn hình Google. Bỏ trống ở đây thì `recordConsents` ghi
- * false, đúng thực tế tại thời điểm tạo tài khoản.
+ * CALENDAR_ACCESS không nằm ở đây: nó được ghi lúc người dùng bấm kết nối và
+ * cấp quyền ở màn hình Google. Bỏ trống thì `recordConsents` ghi false, đúng
+ * thực tế tại thời điểm tạo tài khoản.
  *
  * Trẻ dưới 16 chưa có xác nhận giám hộ vẫn được `recordConsents` ép
- * LEADERBOARD_PUBLIC và MARKETING_EMAIL về false — chốt đó nằm ở tầng dưới nên
- * việc gộp vào điều khoản không lách qua được.
+ * MARKETING_EMAIL về false — chốt đó nằm ở tầng dưới.
  */
 function consentsFromForm(formData: FormData): Partial<Record<ConsentPurpose, boolean>> {
   const granted: Partial<Record<ConsentPurpose, boolean>> = {}
   for (const purpose of CONSENT_FORM_PURPOSES) {
     granted[purpose] = formData.get(`consent_${purpose}`) === 'on'
-  }
-  for (const purpose of CONSENT_TERMS_PURPOSES) {
-    granted[purpose] = true
   }
   return granted
 }

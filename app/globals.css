@@ -644,8 +644,32 @@ body {
     }
   }
 
-  /* Nhãn tên chức năng — nổi bên dưới icon */
-  .nav-tip {
+  /**
+   * Nhãn tên chức năng — nổi bên dưới icon.
+   *
+   * KHÔNG CÒN RIÊNG CỦA `.nav-pill`. Mọi nút chỉ-có-icon đều dùng được: đặt
+   * `<span class="nav-tip">` làm con trực tiếp, cha phải `position: relative`.
+   * Chuông và avatar tài khoản ở hàng header dùng chính nó — ba thứ đứng cùng
+   * một hàng thì phải là cùng một kiểu nhãn, `title` gốc của trình duyệt hiện
+   * chậm hơn, ở góc chuột và mang một bộ mặt khác hẳn.
+   *
+   * `.icon-circle` thì KHÔNG phải thêm gì cả — nó tự đọc `aria-label` của chính
+   * mình qua `content: attr()`. Mười ba nút tròn nằm rải trong các widget
+   * dashboard, thêm một `<span>` vào từng chỗ là mười ba lần quên một chỗ;
+   * `aria-label` thì chúng đã có sẵn và bắt buộc phải có, nên lấy luôn làm
+   * nguồn. Nút nào không có `aria-label` (nút có chữ) thì không sinh nhãn.
+   *
+   * Không sợ trình đọc màn hình đọc hai lần: `aria-label` thay hẳn tên khả
+   * truy của nút, nội dung sinh ra bởi `::after` không được cộng thêm vào.
+   */
+  .icon-circle[aria-label] {
+    position: relative;
+  }
+  .icon-circle[aria-label]::after {
+    content: attr(aria-label);
+  }
+  .nav-tip,
+  .icon-circle[aria-label]::after {
     position: absolute;
     top: calc(100% + 8px);
     left: 50%;
@@ -661,37 +685,58 @@ body {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.14s ease, transform 0.14s ease;
-    /* Ẩn thì ẩn NGAY — độ trễ chỉ dành cho lúc hiện ra, xem dưới */
     transition-delay: 0s;
   }
   /**
-   * Phải RÊ CHUỘT VÀ GIỮ 2 GIÂY nhãn mới hiện.
+   * CHUỘT CHẠM LÀ HIỆN, KHÔNG CHỜ. Đây là yêu cầu của chủ dự án, và nó đã đi
+   * qua hai lần sửa nên đừng đặt lại quãng trễ mà không hỏi.
    *
-   * Trước đây nhãn bật lên gần như tức thì, nên mỗi cú bấm chuyển tab đều kèm
-   * một bảng tên nhảy ra ngay dưới ngón tay — người dùng đã biết mình bấm gì
-   * rồi, nó chỉ che mất phần nội dung vừa đổi.
+   * Lịch sử để khỏi ai đi vòng lại: ban đầu nhãn hiện ngay, bị đổi thành chờ 2
+   * giây vì mỗi cú bấm chuyển tab kèm một bảng tên nhảy ra dưới ngón tay. Nhưng
+   * 2 giây thì coi như không có nhãn — người không biết icon kia là gì sẽ lướt
+   * qua để dò, mà lướt thì không đủ 2 giây ở đâu cả, nên nhãn chỉ bật cho đúng
+   * người không còn cần nó. Đo trên bản ghi màn hình: dừng 1,75s trên một icon,
+   * không có gì hiện.
    *
-   * `transition-delay` chứ không phải animation: rời chuột trước 2 giây là
-   * trình duyệt huỷ luôn, không cần hẹn giờ bằng JS và không có trạng thái nào
-   * để dọn.
+   * Cái giá đã biết và chấp nhận: bấm chuyển tab thì nhãn của tab vừa bấm hiện
+   * ngay dưới con trỏ. Nó nằm DƯỚI thanh nav, chỉ đè lên một dải mỏng đầu vùng
+   * nội dung, và rời chuột là tắt.
+   *
+   * `transition-delay: 0s` vẫn phải ghi ra: không có nó thì thuộc tính này kế
+   * thừa giá trị của luật gốc và một lần đổi ở đó lại âm thầm chỉnh cả chỗ này.
    */
-  .nav-pill:hover .nav-tip {
+  :hover > .nav-tip,
+  .icon-circle[aria-label]:hover::after {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
-    transition-delay: 2s;
+    transition-delay: 0s;
   }
   /*
     Bàn phím thì hiện ngay, KHÔNG chờ: `:focus-visible` chỉ xuất hiện khi người
     dùng tab tới: họ không rê chuột được để mà giữ, và đang cần biết mình đang
     đứng ở đâu.
   */
-  .nav-pill:focus-visible .nav-tip {
+  :focus-visible > .nav-tip,
+  .icon-circle[aria-label]:focus-visible::after {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
     transition-delay: 0s;
   }
+  /* Nút mờ vì không bấm được thì cũng không hứa hẹn gì — đừng mời chào */
+  .icon-circle[aria-label]:disabled::after {
+    content: none;
+  }
+  /*
+    Menu tài khoản mở ra thì nuốt luôn nhãn: menu rơi xuống đúng chỗ nhãn đứng
+    (cách 10px, nhãn cách 8px), mà chuột thì vẫn nằm trên avatar nên hết 0,45s
+    nhãn vẫn bật — thành một bảng tên chồng lên đầu menu.
+  */
+  [aria-expanded='true'] > .nav-tip {
+    opacity: 0;
+  }
   @media (prefers-reduced-motion: reduce) {
-    .nav-tip {
+    .nav-tip,
+    .icon-circle[aria-label]::after {
       transition: none;
     }
   }
@@ -767,6 +812,98 @@ body {
     border-color: var(--color-line-strong);
     color: var(--color-ink);
   }
+  /**
+   * Ngôi sao "quan tâm" trên thẻ đề — components/exams/favorite-star.tsx.
+   *
+   * Dựng trên `.icon-circle` nhưng KHÔNG dùng lại class đó: nút tròn kia mang
+   * viền và nền thẻ ở trạng thái nghỉ, mà ngôi sao thì phải chìm đi khi tắt để
+   * không tranh chỗ với tên đề ngay bên cạnh. Chỉ khi bật nó mới được nổi lên.
+   */
+  .favorite-star {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.25rem;
+    width: 2.25rem;
+    flex: none;
+    border-radius: 999px;
+    /* Viền trong suốt, không phải bỏ viền — xem bẫy `box-sizing` ở .shell-card */
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-muted);
+    transition: color 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+  }
+  .favorite-star:hover {
+    color: var(--color-ink);
+    border-color: var(--color-line);
+  }
+  /*
+    Bật thì đổi sang màu nhấn ấm. Ngôi sao đã TÔ ĐẶC ở trạng thái này (xem
+    StarIcon), nên màu chỉ là lớp tín hiệu thứ hai — người không phân biệt được
+    màu vẫn đọc ra trạng thái qua hình đặc/rỗng.
+  */
+  .favorite-star.is-on {
+    color: var(--color-warn);
+  }
+  .favorite-star.is-on:hover {
+    border-color: var(--color-warn-soft);
+    background: var(--color-warn-soft);
+  }
+  /**
+   * PILL NHẮC MỤC TIÊU — components/todos/todo-nudge.tsx.
+   *
+   * `#0000FF` gõ cứng, cố ý đi ngược luật "đi qua token" ở đầu file: chủ dự án
+   * chỉ định đúng mã này. Xanh thuần không có trong bảng màu, mà bịa một token
+   * cho đúng một chỗ dùng thì token đó chỉ là một cái tên khác của hằng số.
+   * Muốn đổi thì sửa ngay đây.
+   *
+   * Chữ trắng trên #0000FF cho tương phản 8,6:1 — vượt AA ở mọi cỡ chữ.
+   *
+   * `font-weight: 700` là nấc Bold của Helvetica Neue (xem `--font-weight-bold`).
+   * `color: inherit` cho icon và link bên trong: chúng mang màu của khung
+   * ứng dụng nếu không khai, mà màu đó được chọn cho nền sáng — trên nền xanh
+   * đậm thì chìm hẳn.
+   *
+   * Class này dùng ở HAI chỗ: pill thật, và mẫu xem trước trong bảng Cài đặt.
+   * Đó là chủ ý — mẫu phải là chính nó, không phải một bản vẽ lại.
+   */
+  .todo-nudge {
+    background: #0000ff;
+    color: #ffffff;
+    font-weight: 700;
+  }
+  .todo-nudge a,
+  .todo-nudge button,
+  .todo-nudge svg {
+    color: inherit;
+  }
+
+  /**
+   * Nhãn của ngôi sao CANH PHẢI, không canh giữa như nhãn thanh nav.
+   *
+   * Ngôi sao luôn đứng sát mép phải của thẻ (cạnh pill ngôn ngữ ở /de-thi, cạnh
+   * tên đề ở trang danh sách). Nhãn canh giữa theo ngôi sao thì một nửa của nó
+   * nằm ngoài thẻ — mà thẻ kỳ thi có `overflow-hidden` để cắt dải màu theo góc
+   * bo, nên nửa đó bị xén mất: đọc được "Đánh dấu quan tâ".
+   *
+   * Canh phải thì nhãn mọc vào TRONG thẻ, không chạm mép nào. Rẻ hơn hẳn so với
+   * bỏ `overflow-hidden` rồi phải bo lại dải màu bằng tay.
+   *
+   * `z-index` nâng lên trên lớp phủ <Link> của thẻ kỳ thi (`z-0`) và trên mọi
+   * thứ trong thẻ — nhãn là thứ vừa được gọi ra, nó phải nằm trên cùng.
+   */
+  .favorite-star .nav-tip {
+    left: auto;
+    right: 0;
+    z-index: 70;
+    transform: translateY(-4px);
+  }
+  .favorite-star:hover > .nav-tip,
+  .favorite-star:focus-visible > .nav-tip {
+    transform: translateY(0);
+  }
+
   .icon-circle[data-tone='dark'] {
     background: var(--color-accent);
     border-color: var(--color-accent);

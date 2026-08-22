@@ -318,3 +318,20 @@ export function SparkIcon(p: IconProps) {
     </svg>
   )
 }
+
+/**
+ * Ngôi sao "quan tâm" — Kho đề.
+ *
+ * `filled` TÔ ĐẶC bằng `currentColor` chứ không đổi màu nét: trạng thái bật/tắt
+ * phải đọc được cả khi mắt chỉ liếc qua, mà hai ngôi sao viền cùng cỡ chỉ khác
+ * sắc độ thì phải nhìn kỹ mới thấy. Nét vẫn giữ nguyên ở cả hai trạng thái nên
+ * hình không đổi kích thước — cùng lý do với luật "đừng thêm bớt viền" ở
+ * globals.css.
+ */
+export function StarIcon(p: IconProps & { filled?: boolean }) {
+  return (
+    <svg {...S(p)} fill={p.filled ? 'currentColor' : 'none'}>
+      <path d="M12 3.6l2.6 5.27 5.82.85-4.21 4.1.99 5.79L12 16.87l-5.2 2.74.99-5.79-4.21-4.1 5.82-.85L12 3.6Z" />
+    </svg>
+  )
+}

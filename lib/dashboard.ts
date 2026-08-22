@@ -1,6 +1,7 @@
 import 'server-only'
 import { prisma } from './db'
 import { publicPaperFilter } from './content-filter'
+import { getFavoriteExamIds, getFavoritePaperIds } from './favorites'
 import { getStrategy } from './scoring'
 import type { Skill } from './enums'
 
@@ -21,14 +22,40 @@ export type ExamProgress = {
   lastPaperTitle: string | null
 }
 
+export type ExamProgressResult = {
+  exams: ExamProgress[]
+  /**
+   * `favorites` — người dùng đã đánh sao, đây là tiến độ thật trên danh sách
+   * họ tự chọn. `recommended` — chưa đánh sao đề nào, đây là đề cử để bắt đầu.
+   *
+   * Widget đọc cờ này để đổi tiêu đề và chữ trong thẻ. Không suy ra từ
+   * `donePapers === 0`: một người đã đánh sao nhưng chưa làm đề nào cũng cho
+   * số 0 y hệt, mà họ thì đã chọn xong rồi, đề cử lại là nói sai.
+   */
+  mode: 'favorites' | 'recommended'
+}
+
+/** Bao nhiêu kỳ thi được đề cử cho người chưa đánh sao đề nào. */
+const RECOMMEND_COUNT = 3
+
 /**
  * Tiến độ luyện đề theo từng kỳ thi — khối "Ongoing Class" của ảnh tham chiếu.
  * Chỉ đếm đề công khai để mẫu số khớp với thứ người dùng thực sự làm được.
+ *
+ * MẪU SỐ LÀ ĐỀ ĐÃ ĐÁNH SAO, không phải toàn bộ đề của kỳ thi. Thanh tiến độ vì
+ * vậy đọc là "tiến độ trên danh sách bạn tự chọn" — một kỳ thi có 40 đề mà bạn
+ * quan tâm 3 đề thì làm xong 3 đề đó là 100%, không phải 7%. Con số cũ chạy
+ * theo việc kho đề có thêm bao nhiêu đề mới, tức tiến độ tụt xuống vì người
+ * khác nạp thêm đề — một thước đo không nói gì về người đang nhìn nó.
+ *
+ * Chưa đánh sao đề nào thì trả về `mode: 'recommended'` kèm vài kỳ thi phổ
+ * biến nhất. Danh sách rỗng là màn hình chết: không có gì để nhìn và cũng
+ * không gợi ra được bước tiếp theo.
  */
 export async function getExamProgress(
   userId: string | null,
   guestId: string | null,
-): Promise<ExamProgress[]> {
+): Promise<ExamProgressResult> {
   const owner = userId ? { userId } : guestId ? { guestId } : null
 
   const exams = await prisma.exam.findMany({
@@ -39,20 +66,51 @@ export async function getExamProgress(
     },
   })
 
-  if (!owner) {
-    return exams.map((e) => ({
-      examId: e.id,
-      slug: e.slug,
-      name: e.name,
-      fullName: e.fullName,
-      language: e.language,
-      totalPapers: e._count.papers,
-      donePapers: 0,
-      percent: 0,
-      avgScorePercent: null,
-      inProgressAttemptId: null,
-      lastPaperTitle: null,
-    }))
+  const [favoriteIds, favoriteExamIds] = owner
+    ? await Promise.all([
+        getFavoritePaperIds(userId, guestId),
+        getFavoriteExamIds(userId, guestId),
+      ])
+    : [[] as string[], [] as string[]]
+  const favoriteExamSet = new Set(favoriteExamIds)
+
+  /*
+    ĐỀ CỬ: xếp theo tổng lượt làm của cả kỳ thi, lấy ba kỳ đầu.
+
+    `attemptCount` đã là cột denormalized sẵn trên TestPaper (dùng cho sắp xếp
+    ở Kho đề) nên không phải đếm lại bằng join — xem ghi chú ở schema.
+  */
+  if (favoriteIds.length === 0 && favoriteExamIds.length === 0) {
+    const counts = await prisma.testPaper.groupBy({
+      by: ['examId'],
+      where: publicPaperFilter(),
+      _sum: { attemptCount: true },
+    })
+    const popularity = new Map(counts.map((c) => [c.examId, c._sum.attemptCount ?? 0]))
+
+    return {
+      mode: 'recommended',
+      exams: [...exams]
+        .sort(
+          (a, b) =>
+            (popularity.get(b.id) ?? 0) - (popularity.get(a.id) ?? 0) ||
+            a.sortOrder - b.sortOrder,
+        )
+        .slice(0, RECOMMEND_COUNT)
+        .map((e) => ({
+          examId: e.id,
+          slug: e.slug,
+          name: e.name,
+          fullName: e.fullName,
+          language: e.language,
+          totalPapers: e._count.papers,
+          donePapers: 0,
+          percent: 0,
+          avgScorePercent: null,
+          inProgressAttemptId: null,
+          lastPaperTitle: null,
+        })),
+    }
   }
 
   const attempts = await prisma.attempt.findMany({
@@ -61,35 +119,80 @@ export async function getExamProgress(
     include: { paper: { select: { id: true, examId: true, title: true } } },
   })
 
-  return exams.map((exam) => {
-    const mine = attempts.filter((a) => a.paper.examId === exam.id)
-    const submitted = mine.filter((a) => a.status === 'SUBMITTED')
-    // Đếm theo ĐỀ riêng biệt, làm lại một đề không tính thành hai
-    const donePapers = new Set(submitted.map((a) => a.paper.id)).size
-    const inProgress = mine.find((a) => a.status === 'IN_PROGRESS')
-
-    const maxScale = getStrategy(exam.slug).maxScale
-    const scored = submitted.filter((a) => a.scaledScore !== null)
-    const avgScorePercent =
-      scored.length > 0
-        ? scored.reduce((s, a) => s + ((a.scaledScore ?? 0) / maxScale) * 100, 0) / scored.length
-        : null
-
-    return {
-      examId: exam.id,
-      slug: exam.slug,
-      name: exam.name,
-      fullName: exam.fullName,
-      language: exam.language,
-      totalPapers: exam._count.papers,
-      donePapers,
-      percent:
-        exam._count.papers > 0 ? Math.round((donePapers / exam._count.papers) * 100) : 0,
-      avgScorePercent,
-      inProgressAttemptId: inProgress?.id ?? null,
-      lastPaperTitle: mine[0]?.paper.title ?? null,
-    }
+  /* Đếm đề đã đánh sao theo từng kỳ thi — đây là MẪU SỐ mới của thanh tiến độ. */
+  const favoriteSet = new Set(favoriteIds)
+  const favoritePapers = await prisma.testPaper.findMany({
+    where: { id: { in: favoriteIds } },
+    select: { id: true, examId: true },
   })
+  const favoriteTotals = new Map<string, number>()
+  for (const p of favoritePapers) {
+    favoriteTotals.set(p.examId, (favoriteTotals.get(p.examId) ?? 0) + 1)
+  }
+
+  return {
+    mode: 'favorites',
+    /*
+      Kỳ thi KHÔNG có đề nào được đánh sao thì biến mất khỏi widget — đó chính
+      là yêu cầu "tiến độ chỉ hiện những đề quan tâm". Lọc trước khi map để
+      những kỳ đó không kịp sinh ra một thẻ 0/0.
+    */
+    exams: exams
+      .filter((exam) => favoriteExamSet.has(exam.id) || (favoriteTotals.get(exam.id) ?? 0) > 0)
+      .map((exam) => {
+        /*
+          Chỉ tính trên ĐỀ ĐÃ ĐÁNH SAO, cả tử lẫn mẫu. Lọc thêm ở đây chứ không
+          nới `where` của truy vấn attempts bên trên: những lượt làm trên đề
+          không đánh sao vẫn cần cho `lastPaperTitle` và cho nút "Làm tiếp" —
+          bỏ chúng khỏi truy vấn là người dùng đang làm dở một đề mà thẻ lại
+          nói chưa bắt đầu gì.
+        */
+        /*
+          HAI CẤP SAO, và cấp ĐỀ thắng khi có mặt.
+
+          Đánh sao cả kỳ thi = "theo dõi kỳ này", mẫu số là toàn bộ đề công
+          khai. Đánh sao vài đề bên trong = "tôi chỉ định làm mấy đề này", một
+          câu nói cụ thể hơn — nên mẫu số thu về đúng mấy đề đó. Lấy tổng của
+          cả kỳ khi người ta đã chọn tay từng đề là dựng lại đúng cái thước đo
+          vô nghĩa mà thay đổi này sinh ra để bỏ đi.
+        */
+        const pickedPapers = favoriteTotals.get(exam.id) ?? 0
+        const scopeToFavorites = pickedPapers > 0
+
+        const mine = attempts.filter((a) => a.paper.examId === exam.id)
+        const inFavorites = scopeToFavorites
+          ? mine.filter((a) => favoriteSet.has(a.paper.id))
+          : mine
+        const submitted = inFavorites.filter((a) => a.status === 'SUBMITTED')
+        // Đếm theo ĐỀ riêng biệt, làm lại một đề không tính thành hai
+        const donePapers = new Set(submitted.map((a) => a.paper.id)).size
+        const inProgress = mine.find((a) => a.status === 'IN_PROGRESS')
+
+        const maxScale = getStrategy(exam.slug).maxScale
+        const scored = submitted.filter((a) => a.scaledScore !== null)
+        const avgScorePercent =
+          scored.length > 0
+            ? scored.reduce((s, a) => s + ((a.scaledScore ?? 0) / maxScale) * 100, 0) /
+              scored.length
+            : null
+
+        const totalPapers = scopeToFavorites ? pickedPapers : exam._count.papers
+
+        return {
+          examId: exam.id,
+          slug: exam.slug,
+          name: exam.name,
+          fullName: exam.fullName,
+          language: exam.language,
+          totalPapers,
+          donePapers,
+          percent: totalPapers > 0 ? Math.round((donePapers / totalPapers) * 100) : 0,
+          avgScorePercent,
+          inProgressAttemptId: inProgress?.id ?? null,
+          lastPaperTitle: mine[0]?.paper.title ?? null,
+        }
+      }),
+  }
 }
 
 export type DayHours = {

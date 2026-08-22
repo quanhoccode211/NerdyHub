@@ -11,7 +11,7 @@ import { ChevronRightIcon, WarningIcon } from '@/components/shell/icons'
 import { prisma } from '@/lib/db'
 import { getConsents, CONSENT_META } from '@/lib/auth/consent'
 import { PURGE_DELAY_HOURS } from '@/lib/auth/data-rights'
-import { CONSENT_PURPOSES } from '@/lib/enums'
+import { CONSENT_SETTINGS_PURPOSES } from '@/lib/enums'
 import { formatDate, formatDateTime } from '@/lib/format'
 
 export const metadata: Metadata = {
@@ -80,12 +80,24 @@ export default async function DataRightsPage() {
               thay đổi có hiệu lực ngay.
             </p>
 
+            {/*
+              Google Calendar KHÔNG có công tắc ở đây — xem
+              `CONSENT_SETTINGS_PURPOSES`. Vẫn phải chỉ đường tới chỗ bật/tắt
+              nó: bỏ một mục đích khỏi màn hình mà không nói nó đi đâu thì
+              người dùng đọc ra là quyền đó biến mất.
+            */}
+            <p className="mb-5 text-[14px] leading-relaxed text-muted">
+              Quyền đọc lịch Google được hỏi và thu hồi ngay tại{' '}
+              <Link href="/lich-on" className="underline underline-offset-2">
+                Lịch ôn
+              </Link>
+              , cùng chỗ bấm kết nối.
+            </p>
+
             <div className="flex flex-col gap-3">
-              {CONSENT_PURPOSES.map((purpose) => {
+              {CONSENT_SETTINGS_PURPOSES.map((purpose) => {
                 const meta = CONSENT_META[purpose]
-                const lockedByAge =
-                  minorLocked &&
-                  (purpose === 'LEADERBOARD_PUBLIC' || purpose === 'MARKETING_EMAIL')
+                const lockedByAge = minorLocked && purpose === 'MARKETING_EMAIL'
                 return (
                   <ConsentToggle
                     key={purpose}

@@ -6,6 +6,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import { clearGuestIdentityAction } from '@/app/actions/sign-out'
 import { useLocale } from '@/components/i18n/locale-provider'
+import { TodoNudge } from '@/components/todos/todo-nudge'
 import { LOCALES, LOCALE_NAMES, type Locale } from '@/lib/i18n/config'
 import type { MessageKey } from '@/lib/i18n/messages'
 import {
@@ -177,7 +178,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             href="/"
             type={EXIT_APP}
             aria-label={t('nav.aria.home')}
-            className="flex flex-none items-center"
+            /* `relative` là để `.nav-tip` bên dưới neo vào con dấu chứ không
+               trôi ra tận thẻ header — xem .nav-tip trong globals.css. */
+            className="relative flex flex-none items-center"
             /*
               Mốc neo của hiệu ứng trượt: đặt tên view-transition thì con dấu
               được nhấc ra khỏi ảnh chụp chung và tự ghép cặp với con dấu bên
@@ -191,6 +194,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             style={{ viewTransitionName: BRAND_VT_NAME }}
           >
             <LogoMark size={BRAND_LOGO_SIZE} />
+            <span className="nav-tip" aria-hidden="true">
+              {t('nav.aria.home')}
+            </span>
           </SlideLink>
 
           {/*
@@ -218,9 +224,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             dung thật sự tràn, nên từ ~800px trở lên không có gì đổi — không
             một pixel nào khác trước.
           */}
+          {/*
+            `relative z-40` là CÙNG MỘT CÁI BẪY đã ghi ở cụm nút bên phải, chỉ
+            khác nạn nhân: `.nav-rail` mang `viewTransitionName` nên nó là một
+            stacking context, và `z-index: 60` của `.nav-tip` từ đó chỉ còn
+            tranh chấp BÊN TRONG thanh nav. Ra ngoài, cả thanh tham gia thứ tự
+            vẽ với `z-index: auto`, mà `<main>` nằm sau trong DOM — nhãn chui
+            xuống dưới các thẻ nội dung. Nâng z-index của CHÍNH THANH lên mới
+            chữa được, nâng của nhãn thì bao nhiêu cũng vô ích.
+
+            40 chứ không phải 50: menu tài khoản phải phủ lên nhãn khi cả hai
+            cùng bung, chứ không phải ngược lại.
+          */}
           <nav
             aria-label={t('nav.aria.main')}
-            className="flex min-w-0 flex-1 items-center justify-center"
+            className="relative z-40 flex min-w-0 flex-1 items-center justify-center"
           >
             {/*
               Một thanh nền liền bọc cả hàng tab — xem .nav-rail trong globals.css.
@@ -233,8 +251,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               `inline-flex` nên nó co giãn theo nội dung chứ không theo cha —
               thiếu dòng này thì nó cứ rộng 473px và chẳng có gì để mà cuộn.
             */}
+            {/*
+              `md:overflow-visible` KHÔNG phải trang trí — thiếu nó thì tính
+              năng nhãn tên (`.nav-tip`) không tồn tại.
+
+              `overflow-x: auto` mà để một mình thì trục CÒN LẠI tự tính thành
+              `auto` theo đúng đặc tả CSS: không có tổ hợp `overflow-x: auto` +
+              `overflow-y: visible`. Mà nhãn thì nằm DƯỚI pill, ngoài khung
+              thanh nav — nên nó bị chính thanh nav xén sạch. Đo trên bản ghi
+              màn hình: dừng chuột 1,75s trên một icon, không có gì hiện ra.
+
+              Mốc `md` (768px) là chỗ hàng header hết tràn — con số đo trong
+              ghi chú của `<nav>` ở trên: header cần ~720px, cộng đệm là ~752px.
+              Từ đó trở lên thanh nav không có gì để cuộn, nên bỏ `overflow`
+              cũng không mất gì. Dưới mốc đó thì cuộn quan trọng hơn nhãn — và
+              màn hình cảm ứng thì không có chuột để mà rê.
+            */}
             <div
-              className="nav-rail no-scrollbar max-w-full overflow-x-auto"
+              className="nav-rail no-scrollbar max-w-full overflow-x-auto md:overflow-visible"
               style={{ viewTransitionName: NAV_RAIL_VT_NAME }}
             >
               {NAV.map(({ href, labelKey, Icon }, i) => {
@@ -425,10 +459,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             */}
             <button
               type="button"
-              className={`icon-circle header-action-pop h-[46px] w-[46px]${entering ? ' header-action-pop-in' : ''}`}
+              /* `relative`: `.icon-circle` không có, mà thiếu nó thì `.nav-tip`
+                 neo vào cụm header và nhảy sang giữa hai nút. Ghi đè tại chỗ
+                 chứ không sửa `.icon-circle` — class đó dùng ở 14 chỗ khác. */
+              className={`icon-circle header-action-pop relative h-[46px] w-[46px]${entering ? ' header-action-pop-in' : ''}`}
               aria-label={t('header.notifications')}
             >
               <BellIcon size={17} />
+              <span className="nav-tip" aria-hidden="true">
+                {t('header.notifications')}
+              </span>
             </button>
             <AccountMenu open={menuOpen} onOpenChange={setMenuOpen} />
           </div>
@@ -453,6 +493,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           {children}
         </main>
+
+        {/*
+          Pill nhắc mục tiêu. Đặt ở AppShell chứ không ở trang Tổng quan: nó
+          phải nhắc được cả khi người dùng đang ở Kho đề hay Thống kê — nhắc
+          đúng lúc họ đang nhìn danh sách việc thì chẳng nhắc gì cả.
+
+          NGOÀI <main> nên hiệu ứng trượt khi đổi tab không kéo theo nó, và
+          `position: fixed` không bị `PAGE_CONTENT_STYLE` biến thành `absolute`
+          theo khung nội dung.
+        */}
+        <TodoNudge />
       </div>
     </div>
   )
@@ -554,6 +605,10 @@ function AccountMenu({
             <WarningIcon size={10} />
           </span>
         )}
+        {/* Tự tắt khi menu mở — xem `[aria-expanded='true']` ở .nav-tip */}
+        <span className="nav-tip" aria-hidden="true">
+          {t('header.account')}
+        </span>
       </button>
 
       {open && (

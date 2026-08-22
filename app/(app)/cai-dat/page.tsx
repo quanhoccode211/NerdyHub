@@ -3,7 +3,8 @@ import Link from 'next/link'
 import { PageHeader } from '@/components/shell/app-shell'
 import { ChevronRightIcon, LockIcon, SettingsIcon } from '@/components/shell/icons'
 import { optionalUser } from '@/lib/auth/session'
-import { CONSENT_PURPOSES } from '@/lib/enums'
+import { ReminderSettings } from '@/components/todos/reminder-settings'
+import { CONSENT_SETTINGS_PURPOSES } from '@/lib/enums'
 import { getT } from '@/lib/i18n/server'
 
 export const metadata: Metadata = {
@@ -27,21 +28,9 @@ export default async function SettingsPage() {
       body: t('settings.consent.serviceDesc'),
       required: true,
     },
-    ANALYTICS: {
-      title: t('settings.consent.analytics'),
-      body: t('settings.consent.analyticsDesc'),
-    },
     MARKETING_EMAIL: {
       title: t('settings.consent.marketing'),
       body: t('settings.consent.marketingDesc'),
-    },
-    LEADERBOARD_PUBLIC: {
-      title: t('settings.consent.leaderboard'),
-      body: t('settings.consent.leaderboardDesc'),
-    },
-    CALENDAR_ACCESS: {
-      title: t('settings.calendar'),
-      body: t('settings.calendarDesc'),
     },
   }
 
@@ -53,6 +42,7 @@ export default async function SettingsPage() {
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+        <div className="flex flex-col gap-6">
         <section className="panel p-7">
           <h2 className="text-[21px] font-bold">{t('settings.consentTitle')}</h2>
           <p className="mt-2 text-[14.5px] leading-relaxed text-muted-strong">
@@ -61,7 +51,7 @@ export default async function SettingsPage() {
           </p>
 
           <div className="mt-5 flex flex-col gap-3">
-            {CONSENT_PURPOSES.map((p) => {
+            {CONSENT_SETTINGS_PURPOSES.map((p) => {
               const meta = PURPOSE_LABELS[p]
               return (
                 <div key={p} className="flex items-start gap-4 rounded-2xl bg-card p-4">
@@ -107,6 +97,17 @@ export default async function SettingsPage() {
             </span>
           </p>
         </section>
+
+        {/*
+          Bảng chỉnh lời nhắc. Đặt ở /cai-dat chứ không ở /cai-dat/du-lieu: đây
+          là tuỳ chọn GIAO DIỆN lưu trên máy, không phải một sự đồng ý xử lý dữ
+          liệu — trộn vào trang kia là làm loãng đúng chỗ phải đọc kỹ nhất.
+
+          Là client component nên trang này vẫn là server component, chỉ mình nó
+          chạy ở trình duyệt (nó phải đọc localStorage).
+        */}
+        <ReminderSettings />
+        </div>
 
         <aside className="flex flex-col gap-5">
           <section className="panel p-6">

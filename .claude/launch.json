@@ -2,17 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "edu-platform-dev",
+      "name": "edu-platform",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000,
-      "autoPort": false
-    },
-    {
-      "name": "edu-platform-prod",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["next", "start", "-p", "3100"],
-      "port": 3100,
       "autoPort": false
     }
   ]

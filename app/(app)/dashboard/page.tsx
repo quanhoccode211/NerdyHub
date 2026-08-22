@@ -22,14 +22,14 @@ export const dynamic = 'force-dynamic'
 export default async function DashboardPage() {
   const [{ userId, guestId }, session] = await Promise.all([getIdentity(), auth()])
 
-  const [exams, hours, activeDates] = await Promise.all([
+  const [progress, hours, activeDates] = await Promise.all([
     getExamProgress(userId, guestId),
     getLearningHours(userId, guestId),
     getActiveDates(userId, guestId),
   ])
 
   const firstName = (session?.user?.name ?? '').trim().split(/\s+/).pop()
-  const totalDone = exams.reduce((s, e) => s + e.donePapers, 0)
+  const totalDone = progress.exams.reduce((s, e) => s + e.donePapers, 0)
   const t = await getT()
 
   return (
@@ -57,7 +57,7 @@ export default async function DashboardPage() {
 
       {/* Hàng trên: tiến độ + giờ luyện tập */}
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <TestProgress exams={exams} />
+        <TestProgress exams={progress.exams} mode={progress.mode} />
         <LearningHours
           t={t}
           series={hours.series}

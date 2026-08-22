@@ -51,4 +51,6 @@ export const LIMITS = {
   createAttempt: 20,
   sync: 60,
   submit: 10,
+  favorite: 60,
+  todo: 60,
 } as const

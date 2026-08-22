@@ -55,12 +55,13 @@ const PROVENANCES: Record<string, Parameters<typeof prisma.provenance.create>[0]
   },
   'cambridge-restricted': {
     license: 'RESTRICTED',
-    sourceName: 'Cambridge IELTS (Cambridge University Press)',
+    sourceName: 'Sách luyện thi quốc tế',
     sourceUrl: null,
-    attribution: 'Đề từ sách Cambridge IELTS (Cambridge University Press). Nội dung thuộc bản quyền nhà xuất bản.',
+    attribution:
+      'Đề từ sách luyện thi quốc tế. Nội dung thuộc bản quyền nhà xuất bản.',
     canPublish: true,
     notes:
-      'CHỈ tham khảo nội bộ, KHÔNG có quyền phân phối. Muốn mở ra công khai thì phải có văn bản cho phép của Cambridge University Press và đổi license sang LICENSED kèm licenseDocUrl — đừng chỉ bật canPublish.',
+      'CHỈ tham khảo nội bộ, KHÔNG có quyền phân phối. Nguồn thật là sách Cambridge IELTS (Cambridge University Press) — tên đó CỐ Ý không ra UI, chỉ nằm ở trường notes này. Muốn mở ra công khai thì phải có văn bản cho phép của nhà xuất bản và đổi license sang LICENSED kèm licenseDocUrl — đừng chỉ bật canPublish.',
   },
 }
 

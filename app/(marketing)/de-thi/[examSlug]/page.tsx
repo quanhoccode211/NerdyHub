@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { PageHeader } from '@/components/shell/app-shell'
 import { StartButtons } from '@/components/catalog/start-buttons'
+import { FavoriteStar } from '@/components/exams/favorite-star'
 import { ChevronRightIcon, ClockIcon, FlagIcon } from '@/components/shell/icons'
 import {
   getAvailableYears,
@@ -192,11 +193,23 @@ export default async function ExamLandingPage({ params, searchParams }: Props) {
                   ))}
                 </div>
 
-                <h3 className="mt-3 text-[20px] font-semibold">
-                  <Link href={`/de-thi/${exam.slug}/${paper.slug}`} className="hover:text-purple">
-                    {paper.title}
-                  </Link>
-                </h3>
+                {/*
+                  Ngôi sao nằm CÙNG HÀNG với tên đề, không phải trong cụm nút
+                  bên phải: cụm đó là "bắt đầu làm bài", còn đánh dấu quan tâm
+                  là một hành động khác hẳn về mức cam kết. Đặt cạnh nhau thì
+                  người ta bấm nhầm cái đắt hơn.
+
+                  `min-w-0` cho thẻ <h3> co được, nếu không thì tên đề dài đẩy
+                  ngôi sao tràn khỏi thẻ.
+                */}
+                <div className="mt-3 flex items-start gap-2">
+                  <h3 className="min-w-0 flex-1 text-[20px] font-semibold">
+                    <Link href={`/de-thi/${exam.slug}/${paper.slug}`} className="hover:text-purple">
+                      {paper.title}
+                    </Link>
+                  </h3>
+                  <FavoriteStar paperId={paper.id} className="-mt-1" />
+                </div>
 
                 <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[15px] text-muted-strong">
                   <span className="flex items-center gap-1.5">

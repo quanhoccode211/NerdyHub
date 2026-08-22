@@ -5,6 +5,7 @@ import { SaveRecordHint } from '@/components/catalog/save-record-hint'
 import { ChevronRightIcon } from '@/components/shell/icons'
 import { getExamsWithCounts } from '@/lib/queries'
 import { formatNumber } from '@/lib/format'
+import { FavoriteStar } from '@/components/exams/favorite-star'
 import {
   EXAM_CATEGORIES,
   EXAM_CATEGORY_LABELS,
@@ -76,11 +77,30 @@ export default async function ExamCatalogPage() {
                   `overflow-hidden` để dải màu bị cắt theo góc bo của thẻ; thiếu
                   nó thì dải chạy thẳng ra ngoài và đâm thủng hai góc trái.
                 */
-                <Link
+                /*
+                  THẺ KHÔNG CÒN LÀ MỘT <Link> BỌC TẤT CẢ.
+
+                  Ngôi sao là một <button>, mà <button> lồng trong <a> là HTML
+                  không hợp lệ: trình duyệt tự gỡ rối theo kiểu riêng của mình
+                  và bàn phím thì không còn tab tới được cả hai. Nên đảo lại —
+                  thẻ là <div>, và <Link> phủ TOÀN MẶT thẻ bằng `absolute
+                  inset-0`. Cả mặt thẻ vẫn bấm được y như cũ, chỉ khác là ngôi
+                  sao nằm ở lớp trên (`z-10`) nên nó nhận cú bấm trước.
+
+                  `group` giữ nguyên trên thẻ chứ không chuyển sang <Link>: chữ
+                  "Xem ›" đổi màu theo `group-hover`, mà rê chuột ở bất kỳ đâu
+                  trên thẻ đều phải kích hoạt nó.
+                */
+                <div
                   key={exam.id}
-                  href={`/de-thi/${exam.slug}`}
                   className="card group relative overflow-hidden py-7 pr-7 pl-8 transition-transform hover:-translate-y-1"
                 >
+                  {/* Lớp phủ bấm được. `z-0` để nó nằm dưới ngôi sao. */}
+                  <Link
+                    href={`/de-thi/${exam.slug}`}
+                    aria-label={exam.name}
+                    className="absolute inset-0 z-0"
+                  />
                   {/* Dải màu tượng trưng — xem languageStripe() trong lib/enums.ts */}
                   <span
                     aria-hidden="true"
@@ -96,9 +116,14 @@ export default async function ExamCatalogPage() {
                       </h3>
                       <p className="mt-1 truncate text-[14px] text-muted">{exam.fullName}</p>
                     </div>
-                    <span className="pill flex-none bg-soft text-[13.5px] text-muted-strong">
-                      {LANGUAGE_LABELS[exam.language as Language]}
-                    </span>
+                    {/* Sao ĐỨNG SAU pill ngôn ngữ, cùng một cụm ở góc phải trên.
+                        `z-10` để nó nổi lên trên lớp phủ <Link>. */}
+                    <div className="relative z-10 flex flex-none items-center gap-1.5">
+                      <span className="pill bg-soft text-[13.5px] text-muted-strong">
+                        {LANGUAGE_LABELS[exam.language as Language]}
+                      </span>
+                      <FavoriteStar examId={exam.id} />
+                    </div>
                   </div>
 
                   <p className="mt-4 line-clamp-3 text-[15px] leading-relaxed text-muted-strong">
@@ -113,7 +138,7 @@ export default async function ExamCatalogPage() {
                       Xem <ChevronRightIcon size={15} />
                     </span>
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           </section>

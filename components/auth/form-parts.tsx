@@ -82,13 +82,9 @@ export function SubmitButton({
   CHỈ chứa các mục đích được hỏi bằng ô tích trên form này — xem
   `CONSENT_FORM_PURPOSES` trong lib/enums.ts.
 
-  Ba mục còn lại KHÔNG biến mất, chỉ đổi chỗ hỏi:
-    • ANALYTICS và LEADERBOARD_PUBLIC nằm trong Điều khoản sử dụng, mà điều
-      khoản là bắt buộc mới tạo được tài khoản.
-    • CALENDAR_ACCESS hỏi đúng lúc bấm kết nối ở /lich-on.
-
-  Cả ba vẫn bật/tắt được ở trang Cài đặt, nên quyền rút lại từng mục theo NĐ 13
-  không mất đi đâu cả.
+  Mục còn lại là CALENDAR_ACCESS, hỏi đúng lúc bấm kết nối ở /lich-on và rút
+  lại bằng nút ngắt kết nối ngay tại đó — nên quyền rút lại từng mục theo NĐ 13
+  không mất đi đâu cả, chỉ khác chỗ bấm.
 */
 const CONSENT_LABELS: Record<
   (typeof CONSENT_FORM_PURPOSES)[number],

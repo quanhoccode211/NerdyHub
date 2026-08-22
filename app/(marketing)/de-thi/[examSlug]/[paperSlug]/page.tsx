@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { PageHeader } from '@/components/shell/app-shell'
 import { StartButtons } from '@/components/catalog/start-buttons'
+import { FavoriteStar } from '@/components/exams/favorite-star'
 import { NoSpeakingNote } from '@/components/catalog/no-speaking-note'
 import { ChevronRightIcon, FlagIcon, LockIcon, WarningIcon } from '@/components/shell/icons'
 import { getPublicPaper, getRelatedPapers } from '@/lib/queries'
@@ -103,6 +104,7 @@ export default async function PaperDetailPage({ params }: Props) {
       <PageHeader
         title={paper.title}
         subtitle={`${paper.exam.fullName}${paper.level ? ` · ${paper.level.name}` : ''}`}
+        actions={<FavoriteStar paperId={paper.id} />}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
