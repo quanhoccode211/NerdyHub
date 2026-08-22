@@ -48,7 +48,7 @@ export default async function ExamLandingPage({ params, searchParams }: Props) {
     level: typeof sp.level === 'string' ? sp.level : undefined,
     skill: typeof sp.skill === 'string' ? sp.skill : undefined,
     year: typeof sp.year === 'string' ? sp.year : undefined,
-    sort: sp.sort === 'newest' || sp.sort === 'duration' ? sp.sort : 'popular',
+    sort: sp.sort === 'popular' || sp.sort === 'duration' ? sp.sort : 'newest',
   }
 
   const exam = await getExamBySlug(examSlug)
@@ -66,7 +66,7 @@ export default async function ExamLandingPage({ params, searchParams }: Props) {
     const q = new URLSearchParams()
     const merged = { ...filters, ...patch }
     for (const [k, v] of Object.entries(merged)) {
-      if (v && !(k === 'sort' && v === 'popular')) q.set(k, String(v))
+      if (v && !(k === 'sort' && v === 'newest')) q.set(k, String(v))
     }
     const s = q.toString()
     return `${basePath}${s ? `?${s}` : ''}`
